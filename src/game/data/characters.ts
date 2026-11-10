@@ -1,4 +1,4 @@
-import type { Character, Stat } from '../types'
+import type { Character, Stat } from '../types.js'
 
 export const SPECIALTIES: { name: string; desc: string }[] = [
   { name: '矿道熟手', desc: '辨认矿井结构与危险支撑' },
@@ -93,6 +93,7 @@ export function makeCharacter(p: Preset): Character {
     stress: 0,
     advantage: 1,
     statuses: [],
+    conds: [],
     out: false,
   }
 }

@@ -1,7 +1,7 @@
-import type { EndingId, GameState } from './types'
-import { CLUES, FACTS, knowsFact } from './data/clues'
-import { LOC_NAMES } from './data/scenes'
-import { getChar } from './fx'
+import type { EndingId, GameState, Tier } from './types.js'
+import { CLUES, FACTS, knowsFact } from './data/clues.js'
+import { LOC_NAMES } from './data/scenes.js'
+import { getChar } from './fx.js'
 
 const f = (s: GameState, k: string) => s.flags[k]
 
@@ -146,4 +146,15 @@ export function buildSummary(s: GameState): string {
   const known = FACTS.filter((x) => knowsFact(s.clues, x.id)).map((x) => x.title)
   const party = s.party.map((c) => `${c.name} 承压${c.stress}/3 优势${c.advantage}`).join('；')
   return `队伍目前在${loc}。已经知道：${known.length ? known.join('；') : '还没有确认任何真相'}。当前目标是找到测绘队并查明回声井的真相。回声压力 ${s.pressure}/6。角色状态：${party}。`
+}
+
+export function offlineCustomEnding(s: GameState, plan: string, tier: Tier): string[] {
+  const p = [`你们决定：${plan}`]
+  if (tier === 'hit') p.push('方案奏效了。井在你们手中第一次安静下来——不是因为被压制，而是因为它终于得到了一个清楚的答案。')
+  else if (tier === 'partial') p.push('方案大体奏效，但代价比预想的更沉重：低层通道在你们身后坍塌，有一些回声，再也找不回来了。')
+  else p.push('方案只实现了一半。井在失控的边缘被勉强按住，你们带着伤和缺口离开——它迟早还会醒来。')
+  p.push(s.flags.ningPersuaded ? '宁芮站在你们身边，看着这一切发生。她没有阻止，只是轻声说了句“谢谢”，不知是对你们，还是对井里的那个声音。' : '宁芮始终没有完全接受你们的决定。离开时，她回头看了很久。')
+  if (s.flags.luduoAtCore) p.push('陆铎把这一切写进了报告。公会会如何回应，没人说得准。')
+  if (s.flags.evelynWith || s.flags.evelynSolo) p.push('伊芙琳留在了第七道门边。她说，无论结果如何，总得有人记得这里发生过什么。')
+  return p
 }

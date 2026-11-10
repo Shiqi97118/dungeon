@@ -1,9 +1,9 @@
-import type { ActionDef, GameState, LocId, SceneDef } from '../types'
+import type { ActionDef, GameState, LocId, SceneDef } from '../types.js'
 import {
   addClue, addPressure, addStress, echo, flag, gainAdv, getChar, giveItem, hasClue,
   meet, narr, npc, setFlag, startCrisis, sys,
-} from '../fx'
-import { knowsFact } from './clues'
+} from '../fx.js'
+import { knowsFact } from './clues.js'
 
 const has = (s: GameState, id: string) => s.party.some((c) => c.id === id)
 const anySpec = (s: GameState, spec: string) => s.party.find((c) => c.specialties.includes(spec))

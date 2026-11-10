@@ -1,5 +1,5 @@
-import type { Character, CostId, GameState, LogKind, NpcId } from './types'
-import { CLUES } from './data/clues'
+import type { Character, CostId, GameState, LogKind, NpcId } from './types.js'
+import { CLUES } from './data/clues.js'
 
 export const PRESSURE_EVENTS: Record<number, string> = {
   1: '远处传来彼此熟悉、却还没有人说过的话。',

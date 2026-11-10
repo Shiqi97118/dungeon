@@ -1,16 +1,26 @@
 import { produce } from 'immer'
-import type { ActionDef, Character, CostId, EndingId, GameState, LocId, Stat, Tier } from './types'
-import { STAT_NAMES } from './types'
-import { CRISIS_ACTIONS, LOC_NAMES, LUDUO_ACTIONS, SCENES, crisisOutcome, luduoArrives, routeKnown } from './data/scenes'
+import type {
+  ActionDef, Boost, Character, CondId, CostId, EndingId, GameState, LocId, RollKind, RollReq, RollSpec, Stat, Tier,
+} from './types.js'
+import { STAT_NAMES } from './types.js'
+import { CRISIS_ACTIONS, LOC_NAMES, LUDUO_ACTIONS, SCENES, crisisOutcome, luduoArrives, routeKnown } from './data/scenes.js'
 import {
   addClue, addPressure, addStress, applyCost, echo, gainAdv, getChar, log, loseItem, narr, setFlag, sys,
-} from './fx'
-import { buildEnding } from './endings'
-import { CLUES } from './data/clues'
+} from './fx.js'
+import { buildEnding, offlineCustomEnding } from './endings.js'
+import { CLUES } from './data/clues.js'
+import {
+  AI_CONDS, CONDS, OVERFLOW_CONDS, addCond, canAct, clearBadConds, condLabel, condStatMod, condsOf, missHazard,
+  onTurnStart, removeCond, rollInitiative, tickRound,
+} from './conds.js'
 
-export const SAVE_VERSION = 3
+export type { Boost } from './types.js'
 
-export function newGame(party: Character[], safety: GameState['safety']): GameState {
+export const SAVE_VERSION = 4
+
+const d6 = () => 1 + Math.floor(Math.random() * 6)
+
+export function newGame(party: Character[], safety: GameState['safety'], opts: { turns?: boolean } = {}): GameState {
   const s: GameState = {
     version: SAVE_VERSION,
     phase: 'play',
@@ -40,7 +50,72 @@ export function newGame(party: Character[], safety: GameState['safety']): GameSt
   return produce(s, (d) => {
     sys(d, '这是一场地下探索故事。你们可以调查、交涉、潜行、战斗、自创方案或撤退。失败会带来代价，但关键线索不会因此消失。')
     enter(d, 'gate')
+    if (opts.turns) {
+      sys(d, '回合制：每一轮按「灵巧×2 + 1d6 + 状态修正」决定行动顺序。中毒、失温会拖慢你，昏迷会让你错过回合。')
+      startRound(d)
+    }
   })
+}
+
+function startRound(d: GameState) {
+  const t = d.turns ?? { round: 0, order: [], idx: 0, activeId: null }
+  let order = rollInitiative(d.party.filter(canAct))
+  if (t.round > 0) tickRound(d)
+  if (!order.length) {
+    d.party.forEach((c) => { c.out = false; removeCond(d, c.id, 'stun', true) })
+    narr(d, '黑暗里，你们摸索着找到彼此的手，一个接一个地重新站了起来。')
+    order = rollInitiative(d.party)
+  }
+  t.round += 1
+  t.order = order
+  t.idx = 0
+  t.activeId = null
+  d.turns = t
+  const names = order.map((e) => `${getChar(d, e.id)?.name}(${e.total})`).join(' › ')
+  log(d, 'turn', `第 ${t.round} 轮 · 先攻顺序：${names}`)
+  beginTurn(d)
+}
+
+function beginTurn(d: GameState) {
+  const t = d.turns!
+  while (t.idx < t.order.length) {
+    const c = getChar(d, t.order[t.idx].id)
+    if (c && canAct(c)) break
+    if (c) log(d, 'event', `${c.name}${c.out ? '暂时不在场' : '昏迷不醒'}，跳过回合`)
+    t.idx += 1
+  }
+  if (t.idx >= t.order.length) return startRound(d)
+  const c = getChar(d, t.order[t.idx].id)!
+  t.activeId = c.id
+  log(d, 'turn', `轮到 ${c.name}`, c.id)
+  onTurnStart(d, c)
+}
+
+function nextTurn(d: GameState) {
+  if (!d.turns) return
+  d.turns.idx += 1
+  beginTurn(d)
+}
+
+function settleTurn(d: GameState) {
+  if (!d.turns || d.phase !== 'play' || d.queue.length || d.rolling || d.rollReq) return
+  const active = getChar(d, d.turns.activeId ?? undefined)
+  if (d.turnSpent || !active || !canAct(active)) {
+    d.turnSpent = false
+    nextTurn(d)
+  }
+}
+
+export function activeChar(s: GameState): Character | undefined {
+  return s.turns ? getChar(s, s.turns.activeId ?? undefined) : undefined
+}
+
+export function actingCharId(s: GameState): string | null {
+  const p = s.queue[0]
+  if (p?.type === 'cost') return p.actorId
+  if (p?.type === 'overflow') return p.charId
+  if (s.rolling) return s.rolling.actorId
+  return s.turns?.activeId ?? null
 }
 
 function enter(d: GameState, to: LocId) {
@@ -102,6 +177,7 @@ export function availableActions(s: GameState): ActionDef[] {
       list.push(a)
     }
   }
+  list.push(...careActions(s))
   if (s.location !== 'gate') {
     if (!s.flags[`rest_${s.location}`] && s.party.some((c) => c.stress > 0)) {
       list.push({ id: 'rest_short', group: 'act', label: '短暂休息，互相照料', hint: '每人承压 -1；每个地点一次' })
@@ -118,11 +194,39 @@ export function availableActions(s: GameState): ActionDef[] {
   return list
 }
 
+const TREATABLE: CondId[] = ['poison', 'bleed', 'chill', 'tremble']
+
+function careActions(s: GameState): ActionDef[] {
+  const list: ActionDef[] = []
+  for (const c of s.party) {
+    if (condsOf(c).some((x) => x.id === 'stun')) {
+      list.push({
+        id: `wake_${c.id}`, group: 'act', label: `唤醒${c.name}`, hint: '解除昏迷', repeatable: true,
+        run: (d) => {
+          removeCond(d, c.id, 'stun', true)
+          narr(d, `有人拍着${c.name}的脸，一遍遍叫着名字——直到那双眼睛重新聚焦。`)
+        },
+      })
+    }
+    const bad = condsOf(c).filter((x) => TREATABLE.includes(x.id))
+    if (bad.length) {
+      list.push({
+        id: `aid_${c.id}`, group: 'act', label: `照料${c.name}（${bad.map((x) => CONDS[x.id].name).join('、')}）`, repeatable: true,
+        roll: { stat: 'ins', specialties: ['急救者'], risk: '手忙脚乱会浪费时间，甚至让伤势恶化。', partialCosts: ['stress', 'item', 'pressure'], missCosts: ['stress', 'pressure'] },
+        outcomes: {
+          hit: (d) => { clearBadConds(d, c.id, TREATABLE); narr(d, `处理得干净利落。${c.name}的呼吸重新平稳下来。`) },
+          partial: (d) => { const first = condsOf(getChar(d, c.id)!).find((x) => TREATABLE.includes(x.id)); if (first) removeCond(d, c.id, first.id); narr(d, '勉强处理好了最要紧的部分。') },
+          miss: (d) => narr(d, '绷带、药粉、颤抖的手——情况没有好转，黑暗里的回声却更近了。'),
+        },
+      })
+    }
+  }
+  return list
+}
+
 export function findAction(s: GameState, id: string): ActionDef | undefined {
   return availableActions(s).find((a) => a.id === id)
 }
-
-export type Boost = { kind: 'none' } | { kind: 'item'; item: string } | { kind: 'help'; id: string } | { kind: 'joan' }
 
 export interface RollCalc {
   stat: Stat
@@ -138,10 +242,12 @@ export function calcRoll(s: GameState, a: ActionDef, actor: Character, boost: Bo
   const stat = statOverride ?? r.stat
   const statVal = actor.stats[stat]
   const spec = actor.specialties.find((x) => r.specialties.includes(x)) ?? null
-  const auto = r.mod ? r.mod(s) : 0
+  const cm = condStatMod(actor, stat)
+  const auto = (r.mod ? r.mod(s) : 0) + cm
   let b = 0
   const labels: string[] = []
-  if (auto) labels.push(r.modLabel ?? '情境')
+  if (auto - cm) labels.push(r.modLabel ?? '情境')
+  if (cm) labels.push(condLabel(actor, stat))
   if (boost.kind === 'item') { b = 1; labels.push(`使用${boost.item}`) }
   if (boost.kind === 'help') { b = 1; labels.push(`${getChar(s, boost.id)?.name}协助`) }
   if (boost.kind === 'joan') { b = 1; labels.push('乔安协助') }
@@ -167,11 +273,20 @@ export type GameAction =
   | { type: 'volunteer'; who: string; text: string }
   | { type: 'deliver'; variant: 'oversight' | 'split' | 'hide' }
   | { type: 'free'; text: string; actorId: string; stat: Stat; dice: [number, number]; mod: number }
-  | { type: 'ai'; actorText?: string; narration: string; speaker?: string; effects?: AiEffects; roll?: { actorId: string; stat: Stat; dice: [number, number]; mod: number } }
+  | { type: 'ai'; actorText?: string; actorName?: string; narration: string; speaker?: string; effects?: AiEffects; roll?: { actorId: string; stat: Stat; dice: [number, number]; mod: number }; thenRoll?: RollReq }
   | { type: 'customEnding'; plan: string; paragraphs: string[] }
   | { type: 'takeaways'; takeaways: Record<string, string> }
   | { type: 'replace'; state: GameState }
   | { type: 'dismissQueue' }
+  | { type: 'rollStart'; kind: RollKind; id?: string; actorId: string; boost: Boost; stat?: Stat; specOn?: boolean }
+  | { type: 'rollReroll' }
+  | { type: 'rollCommit'; ai?: { narration: string; speaker?: string; effects?: AiEffects }; paragraphs?: string[] }
+  | { type: 'rollReq'; req: RollReq | null }
+  | { type: 'rollReqCancel' }
+  | { type: 'pass' }
+  | { type: 'thinking'; text: string | null }
+
+export interface AiNarration { narration: string; speaker?: string; effects?: AiEffects }
 
 export interface AiEffects {
   pressure?: number
@@ -183,52 +298,199 @@ export interface AiEffects {
   moveTo?: string
   npc?: { id: string; attitude?: string; where?: string; status?: string }[]
   flags?: string[]
+  conds?: { charId: string; id: string; remove?: boolean }[]
   ending?: string
 }
 
 const AI_FLAG_WHITELIST = ['know_B', 'know_C', 'know_D', 'know_E', 'know_F', 'route_G', 'beastDone', 'ningPersuaded', 'ningDecided', 'joanJoined', 'evelynWith', 'xiaokui', 'laowen', 'rescueDone', 'sluiceReady', 'bellsSolved']
 
+const BLOCKING: GameAction['type'][] = ['perform', 'roll', 'free', 'rollStart', 'pass', 'customEnding']
+
 export function reduce(state: GameState, action: GameAction): GameState {
   if (action.type === 'replace') return action.state
   return produce(state, (d) => {
     d.turn += 1
+    step(d, action)
+    if (action.type !== 'thinking') d.thinking = null
+    maybeFinish(d)
+    settleTurn(d)
+  })
+}
+
+function resolveActionRoll(d: GameState, id: string, actorId: string, boost: Boost, dice: [number, number], mod: number) {
+  const a = findAction(d, id)
+  const actor = getChar(d, actorId)
+  if (!a || !a.roll || !actor) return
+  const sum = dice[0] + dice[1] + mod
+  const tier = tierOf(sum)
+  log(d, 'player', a.label, actor.name)
+  d.seq += 1
+  d.log.push({ id: d.seq, kind: 'roll', text: `${actor.name} · ${STAT_NAMES[a.roll.stat]}检定`, dice, total: sum, tier })
+  if (!a.repeatable) d.used.push(a.id)
+  const helperId = boost.kind === 'help' ? boost.id : undefined
+  if (boost.kind === 'item') actor.spentItems.push(boost.item)
+  if (boost.kind === 'joan') d.flags.joanHelpedAt = d.location
+  if (helperId) {
+    const h = getChar(d, helperId)
+    if (h && h.helpedAt !== d.location) {
+      h.helpedAt = d.location
+      gainAdv(d, h.id, '帮助他人')
+    }
+  }
+  const ctx = { tier, actor, actorId: actor.id, helperId }
+  if (a.id.startsWith('cr_')) crisisOutcome(d, tier, a.id)
+  else a.outcomes?.[tier](d, ctx)
+  afterRoll(d, tier, actor.id, a.id)
+  queueCosts(d, a, tier, actor, helperId)
+  d.turnSpent = true
+}
+
+function resolveFree(d: GameState, text: string, actorId: string, stat: Stat, dice: [number, number], mod: number) {
+  const actor = getChar(d, actorId)
+  if (!actor) return
+  const sum = dice[0] + dice[1] + mod
+  const tier = tierOf(sum)
+  log(d, 'player', text, actor.name)
+  d.seq += 1
+  d.log.push({ id: d.seq, kind: 'roll', text: `${actor.name} · ${STAT_NAMES[stat]}检定（自由行动）`, dice, total: sum, tier })
+  freeOutcome(d, tier, actor)
+  afterRoll(d, tier, actor.id, 'free')
+  d.turnSpent = true
+}
+
+function afterRoll(d: GameState, tier: Tier, actorId: string, actionId: string) {
+  if (tier === 'miss') missHazard(d, actorId, actionId)
+  if (tier === 'hit' && d.turns) addCond(d, actorId, 'focus', '抢到了节奏')
+}
+
+function validBoost(d: GameState, spec: RollSpec, actor: Character, stat: Stat, b: Boost): Boost {
+  if (b.kind === 'item' && (spec.items ?? []).includes(b.item) && actor.items.includes(b.item) && !actor.spentItems.includes(b.item)) return b
+  if (b.kind === 'help' && spec.allowHelp !== false) {
+    const h = getChar(d, b.id)
+    if (h && h.id !== actor.id && canAct(h)) return b
+  }
+  if (b.kind === 'joan' && d.flags.joanJoined && d.flags.joanHelpedAt !== d.location && stat !== 'str') return b
+  return { kind: 'none' }
+}
+
+function step(d: GameState, action: GameAction) {
+  if (d.rolling && action.type !== 'rollReroll' && action.type !== 'rollCommit' && action.type !== 'thinking') return
+  if (BLOCKING.includes(action.type) && (d.queue.length > 0 || d.phase !== 'play')) return
+  if (d.rollReq && (action.type === 'perform' || action.type === 'roll' || action.type === 'pass')) return
     switch (action.type) {
       case 'perform': {
         const a = findAction(d, action.id)
         if (!a) return
-        if (a.locked?.(d)) return
+        if (a.locked?.(d) || a.roll) return
+        d.turnSpent = true
         if (action.id === 'rest_short') return restShort(d)
         if (action.id === 'rest_long') return restLong(d)
         if (!a.repeatable && !a.id.startsWith('go_')) d.used.push(a.id)
-        log(d, 'player', a.label)
+        log(d, 'player', a.label, activeChar(d)?.name)
         a.run?.(d, {})
         if (a.to) enter(d, a.to)
         break
       }
       case 'roll': {
-        const a = findAction(d, action.id)
+        resolveActionRoll(d, action.id, action.actorId, action.boost, action.dice, action.mod)
+        break
+      }
+      case 'rollStart': {
         const actor = getChar(d, action.actorId)
-        if (!a || !a.roll || !actor) return
-        const sum = action.dice[0] + action.dice[1] + action.mod
-        const tier = tierOf(sum)
-        log(d, 'player', a.label, actor.name)
-        d.seq += 1
-        d.log.push({ id: d.seq, kind: 'roll', text: `${actor.name} · ${STAT_NAMES[a.roll.stat]}检定`, dice: action.dice, total: sum, tier })
-        if (!a.repeatable) d.used.push(a.id)
-        const helperId = action.boost.kind === 'help' ? action.boost.id : undefined
-        if (action.boost.kind === 'item') actor.spentItems.push(action.boost.item)
-        if (action.boost.kind === 'joan') d.flags.joanHelpedAt = d.location
-        if (helperId) {
-          const h = getChar(d, helperId)
-          if (h && h.helpedAt !== d.location) {
-            h.helpedAt = d.location
-            gainAdv(d, h.id, '帮助他人')
-          }
+        if (!actor || !canAct(actor)) return
+        if (d.turns && d.turns.activeId !== actor.id) return
+        let spec: RollSpec
+        let title: string
+        let text: string | undefined
+        let kind: RollKind
+        if (action.kind === 'action') {
+          if (d.rollReq) return
+          const a = findAction(d, action.id ?? '')
+          if (!a?.roll || a.locked?.(d)) return
+          spec = a.roll
+          title = a.label
+          kind = 'action'
+        } else {
+          const rq = d.rollReq
+          if (!rq) return
+          if (rq.actorId && d.turns && rq.actorId !== actor.id) return
+          const stat = rq.statChoosable && action.stat && STAT_NAMES[action.stat] ? action.stat : rq.stat
+          spec = { stat, specialties: [], risk: rq.risk }
+          title = rq.title
+          text = rq.text
+          kind = rq.kind
         }
-        const ctx = { tier, actor, actorId: actor.id, helperId }
-        if (a.id.startsWith('cr_')) crisisOutcome(d, tier, a.id)
-        else a.outcomes?.[tier](d, ctx)
-        queueCosts(d, a, tier, actor, helperId)
+        const boost = validBoost(d, spec, actor, spec.stat, action.boost)
+        const pseudo: ActionDef = { id: action.id ?? 'x', label: title, group: 'act', roll: spec }
+        const calc = calcRoll(d, pseudo, actor, boost, spec.stat)
+        const extra = kind !== 'action' && action.specOn && !calc.spec ? 1 : 0
+        const mod = Math.max(-2, Math.min(3, calc.total + extra))
+        d.seq += 1
+        d.rolling = {
+          kind, id: action.kind === 'action' ? action.id : undefined, title, text, risk: spec.risk,
+          actorId: actor.id, stat: spec.stat, boost, mod, dice: [d6(), d6()], rerolled: false, nonce: d.seq,
+        }
+        d.rollReq = null
+        break
+      }
+      case 'rollReroll': {
+        const r = d.rolling
+        const c = getChar(d, r?.actorId)
+        if (!r || !c || r.rerolled || c.advantage <= 0) return
+        if (tierOf(r.dice[0] + r.dice[1] + r.mod) === 'hit') return
+        c.advantage -= 1
+        const idx = r.dice[0] <= r.dice[1] ? 0 : 1
+        r.dice[idx] = d6()
+        r.rerolled = true
+        d.seq += 1
+        r.nonce = d.seq
+        log(d, 'event', `${c.name} 花费 1 点优势，重掷一颗骰子`)
+        break
+      }
+      case 'rollCommit': {
+        const r = d.rolling
+        if (!r) return
+        d.rolling = null
+        if (r.kind === 'action') resolveActionRoll(d, r.id ?? '', r.actorId, r.boost, r.dice, r.mod)
+        else if (r.kind === 'free' || (r.kind === 'ai' && !action.ai)) resolveFree(d, r.text ?? r.title, r.actorId, r.stat, r.dice, r.mod)
+        else if (r.kind === 'ai' && action.ai) {
+          const actor = getChar(d, r.actorId)
+          const sum = r.dice[0] + r.dice[1] + r.mod
+          d.seq += 1
+          d.log.push({ id: d.seq, kind: 'roll', text: `${actor?.name ?? ''} · ${STAT_NAMES[r.stat]}检定`, dice: r.dice, total: sum, tier: tierOf(sum) })
+          aiNarrate(d, action.ai)
+          afterRoll(d, tierOf(sum), r.actorId, 'free')
+          d.turnSpent = true
+        } else if (r.kind === 'final') {
+          const tier = tierOf(r.dice[0] + r.dice[1] + r.mod)
+          const plan = r.text ?? r.title
+          const paragraphs = action.paragraphs?.length ? action.paragraphs : offlineCustomEnding(d, plan, tier)
+          const actor = getChar(d, r.actorId)
+          d.seq += 1
+          d.log.push({ id: d.seq, kind: 'roll', text: `${actor?.name ?? ''} · 终局方案`, dice: r.dice, total: r.dice[0] + r.dice[1] + r.mod, tier })
+          const e = buildEnding(d, 'custom', { custom: paragraphs })
+          d.ending = { id: 'custom', title: e.title, paragraphs: e.paragraphs, takeaways: {}, customPlan: plan }
+          d.phase = 'ending'
+        }
+        break
+      }
+      case 'rollReq': {
+        d.rollReq = action.req
+        break
+      }
+      case 'rollReqCancel': {
+        if (d.rollReq?.cancellable) d.rollReq = null
+        break
+      }
+      case 'pass': {
+        const c = activeChar(d)
+        if (!c) return
+        log(d, 'event', `${c.name} 选择观望，结束了回合`)
+        d.turnSpent = true
+        break
+      }
+      case 'thinking': {
+        d.thinking = action.text
         break
       }
       case 'spendReroll': {
@@ -265,9 +527,7 @@ export function reduce(state: GameState, action: GameAction): GameState {
         if (action.option === 'apart') { c.out = true; narr(d, `回声扭曲了通道，${c.name}与队伍短暂地走散了——直到下一个地点才重新会合。`) }
         if (action.option === 'item') loseItem(d, c.id)
         if (action.option === 'status') {
-          const st = ['颤抖', '耳鸣', '迷失方向', '短暂失声'][Math.floor(Math.random() * 4)]
-          c.statuses.push(st)
-          log(d, 'event', `${c.name} 获得短期状态：${st}`)
+          addCond(d, c.id, OVERFLOW_CONDS[Math.floor(Math.random() * OVERFLOW_CONDS.length)], '承压溢出')
         }
         break
       }
@@ -332,28 +592,21 @@ export function reduce(state: GameState, action: GameAction): GameState {
         break
       }
       case 'free': {
-        const actor = getChar(d, action.actorId)
-        if (!actor) return
-        const sum = action.dice[0] + action.dice[1] + action.mod
-        const tier = tierOf(sum)
-        log(d, 'player', action.text, actor.name)
-        d.seq += 1
-        d.log.push({ id: d.seq, kind: 'roll', text: `${actor.name} · ${STAT_NAMES[action.stat]}检定（自由行动）`, dice: action.dice, total: sum, tier })
-        freeOutcome(d, tier, actor)
+        resolveFree(d, action.text, action.actorId, action.stat, action.dice, action.mod)
         break
       }
       case 'ai': {
-        if (action.actorText) log(d, 'player', action.actorText)
+        if (d.queue.length || d.phase !== 'play') return
+        if (action.actorText) log(d, 'player', action.actorText, action.actorName)
         if (action.roll) {
           const actor = getChar(d, action.roll.actorId)
           const sum = action.roll.dice[0] + action.roll.dice[1] + action.roll.mod
           d.seq += 1
           d.log.push({ id: d.seq, kind: 'roll', text: `${actor?.name ?? ''} · ${STAT_NAMES[action.roll.stat]}检定`, dice: action.roll.dice, total: sum, tier: tierOf(sum) })
         }
-        for (const para of action.narration.split(/\n+/).map((x) => x.trim()).filter(Boolean)) {
-          log(d, 'ai', para, action.speaker)
-        }
-        if (action.effects) applyAiEffects(d, action.effects)
+        aiNarrate(d, action)
+        if (action.thenRoll) d.rollReq = action.thenRoll
+        else d.turnSpent = true
         break
       }
       case 'customEnding': {
@@ -371,8 +624,13 @@ export function reduce(state: GameState, action: GameAction): GameState {
         break
       }
     }
-    maybeFinish(d)
-  })
+}
+
+function aiNarrate(d: GameState, a: AiNarration) {
+  for (const para of a.narration.split(/\n+/).map((x) => x.trim()).filter(Boolean)) {
+    log(d, 'ai', para.slice(0, 600), a.speaker)
+  }
+  if (a.effects) applyAiEffects(d, a.effects)
 }
 
 function npc(d: GameState, speaker: string, text: string) {
@@ -457,6 +715,11 @@ function applyAiEffects(d: GameState, e: AiEffects) {
     }
   }
   for (const fl of e.flags ?? []) if (AI_FLAG_WHITELIST.includes(fl)) setFlag(d, fl)
+  for (const c of (e.conds ?? []).slice(0, 4)) {
+    if (!getChar(d, c.charId) || !(AI_CONDS as string[]).includes(c.id)) continue
+    if (c.remove) removeCond(d, c.charId, c.id as CondId)
+    else addCond(d, c.charId, c.id as CondId, '主持人裁定')
+  }
   if (e.moveTo && (MOVE_ORDER as string[]).includes(e.moveTo) && e.moveTo !== d.location && routeKnown(d, e.moveTo as LocId)) {
     enter(d, e.moveTo as LocId)
   }
@@ -467,6 +730,7 @@ function restShort(d: GameState) {
   log(d, 'player', '短暂休息，互相照料')
   narr(d, '你们背靠岩壁坐下，分享最后一点热水，互相检查伤口。没有人说话，但呼吸慢慢平稳下来。')
   d.party.forEach((c) => { if (c.stress > 0) c.stress -= 1 })
+  d.party.forEach((c) => clearBadConds(d, c.id, ['poison', 'bleed', 'stun']))
   const medic = d.party.find((c) => c.specialties.includes('急救者') && !c.out)
   if (medic) {
     const worst = [...d.party].sort((a, b) => b.stress - a.stress)[0]
@@ -483,7 +747,7 @@ function restLong(d: GameState) {
   d.flags[`rest_${d.location}`] = true
   log(d, 'player', '扎营长时间休整')
   narr(d, '你们点起一小堆火，轮流守夜。睡梦里，有人听见自己的声音在很远的地方说话。')
-  d.party.forEach((c) => { c.stress = 0 })
+  d.party.forEach((c) => { c.stress = 0; clearBadConds(d, c.id) })
   addPressure(d, 1, '长时间休息')
 }
 

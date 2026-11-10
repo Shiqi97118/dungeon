@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { PREGENS, makeCharacter } from './data/characters'
-import { availableActions, newGame, reduce, type GameAction } from './engine'
-import type { EndingId, GameState } from './types'
+import { PREGENS, makeCharacter } from './data/characters.js'
+import { availableActions, newGame, reduce, type GameAction } from './engine.js'
+import type { EndingId, GameState } from './types.js'
 
 const d6 = () => 1 + Math.floor(Math.random() * 6)
 

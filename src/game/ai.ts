@@ -1,8 +1,9 @@
-import type { GameState, Stat, Tier } from './types'
-import { STAT_NAMES } from './types'
-import { CLUES, FACTS, knowsFact } from './data/clues'
-import { LOC_NAMES, SCENES, routeKnown } from './data/scenes'
-import { availableActions, type AiEffects } from './engine'
+import type { GameState, Stat, Tier } from './types.js'
+import { STAT_NAMES } from './types.js'
+import { CLUES, FACTS, knowsFact } from './data/clues.js'
+import { LOC_NAMES, SCENES, routeKnown } from './data/scenes.js'
+import { availableActions, type AiEffects } from './engine.js'
+import { CONDS, condsOf } from './conds.js'
 
 export interface AiConfig {
   enabled: boolean
@@ -68,17 +69,20 @@ NPC：宁芮（测绘队长，相信晶核里有妹妹，说话前先听一秒�
     "loseItem": [],           // 角色 id 列表，各失去一件小物
     "npc": [],                // [{"id":"ningrui|joan|evelyn|luduo","attitude":"…","where":"…"}]
     "flags": [],              // 只能使用【可设置标记】里的值
+    "conds": [],              // [{"charId":"...","id":"poison|stun|tinnitus|tremble|lost|mute|bleed|chill|focus","remove":false}] 不利/有利状态
     "moveTo": null            // 只能是【可前往地点】里的代码
   }
 }
 如果需要掷骰：narration 只描述行动的准备和局势，roll 填写，effects 留空。
 如果不需要掷骰或者已经给出掷骰结果：roll 为 null，narration 叙述结果，effects 写入状态变化。
-7–9 的代价和 6- 的复杂化必须体现在 effects 里（承压、压力、失去物品或局势变化之一）。`
+7–9 的代价和 6- 的复杂化必须体现在 effects 里（承压、压力、失去物品、不利状态或局势变化之一）。
+状态含义：poison 中毒（瘴气、毒雾）、stun 昏迷（被撞晕，跳过回合）、tinnitus 耳鸣、tremble 颤抖、lost 迷失方向、mute 短暂失声、bleed 割伤、chill 失温（落水）、focus 专注（漂亮的成功）。只在叙事合理时施加，昏迷要慎用。
+这是回合制跑团：只裁定【当前行动者】的行动，不要让其他角色替他行动。`
 
 function contextFor(s: GameState): string {
   const scene = SCENES[s.location]
   const party = s.party.map((c) =>
-    `- ${c.name}（id:${c.id}，${c.title}）强韧${c.stats.str} 灵巧${c.stats.dex} 洞察${c.stats.ins} 交涉${c.stats.soc}｜专长：${c.specialties.join('、')}｜物品：${c.items.join('、')}｜承压${c.stress}/3 优势${c.advantage}${c.out ? '｜暂时退出' : ''}｜动机：${c.motive}`,
+    `- ${c.name}（id:${c.id}，${c.title}）强韧${c.stats.str} 灵巧${c.stats.dex} 洞察${c.stats.ins} 交涉${c.stats.soc}｜专长：${c.specialties.join('、')}｜物品：${c.items.join('、')}｜承压${c.stress}/3 优势${c.advantage}${c.out ? '｜暂时退出' : ''}${condsOf(c).length ? `｜状态：${condsOf(c).map((x) => CONDS[x.id].name).join('、')}` : ''}｜动机：${c.motive}`,
   ).join('\n')
   const npcs = Object.entries(s.npcs).map(([k, v]) => `- ${k}：${v.met ? `已接触，${v.attitude}，位于${v.where}，${v.status}` : '未接触'}`).join('\n')
   const found = s.clues.map((c) => `${c}（${CLUES[c]?.title}）`).join('、') || '无'
@@ -93,7 +97,7 @@ function contextFor(s: GameState): string {
     return `[${e.speaker ?? e.kind}] ${e.text}`
   }).join('\n')
   return `【当前地点】${scene.code}｜${scene.title}：${scene.read}
-【回声压力】${s.pressure}/6（4+ 时失败带来额外环境代价；6 进入终局）
+${s.turns ? `【回合】第 ${s.turns.round} 轮，当前行动者：${s.party.find((c) => c.id === s.turns?.activeId)?.name ?? '无'}\n` : ''}【回声压力】${s.pressure}/6（4+ 时失败带来额外环境代价；6 进入终局）
 【当前危机】${s.crisis ? `${s.crisis.name} ${s.crisis.progress}/${s.crisis.need}` : '无'}
 【队伍】
 ${party}
@@ -118,12 +122,13 @@ export interface AiTurn {
 
 async function chat(cfg: AiConfig, messages: { role: string; content: string }[], json = true): Promise<string> {
   const url = cfg.baseUrl.replace(/\/+$/, '') + '/chat/completions'
-  const body: Record<string, unknown> = { model: cfg.model, messages, temperature: 0.85 }
+  const body: Record<string, unknown> = { model: cfg.model, messages, temperature: 0.85, max_tokens: 900 }
   if (json) body.response_format = { type: 'json_object' }
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${cfg.apiKey}` },
     body: JSON.stringify(body),
+    signal: AbortSignal.timeout(25000),
   })
   if (!res.ok) {
     const t = await res.text()

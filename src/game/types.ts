@@ -29,13 +29,65 @@ export interface Character {
   stress: number
   advantage: number
   statuses: string[]
+  conds?: Cond[]
   out: boolean
   sigil: string
   hue: number
   helpedAt?: string
 }
 
-export type LogKind = 'read' | 'narr' | 'npc' | 'roll' | 'sys' | 'echo' | 'clue' | 'player' | 'event' | 'ai'
+export type CondId = 'poison' | 'stun' | 'tinnitus' | 'tremble' | 'lost' | 'mute' | 'bleed' | 'chill' | 'focus'
+
+export interface Cond {
+  id: CondId
+  rounds: number
+}
+
+export interface InitEntry {
+  id: string
+  total: number
+  die: number
+  notes: string[]
+}
+
+export interface TurnState {
+  round: number
+  order: InitEntry[]
+  idx: number
+  activeId: string | null
+}
+
+export type Boost = { kind: 'none' } | { kind: 'item'; item: string } | { kind: 'help'; id: string } | { kind: 'joan' }
+
+export type RollKind = 'action' | 'free' | 'ai' | 'final'
+
+export interface RollReq {
+  kind: Exclude<RollKind, 'action'>
+  title: string
+  text: string
+  stat: Stat
+  risk: string
+  statChoosable: boolean
+  cancellable: boolean
+  actorId?: string
+}
+
+export interface Rolling {
+  kind: RollKind
+  id?: string
+  title: string
+  text?: string
+  risk: string
+  actorId: string
+  stat: Stat
+  boost: Boost
+  mod: number
+  dice: [number, number]
+  rerolled: boolean
+  nonce: number
+}
+
+export type LogKind = 'read' | 'narr' | 'npc' | 'roll' | 'sys' | 'echo' | 'clue' | 'player' | 'event' | 'ai' | 'turn'
 
 export interface LogEntry {
   id: number
@@ -98,6 +150,11 @@ export interface GameState {
   turn: number
   seq: number
   lastToast?: { id: number; text: string }
+  turns?: TurnState | null
+  rolling?: Rolling | null
+  rollReq?: RollReq | null
+  turnSpent?: boolean
+  thinking?: string | null
 }
 
 export interface RollSpec {
