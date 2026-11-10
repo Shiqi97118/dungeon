@@ -725,3 +725,11 @@ details summary { cursor: pointer; color: var(--echo); margin: 8px 0; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
 }
+
+.mine-pick { margin: 18px 0 4px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 12px; background: rgba(255, 255, 255, .02); }
+.mine-pick .field-label small { margin-left: 8px; }
+.mine-options { display: flex; flex-wrap: wrap; gap: 8px; }
+.mine-opt { --hue: 30; display: inline-flex; align-items: center; gap: 8px; padding: 5px 14px 5px 6px; border-radius: 999px; border: 1px solid var(--line2); background: transparent; cursor: pointer; font-size: 14px; transition: all .18s ease; }
+.mine-opt:last-child { padding-left: 14px; }
+.mine-opt:hover { border-color: hsl(var(--hue) 50% 55%); }
+.mine-opt.sel { border-color: hsl(var(--hue) 60% 60%); background: hsl(var(--hue) 60% 50% / .14); box-shadow: 0 0 0 1px hsl(var(--hue) 60% 60%); }

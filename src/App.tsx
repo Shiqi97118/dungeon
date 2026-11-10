@@ -5,7 +5,8 @@ import { configGm, runIntent, type Intent } from './game/session'
 import { sound } from './audio/sound'
 import { aiReady, loadAiConfig, saveAiConfig, type AiConfig } from './game/ai'
 import { api, loadSeat, proxyGm, saveSeat, serverInfo, type Seat, type ServerInfo } from './net/api'
-import { canControl, controllerName, isOnline, useRoom } from './net/useRoom'
+import { canControl, controllerName, isOnline, roomSeating, useRoom } from './net/useRoom'
+import { AI, controllerOf, nextCompanionMove } from './game/companion'
 import Title from './ui/Title'
 import Setup from './ui/Setup'
 import Game, { type Control } from './ui/Game'
@@ -29,7 +30,16 @@ function loadSave(): GameState | null {
 
 type Screen = 'title' | 'setup' | 'game' | 'online' | 'osetup' | 'room'
 
-const SOLO_CTL: Control = { online: false, can: () => true, who: () => undefined }
+function soloControl(s: GameState | null): Control {
+  const auto = new Set(s?.auto ?? [])
+  return {
+    online: false,
+    seated: auto.size > 0,
+    can: (id) => !id || !auto.has(id),
+    auto: (id) => !!id && auto.has(id),
+    who: (id) => (id && auto.has(id) ? 'AI 同伴' : undefined),
+  }
+}
 
 const msg = (e: unknown) => String((e as Error)?.message ?? e)
 
@@ -90,8 +100,9 @@ export default function App() {
     if (res.error) setErr(res.error)
   }, [ai, info, builtin])
 
-  const startSolo = (party: Character[], safety: GameState['safety'], turns: boolean) => {
-    setSoloState(newGame(party, safety, { turns }))
+  const startSolo = (party: Character[], safety: GameState['safety'], turns: boolean, mine: string | null) => {
+    const g = newGame(party, safety, { turns })
+    setSoloState(mine ? { ...g, auto: party.filter((c) => c.id !== mine).map((c) => c.id) } : g)
     setErr(null)
     setScreen('game')
   }
@@ -164,17 +175,27 @@ export default function App() {
     }
   }, [seat, conn.refresh])
 
+  const soloMove = screen === 'game' && solo ? nextCompanionMove(solo, (id) => !!solo.auto?.includes(id)) : null
+  useEffect(() => {
+    if (!soloMove) return
+    const t = setTimeout(() => { void sendSolo(soloMove.intent) }, soloMove.delay)
+    return () => clearTimeout(t)
+  }, [solo, screen])
+
   const updateAi = (c: AiConfig) => {
     setAi(c)
     saveAiConfig(c)
   }
 
   const room = conn.room
-  const onlineCtl: Control | null = room && seat
+  const seating = room ? roomSeating(room, conn.presence, conn.skew) : null
+  const onlineCtl: Control | null = room && seat && seating
     ? {
       online: true,
-      can: (charId) => canControl(room, conn.presence, conn.skew, seat.pid, charId),
-      who: (charId) => controllerName(room, conn.presence, conn.skew, charId),
+      seated: true,
+      can: (charId) => canControl(seating, seat.pid, charId),
+      auto: (charId) => !!charId && controllerOf(seating, charId) === AI,
+      who: (charId) => controllerName(room, seating, charId),
     }
     : null
 
@@ -220,7 +241,7 @@ export default function App() {
         <Game
           state={solo}
           send={sendSolo}
-          ctl={SOLO_CTL}
+          ctl={soloControl(solo)}
           aiLabel={soloAiLabel}
           aiOn={soloAiLabel !== '离线主持'}
           error={err}

@@ -8,7 +8,7 @@ import Atmosphere from './Atmosphere'
 import { Sigil, fmt } from './bits'
 
 interface Props {
-  onStart: (party: Character[], safety: GameState['safety'], turns: boolean) => void
+  onStart: (party: Character[], safety: GameState['safety'], turns: boolean, mine: string | null) => void
   onBack: () => void
   online?: boolean
 }
@@ -16,11 +16,12 @@ interface Props {
 export default function Setup({ onStart, onBack, online }: Props) {
   const [step, setStep] = useState(0)
   const [safety, setSafety] = useState({ softMemory: false, softTrapped: false })
-  const [turns, setTurns] = useState(!!online)
+  const [turns, setTurns] = useState(true)
   const [pool, setPool] = useState<Character[]>(() => PREGENS.map(makeCharacter))
   const [chosen, setChosen] = useState<string[]>([])
   const [reasons, setReasons] = useState<Record<string, string>>({})
   const [relations, setRelations] = useState<Record<string, { idx: number; target: string }>>({})
+  const [mine, setMine] = useState<string | null>(null)
 
   const party = chosen.map((id) => pool.find((c) => c.id === id)!).filter(Boolean)
 
@@ -48,7 +49,8 @@ export default function Setup({ onStart, onBack, online }: Props) {
     })
     sound.bell(220, 0.3)
     setTimeout(() => sound.bell(329.63, 0.25), 300)
-    onStart(final, safety, online || turns)
+    const me = !online && turns && party.length > 1 ? (mine === 'all' ? null : party.some((c) => c.id === mine) ? mine : party[0].id) : null
+    onStart(final, safety, online || turns, me)
   }
 
   return (
@@ -104,7 +106,7 @@ export default function Setup({ onStart, onBack, online }: Props) {
 
         {step === 1 && (
           <div className="panel setup-panel wide fade-in">
-            <h2>组建队伍 <small>{online ? '选择 1–4 名角色——朋友们进入房间后各自认领一名' : '选择 1–4 名角色（单人游戏建议 2 名，轮流操控）'}</small></h2>
+            <h2>组建队伍 <small>{online ? '选择 1–4 名角色——朋友们进入房间后各自认领一名，没人认领的由 AI 同伴扮演' : '选择 1–4 名角色（开启回合制时，你扮演其中一名，其余交给 AI 同伴）'}</small></h2>
             <div className="pregen-grid">
               {pool.map((c) => (
                 <button key={c.id} className={`pregen ${chosen.includes(c.id) ? 'sel' : ''}`} onClick={() => toggle(c.id)} style={{ ['--hue' as string]: c.hue }}>
@@ -197,6 +199,22 @@ export default function Setup({ onStart, onBack, online }: Props) {
                 ))}
               </div>
             </div>
+            {!online && turns && party.length > 1 && (
+              <div className="field mine-pick">
+                <div className="field-label">你扮演谁？<small>其余角色由 AI 同伴按各自的性格和专长行动</small></div>
+                <div className="mine-options">
+                  {party.map((c) => {
+                    const on = (mine ?? party[0].id) === c.id
+                    return (
+                      <button key={c.id} className={`mine-opt ${on ? 'sel' : ''}`} style={{ ['--hue' as string]: c.hue }} onClick={() => { sound.click(); setMine(c.id) }}>
+                        <Sigil c={c} size={30} /> {c.name}
+                      </button>
+                    )
+                  })}
+                  <button className={`mine-opt ${mine === 'all' ? 'sel' : ''}`} onClick={() => { sound.click(); setMine('all') }}>全部亲自操控</button>
+                </div>
+              </div>
+            )}
             <div className="row end">
               <button className="btn ghost" onClick={() => setStep(1)}>上一步</button>
               <button className="btn primary big" onClick={finalize}>{online ? '创建联机房间' : '出发，前往白砾矿场'}</button>

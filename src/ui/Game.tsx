@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ActionDef, GameState, LocId, Pending, Stat } from '../game/types'
 import { SCENES } from '../game/data/scenes'
 import { actingCharId, availableActions } from '../game/engine'
+import { isDecision } from '../game/companion'
 import type { Intent } from '../game/session'
 import { getChar } from '../game/fx'
 import { sound } from '../audio/sound'
@@ -17,9 +18,13 @@ import type { ChatMsg } from '../net/api'
 
 export interface Control {
   online: boolean
+  /** Each human plays their own character (online, or solo with companions). */
+  seated: boolean
   /** Whether this browser may act for the given character right now (null = anyone). */
   can: (charId: string | null) => boolean
-  /** Name of the player controlling a character, online only. */
+  /** Whether an AI companion is playing the character. */
+  auto: (charId: string | null) => boolean
+  /** Who is playing a character, when that is worth showing. */
   who: (charId: string | null) => string | undefined
 }
 
@@ -84,7 +89,7 @@ export default function Game({ state, send, ctl, aiLabel, aiOn, error, clearErro
   const canUse = myTurn && idle && !busy
   const pending = state.queue[0]
   const pendingOwner = actingCharId(state)
-  const pendingMine = ctl.can(pendingOwner)
+  const pendingMine = ctl.can(pendingOwner) || (isDecision(state) && ctl.auto(pendingOwner))
 
   const go = async (i: Intent) => {
     if (sending) return
@@ -133,12 +138,12 @@ export default function Game({ state, send, ctl, aiLabel, aiOn, error, clearErro
     if (prevActive.current === undefined) { prevActive.current = activeId; return }
     if (prevActive.current === activeId || !activeId || !active) return
     prevActive.current = activeId
-    if (ctl.online && myTurn) {
+    if (ctl.seated && myTurn) {
       sound.bell(392, 0.25)
       setTimeout(() => sound.bell(523.25, 0.2), 180)
       setToast(`轮到你了 · ${active.name}`)
     } else {
-      setToast(`轮到 ${active.name}${ctl.online && ctl.who(activeId) ? `（${ctl.who(activeId)}）` : ''}`)
+      setToast(`轮到 ${active.name}${ctl.who(activeId) ? `（${ctl.who(activeId)}）` : ''}`)
     }
     const t = setTimeout(() => setToast(null), 2200)
     return () => clearTimeout(t)
@@ -185,7 +190,7 @@ export default function Game({ state, send, ctl, aiLabel, aiOn, error, clearErro
   else if (rq && !rqMine) waiting = `等待 ${ctl.who(rq.actorId ?? activeId) ?? '队友'} 掷骰……`
   else if (state.turns && !myTurn && active) waiting = `轮到 ${active.name}${ctl.who(activeId) ? `（${ctl.who(activeId)}）` : ''} 行动`
 
-  const ownerOf = ctl.online ? (id: string) => ctl.who(id) : undefined
+  const ownerOf = ctl.seated ? (id: string) => ctl.who(id) : undefined
 
   return (
     <div className={`game p${state.pressure} amb-${scene.ambience} ${shake ? 'shake' : ''} ${myTurn && state.turns ? 'my-turn' : ''}`}>
@@ -223,7 +228,7 @@ export default function Game({ state, send, ctl, aiLabel, aiOn, error, clearErro
             </div>
           </div>
 
-          <TurnBar state={state} ownerOf={ownerOf} isMine={(id) => ctl.online && ctl.can(id)} />
+          <TurnBar state={state} ownerOf={ownerOf} isMine={(id) => ctl.seated && ctl.can(id)} />
 
           <Log state={state} thinking={!!state.thinking} />
 
@@ -237,7 +242,7 @@ export default function Game({ state, send, ctl, aiLabel, aiOn, error, clearErro
             {waiting && <div className={`wait-banner ${state.thinking ? 'thinking' : ''}`}><span className="dots"><i /><i /><i /></span>{waiting}</div>}
             {state.turns && myTurn && idle && active && (
               <div className="your-turn">
-                <span><b>{active.name}</b>{ctl.online ? '，轮到你了' : ' 的回合'}——选择一个行动，或写下自由行动。</span>
+                <span><b>{active.name}</b>{ctl.seated ? '，轮到你了' : ' 的回合'}——选择一个行动，或写下自由行动。</span>
                 <button className="btn ghost small" disabled={busy} onClick={() => go({ t: 'pass' })}>结束回合</button>
               </div>
             )}
@@ -331,7 +336,7 @@ export default function Game({ state, send, ctl, aiLabel, aiOn, error, clearErro
           onClose={() => setMenu(false)}
           onQuit={onQuit}
           quitLabel={online ? '回到标题（之后可重新进入房间）' : undefined}
-          note={online ? '联机进度保存在服务器上。关掉页面也没关系，用同一个浏览器回来就能继续；离线超过 45 秒的座位会暂时交给房主代为操作。' : undefined}
+          note={online ? '联机进度保存在服务器上。关掉页面也没关系，用同一个浏览器回来就能继续；离线超过 45 秒的角色会暂时交给 AI 同伴操控，回来后自动交还。' : undefined}
         />
       )}
       {online && <ChatDock chat={online.chat} meId={online.meId} onSend={online.sendChat} />}

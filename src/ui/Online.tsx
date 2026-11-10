@@ -38,7 +38,7 @@ export function OnlineEntry({ info, initialCode, busy, error, onCreate, onJoin, 
           {info !== undefined && !ready && (
             <div className="notice warn">
               <div className="notice-title">联机服务不可用</div>
-              联机需要应用部署在带数据库的服务器上（发布到 Cursor 后自动具备）。当前页面是纯静态版本，可以先玩单人模式。
+              联机需要应用部署在带数据库的服务器上（例如按 README 部署到 Cloudflare）。当前页面是纯静态版本，可以先玩单人模式。
             </div>
           )}
           <div className="field">
@@ -48,7 +48,7 @@ export function OnlineEntry({ info, initialCode, busy, error, onCreate, onJoin, 
           <div className="online-split">
             <div className="online-card">
               <h3>开一个房间</h3>
-              <p className="dim">你来选队伍、当房主。没人认领的角色由房主代为操作。</p>
+              <p className="dim">你来选队伍、当房主。没人认领的角色由 AI 同伴扮演。</p>
               <button className="btn primary big" disabled={!ready || busy || !name.trim()} onClick={() => { remember(); sound.bell(293.66, 0.2); onCreate(name.trim()) }}>创建房间</button>
             </div>
             <div className="online-card">
@@ -109,7 +109,7 @@ export function Lobby({ room, meId, presence, skew, busy, error, onClaim, onRele
               <button className="btn" onClick={() => copy('link')}>{copied === 'link' ? '已复制邀请链接' : '复制邀请链接'}</button>
             </div>
           </div>
-          <p className="lead">把房间码发给朋友。每个人点击一张角色卡认领它——也可以一人操控多名角色。{unclaimed.length > 0 && <>未认领的角色将由房主 <b>{host?.name}</b> 代为操作。</>}</p>
+          <p className="lead">把房间码发给朋友。每人点击一张角色卡认领<b>一名</b>角色（再点另一张就是换人）。{unclaimed.length > 0 && <>没人认领的 <b>{unclaimed.map((c) => c.name).join('、')}</b> 将由 AI 同伴扮演；有人掉线时，AI 也会暂时接手。</>}</p>
 
           <div className="lobby-players">
             {room.players.map((p) => (
@@ -148,7 +148,7 @@ export function Lobby({ room, meId, presence, skew, busy, error, onClaim, onRele
                     {c.items.map((s) => <span key={s} className="chip item">{s}</span>)}
                   </div>
                   <div className="pregen-motive">“{c.reason}”</div>
-                  <div className={`seat-owner ${owner ? 'has' : ''}`}>{owner ? (mine ? '你操控这名角色 · 点击放弃' : `${owner.name} 已认领`) : '点击认领'}</div>
+                  <div className={`seat-owner ${owner ? 'has' : ''}`}>{owner ? (mine ? '你扮演这名角色 · 点击放弃' : `${owner.name} 已认领`) : 'AI 同伴 · 点击认领'}</div>
                 </button>
               )
             })}
