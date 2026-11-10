@@ -21,6 +21,8 @@ GitHub Skill检查点为6d1d86d09535cc3624590efd6726ebeee3cfce3d，位于feat/lo
 
 WorkBuddy只读接收单元已实测completed且读回hy4free，已读取可见接收回执，不复做。随机车卡返工已结束，项目全量45通过、4个数据库相关测试跳过、TypeScript通过；界面和完整12条预算证据仍未最终验收。
 
+迁移准备检查点82bf16e已发布。2026-11-11 00:34（上海）实际启动了同一用户的管理员迁移助手，脚本副本哈希已与已发布版本核对；实际state为waiting_for_normal_exit、completed为空，原安装和数据仍在C盘。助手等待120分钟，超时停止，不强杀。助手身份和启动信息只在被忽略的.local/migration-launch.json；阶段记录在D盘Shared/Migration日期目录中。先查这些记录及当前路径，不能把助手启动当成迁移完成。用户需要从菜单退出两个应用；Codex自身退出后当前模型不会继续运行，重新打开后从本交接接续。
+
 ### 建议下一步 / Recommended next action
 
 先核验D盘迁移助手状态，不重启或重发已有执行单元。助手应只在用户正常退出应用后执行，需同一用户UAC管理员权限；应用仍运行时不切换活跃数据。迁移后运行-Mode Verify，核对服务、登录、历史、Skill、CLI与WorkBuddy接入，将本机接入配置executable对齐真实程序路径。验证真实启动后清理准确的C盘parked原副本、保留D盘回滚副本，才算释放数据占用。随后继续游戏任务，不重做Skill安装或重问目录例外。

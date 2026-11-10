@@ -12,6 +12,8 @@ Codex Store 本体使用微软 `Add-AppxVolume D:\WindowsApps` / `Move-AppxPacka
 
 执行状态与回滚副本位于 `D:\AI Tools\Shared\Migration\<时间>/`，包含私密应用数据，**禁止提交 GitHub**。失败不自动重试，不回滚覆盖更新后的工作；先检查 state.json 中每个已完成目录。中途失败可能是部分迁移，不代表原路径丢失。
 
+`migration-status.ps1` 只读显示最新阶段，可作为D盘“查看迁移状态”快捷方式的目标。Windows PowerShell 5.1读取中文脚本需要UTF-8 BOM。该窗口不开始、取消或重复执行迁移，也不替代真实启动验收。
+
 完成后运行 `-Mode Verify`，再核对：Codex 登录、聊天历史、Skill、项目与 CLI；WorkBuddy 登录、历史、hy4free 与本机接入。WorkBuddy若从D盘入口启动，核对并将本机 `.local/workbuddy*/config.json` 中 executable 更新到D盘真实程序路径，再检查端口拥有进程和模型，不重发原任务。再清理已核验的 C 盘 parked 原目录，D 盘回滚副本仍保留。不能把路径检查当作真实启动验收。
 
 手工回滚：先正常退出全部相关应用；核对 state.json 的 source/target/rollback/parked。若 C 盘 parked 原件仍在，先保留 D 盘切换后产生的新数据，再删除**仅 Junction 入口本身**并将原件恢复原名；不得对 Junction 使用递归删除。若仅剩 D 盘回滚副本，先复制到 C、逐文件核验后再切回。Store 本体只能用 Move-AppxPackage 迁回原 AppxVolume。不要直接运行未经核对的自动恢复命令。
