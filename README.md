@@ -24,7 +24,7 @@
 
 ## AI 主持人
 
-- **内置主持人**：服务器读取环境变量 `OPENAI_API_KEY`（可选 `GM_BASE_URL`、`GM_MODEL`，默认 OpenAI `gpt-4o-mini`），密钥不会下发到浏览器。联机房间始终使用它，单人模式默认也使用；未配置时自动回退为离线规则主持。
+- **内置主持人**：服务器读取环境变量 `OPENAI_API_KEY`（可选 `GM_BASE_URL`、`GM_MODEL`）。能认出前缀的密钥会自动走对应服务：`xai-` 用 xAI 的 `grok-4.7`，`sk-or-` 用 OpenRouter，`sk-proj-` 用 OpenAI；其他密钥（如 DeepSeek、通义千问）走 `GM_BASE_URL` / `GM_MODEL`，公开部署里默认是 DeepSeek 的 `deepseek-flash`，密钥不会下发到浏览器。联机房间始终使用它，单人模式默认也使用；未配置时自动回退为离线规则主持。
 - **自带密钥（仅单人）**：在「AI 主持人」设置里填写任意兼容 OpenAI Chat Completions 的接口，密钥只保存在本机浏览器，由浏览器直接请求服务商。
 
 ## 开发
@@ -47,7 +47,7 @@ npm run build
 3. 部署完成后，在该 Worker 的 **设置 → 变量和机密** 里添加机密 `OPENAI_API_KEY`。可选：`GM_BASE_URL`（任何兼容 OpenAI 的接口）、`GM_MODEL`。
 4. 链接形如 `https://echo-well.<你的子域>.workers.dev`，发给朋友即可。
 
-公开链接谁都能打开，所以服务器对 AI 调用设了上限：全站每天 `GM_DAILY_LIMIT` 次（默认 3000，在 `wrangler.jsonc` 中修改），每个 IP 每天 300 次，每个房间 600 次。超过后自动改用离线规则主持。
+公开链接谁都能打开，所以服务器对 AI 调用设了上限：全站每天 `GM_DAILY_LIMIT` 次（`wrangler.jsonc` 里设为 1000），每个 IP 每天 300 次，每个房间 600 次。超过后自动改用离线规则主持。
 
 ## 发布到 Cursor（需登录）
 

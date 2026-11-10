@@ -15,7 +15,7 @@ export interface AiConfig {
 const KEY = 'echo-well-ai'
 
 export const AI_PRESETS = [
-  { name: 'DeepSeek', baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-chat' },
+  { name: 'DeepSeek', baseUrl: 'https://api.deepseek.com', model: 'deepseek-flash' },
   { name: 'OpenAI', baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini' },
   { name: '通义千问', baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen-plus' },
   { name: 'Moonshot', baseUrl: 'https://api.moonshot.cn/v1', model: 'moonshot-v1-8k' },
@@ -124,11 +124,17 @@ async function chat(cfg: AiConfig, messages: { role: string; content: string }[]
   const url = cfg.baseUrl.replace(/\/+$/, '') + '/chat/completions'
   const body: Record<string, unknown> = { model: cfg.model, messages, temperature: 0.85, max_tokens: 900 }
   if (json) body.response_format = { type: 'json_object' }
+  if (/api\.x\.ai/.test(url)) {
+    // Grok models reason before answering; reasoning tokens count against max_tokens and default effort is too slow for a turn.
+    delete body.max_tokens
+    body.reasoning_effort = 'low'
+  }
+  if (/api\.deepseek\.com/.test(url)) body.thinking = { type: 'disabled' }
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${cfg.apiKey}` },
     body: JSON.stringify(body),
-    signal: AbortSignal.timeout(25000),
+    signal: AbortSignal.timeout(40000),
   })
   if (!res.ok) {
     const t = await res.text()
