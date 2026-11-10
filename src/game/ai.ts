@@ -124,11 +124,16 @@ async function chat(cfg: AiConfig, messages: { role: string; content: string }[]
   const url = cfg.baseUrl.replace(/\/+$/, '') + '/chat/completions'
   const body: Record<string, unknown> = { model: cfg.model, messages, temperature: 0.85, max_tokens: 900 }
   if (json) body.response_format = { type: 'json_object' }
+  if (/api\.x\.ai/.test(url)) {
+    // Grok models reason before answering; reasoning tokens count against max_tokens and default effort is too slow for a turn.
+    delete body.max_tokens
+    body.reasoning_effort = 'low'
+  }
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${cfg.apiKey}` },
     body: JSON.stringify(body),
-    signal: AbortSignal.timeout(25000),
+    signal: AbortSignal.timeout(40000),
   })
   if (!res.ok) {
     const t = await res.text()

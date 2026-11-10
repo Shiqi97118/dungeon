@@ -1,12 +1,19 @@
 import { configGm, type Gm } from '../src/game/session.js'
 
-const OPENROUTER = 'https://openrouter.ai/api/v1'
+const PROVIDERS = [
+  { prefix: 'xai-', baseUrl: 'https://api.x.ai/v1', model: 'grok-4.7' },
+  { prefix: 'sk-or-', baseUrl: 'https://openrouter.ai/api/v1', model: 'openai/gpt-4o-mini' },
+]
+const OPENAI = { baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini' }
 
-/** Picks the endpoint from the key when none is configured, so an OpenRouter key works as-is. */
+/** Picks the endpoint and default model from the key's prefix unless they are configured, so xAI and OpenRouter keys work as-is. */
 export function gmEndpoint(apiKey: string, baseUrl?: string, model?: string) {
-  const base = baseUrl || (apiKey.startsWith('sk-or-') ? OPENROUTER : 'https://api.openai.com/v1')
-  const m = model || 'gpt-4o-mini'
-  return { baseUrl: base, model: base.includes('openrouter.ai') && !m.includes('/') ? `openai/${m}` : m }
+  const byKey = PROVIDERS.find((p) => apiKey.startsWith(p.prefix))
+  const base = baseUrl || byKey?.baseUrl || OPENAI.baseUrl
+  const known = PROVIDERS.find((p) => p.baseUrl === base) ?? (base === OPENAI.baseUrl ? OPENAI : undefined)
+  let m = model || known?.model || OPENAI.model
+  if (base.includes('openrouter.ai') && !m.includes('/')) m = `openai/${m}`
+  return { baseUrl: base, model: m }
 }
 
 export function serverGm(): Gm | null {
