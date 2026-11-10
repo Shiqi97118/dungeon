@@ -8,13 +8,15 @@ import Atmosphere from './Atmosphere'
 import { Sigil, fmt } from './bits'
 
 interface Props {
-  onStart: (party: Character[], safety: GameState['safety']) => void
+  onStart: (party: Character[], safety: GameState['safety'], turns: boolean) => void
   onBack: () => void
+  online?: boolean
 }
 
-export default function Setup({ onStart, onBack }: Props) {
+export default function Setup({ onStart, onBack, online }: Props) {
   const [step, setStep] = useState(0)
   const [safety, setSafety] = useState({ softMemory: false, softTrapped: false })
+  const [turns, setTurns] = useState(!!online)
   const [pool, setPool] = useState<Character[]>(() => PREGENS.map(makeCharacter))
   const [chosen, setChosen] = useState<string[]>([])
   const [reasons, setReasons] = useState<Record<string, string>>({})
@@ -46,7 +48,7 @@ export default function Setup({ onStart, onBack }: Props) {
     })
     sound.bell(220, 0.3)
     setTimeout(() => sound.bell(329.63, 0.25), 300)
-    onStart(final, safety)
+    onStart(final, safety, online || turns)
   }
 
   return (
@@ -78,6 +80,10 @@ export default function Setup({ onStart, onBack }: Props) {
               <input type="checkbox" checked={safety.softTrapped} onChange={(e) => setSafety({ ...safety, softTrapped: e.target.checked })} />
               <span>淡化“角色被困”的描写</span>
             </label>
+            <label className={`toggle ${online ? 'locked' : ''}`}>
+              <input type="checkbox" checked={online || turns} disabled={online} onChange={(e) => setTurns(e.target.checked)} />
+              <span><b>回合制</b>：每轮按「灵巧×2 + 1d6 + 状态」排出先攻顺序，轮到谁谁行动；中毒、失温会拖慢你，昏迷会让你错过回合。{online ? '（联机模式固定开启）' : ''}</span>
+            </label>
             <div className="rules-card">
               <div className="rules-title">规则一页纸</div>
               <div className="rules-grid">
@@ -98,7 +104,7 @@ export default function Setup({ onStart, onBack }: Props) {
 
         {step === 1 && (
           <div className="panel setup-panel wide fade-in">
-            <h2>组建队伍 <small>选择 1–4 名角色（单人游戏建议 2 名，轮流操控）</small></h2>
+            <h2>组建队伍 <small>{online ? '选择 1–4 名角色——朋友们进入房间后各自认领一名' : '选择 1–4 名角色（单人游戏建议 2 名，轮流操控）'}</small></h2>
             <div className="pregen-grid">
               {pool.map((c) => (
                 <button key={c.id} className={`pregen ${chosen.includes(c.id) ? 'sel' : ''}`} onClick={() => toggle(c.id)} style={{ ['--hue' as string]: c.hue }}>
@@ -193,7 +199,7 @@ export default function Setup({ onStart, onBack }: Props) {
             </div>
             <div className="row end">
               <button className="btn ghost" onClick={() => setStep(1)}>上一步</button>
-              <button className="btn primary big" onClick={finalize}>出发，前往白砾矿场</button>
+              <button className="btn primary big" onClick={finalize}>{online ? '创建联机房间' : '出发，前往白砾矿场'}</button>
             </div>
           </div>
         )}

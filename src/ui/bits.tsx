@@ -1,4 +1,5 @@
 import type { Character } from '../game/types'
+import { CONDS } from '../game/conds'
 
 export const fmt = (n: number) => (n > 0 ? `+${n}` : `${n}`)
 
@@ -32,6 +33,23 @@ export function Boxes({ n, max, kind }: { n: number; max: number; kind: 'stress'
   return (
     <span className={`boxes ${kind}`}>
       {Array.from({ length: max }, (_, i) => <i key={i} className={i < n ? 'on' : ''} />)}
+    </span>
+  )
+}
+
+export function CondChips({ c, compact }: { c: Character; compact?: boolean }) {
+  const list = c.conds ?? []
+  if (!list.length) return null
+  return (
+    <span className={`conds ${compact ? 'compact' : ''}`}>
+      {list.map((x) => {
+        const d = CONDS[x.id]
+        return (
+          <span key={x.id} className={`cond c-${x.id} ${d.good ? 'good' : ''}`} title={`${d.name}（剩余 ${x.rounds} 轮）：${d.desc}`}>
+            <i>{d.icon}</i>{!compact && <>{d.name}<small>{x.rounds}</small></>}
+          </span>
+        )
+      })}
     </span>
   )
 }

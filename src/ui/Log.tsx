@@ -46,6 +46,13 @@ function Entry({ e, isNew, delay }: { e: LogEntry; isNew: boolean; delay: number
       </div>
     )
   }
+  if (e.kind === 'turn') {
+    return (
+      <div className={`turn-break ${e.speaker ? 'who' : 'round'} ${isNew ? 'new' : ''}`} style={style}>
+        <span>{e.text}</span>
+      </div>
+    )
+  }
   if (e.kind === 'clue') {
     const c = CLUES[e.text]
     if (!c) return null

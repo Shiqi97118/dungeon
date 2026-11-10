@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import type { CostId, GameState, Pending } from '../game/types'
-import type { GameAction } from '../game/engine'
+import type { Intent } from '../game/session'
 import { costLabel, getChar } from '../game/fx'
 import { buildArchive, buildSummary } from '../game/endings'
 import { sound } from '../audio/sound'
 import { Sigil } from './bits'
 
-type D = (a: GameAction) => void
+type D = (a: Intent) => void
 
 export function PendingModal({ state, p, dispatch }: { state: GameState; p: Pending; dispatch: D }) {
   if (p.type === 'cost') return <CostModal state={state} p={p} dispatch={dispatch} />
@@ -19,7 +19,7 @@ export function PendingModal({ state, p, dispatch }: { state: GameState; p: Pend
 
 function CostModal({ state, p, dispatch }: { state: GameState; p: Extract<Pending, { type: 'cost' }>; dispatch: D }) {
   const actor = getChar(state, p.actorId)
-  const pick = (c: CostId | 'soften') => { sound.click(); dispatch({ type: 'cost', choice: c }) }
+  const pick = (c: CostId | 'soften') => { sound.click(); dispatch({ t: 'cost', choice: c }) }
   return (
     <div className="modal-backdrop">
       <div className={`modal cost-modal t-${p.tier}`}>
@@ -47,11 +47,11 @@ const COST_ICON: Record<CostId, string> = { stress: '□', pressure: '◎', item
 function OverflowModal({ state, charId, dispatch }: { state: GameState; charId: string; dispatch: D }) {
   const c = getChar(state, charId)
   if (!c) return null
-  const opts: [Parameters<typeof dispatch>[0] & { type: 'overflow' }, string, string][] = [
-    [{ type: 'overflow', option: 'out' }, '短暂退出危险场面', '在离开这个地点前不能行动'],
-    [{ type: 'overflow', option: 'item' }, '失去一件非关键物品', '慌乱中丢下了什么'],
-    [{ type: 'overflow', option: 'apart' }, '与队伍分开片刻', '在下一个地点重新会合'],
-    [{ type: 'overflow', option: 'status' }, '接受一个短期状态', '颤抖、耳鸣、迷失……'],
+  const opts: [Extract<Intent, { t: 'overflow' }>, string, string][] = [
+    [{ t: 'overflow', option: 'out' }, '短暂退出危险场面', '在离开这个地点前不能行动'],
+    [{ t: 'overflow', option: 'item' }, '失去一件非关键物品', '慌乱中丢下了什么'],
+    [{ t: 'overflow', option: 'apart' }, '与队伍分开片刻', '在下一个地点重新会合'],
+    [{ t: 'overflow', option: 'status' }, '接受一个短期状态', '颤抖、耳鸣、迷失、失声——甚至短暂昏迷'],
   ]
   return (
     <div className="modal-backdrop">
@@ -95,7 +95,7 @@ function MemoryModal({ state, dispatch }: { state: GameState; dispatch: D }) {
           {sug.map((s) => <button key={s} className="chip spec clickable" onClick={() => setText(s)}>{s}</button>)}
         </div>
         <div className="row end">
-          <button className="btn primary" disabled={!text.trim()} onClick={() => { sound.whisper(0.5); dispatch({ type: 'memory', charId: who, text: text.trim() }) }}>回答它</button>
+          <button className="btn primary" disabled={!text.trim()} onClick={() => { sound.whisper(0.5); dispatch({ t: 'memory', charId: who, text: text.trim() }) }}>回答它</button>
         </div>
       </div>
     </div>
@@ -126,8 +126,8 @@ function VolunteerModal({ state, dispatch }: { state: GameState; dispatch: D }) 
         </div>
         <textarea className="input" rows={3} placeholder="交出的是哪一段记忆？" value={text} onChange={(e) => setText(e.target.value)} maxLength={80} />
         <div className="row end">
-          <button className="btn ghost" onClick={() => dispatch({ type: 'dismissQueue' })}>再想想</button>
-          <button className="btn primary" disabled={!text.trim()} onClick={() => { sound.bell(220, 0.3); dispatch({ type: 'volunteer', who, text: text.trim() }) }}>交出它</button>
+          <button className="btn ghost" onClick={() => dispatch({ t: 'dismissQueue' })}>再想想</button>
+          <button className="btn primary" disabled={!text.trim()} onClick={() => { sound.bell(220, 0.3); dispatch({ t: 'volunteer', who, text: text.trim() }) }}>交出它</button>
         </div>
       </div>
     </div>
@@ -147,7 +147,7 @@ function DeliverModal({ dispatch }: { dispatch: D }) {
         <h3>晶核已经脱离控制台。你们提出什么条件？</h3>
         <div className="cost-options">
           {opts.map(([v, t, s]) => (
-            <button key={v} className="cost-opt" onClick={() => dispatch({ type: 'deliver', variant: v })}>
+            <button key={v} className="cost-opt" onClick={() => dispatch({ t: 'deliver', variant: v })}>
               <span><b>{t}</b><small>{s}</small></span>
             </button>
           ))}
@@ -175,7 +175,7 @@ export function CustomFinalModal({ onSubmit, onCancel }: { onSubmit: (plan: stri
   )
 }
 
-export function MenuModal({ state, onClose, onQuit }: { state: GameState; onClose: () => void; onQuit: () => void }) {
+export function MenuModal({ state, onClose, onQuit, quitLabel, note }: { state: GameState; onClose: () => void; onQuit: () => void; quitLabel?: string; note?: string }) {
   const [copied, setCopied] = useState(false)
   const archive = buildArchive(state)
   const copy = async () => {
@@ -192,9 +192,9 @@ export function MenuModal({ state, onClose, onQuit }: { state: GameState; onClos
           <pre className="archive">{archive}</pre>
           <button className="btn small" onClick={copy}>{copied ? '已复制' : '复制存档'}</button>
         </details>
-        <p className="dim small">进度会自动保存在本浏览器中。你随时可以说“暂停”“略过”“淡化这个内容”——在这里，关掉页面就是暂停。</p>
+        <p className="dim small">{note ?? '进度会自动保存在本浏览器中。你随时可以说“暂停”“略过”“淡化这个内容”——在这里，关掉页面就是暂停。'}</p>
         <div className="row end">
-          <button className="btn ghost" onClick={onQuit}>回到标题</button>
+          <button className="btn ghost" onClick={onQuit}>{quitLabel ?? '回到标题'}</button>
           <button className="btn primary" onClick={onClose}>继续游戏</button>
         </div>
       </div>

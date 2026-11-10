@@ -4,11 +4,11 @@ import { STAT_NAMES, STAT_ORDER } from '../game/types'
 import { CLUES, FACTS, factProgress } from '../game/data/clues'
 import { LOC_NAMES, routeKnown } from '../game/data/scenes'
 import { PRESSURE_EVENTS } from '../game/fx'
-import { Boxes, Sigil, fmt } from './bits'
+import { Boxes, CondChips, Sigil, fmt } from './bits'
 
 type Tab = 'party' | 'clues' | 'truth' | 'npcs' | 'map'
 
-export default function Sidebar({ state, onMove, canMove }: { state: GameState; onMove: (loc: LocId) => void; canMove: (loc: LocId) => boolean }) {
+export default function Sidebar({ state, onMove, canMove, ownerOf }: { state: GameState; onMove: (loc: LocId) => void; canMove: (loc: LocId) => boolean; ownerOf?: (charId: string) => string | undefined }) {
   const [tab, setTab] = useState<Tab>('party')
   return (
     <aside className="sidebar">
@@ -19,7 +19,7 @@ export default function Sidebar({ state, onMove, canMove }: { state: GameState; 
         ))}
       </div>
       <div className="tab-body">
-        {tab === 'party' && <Party state={state} />}
+        {tab === 'party' && <Party state={state} ownerOf={ownerOf} />}
         {tab === 'clues' && <Clues state={state} />}
         {tab === 'truth' && <Truth state={state} />}
         {tab === 'npcs' && <Npcs state={state} />}
@@ -55,16 +55,17 @@ export function PressureClock({ p }: { p: number }) {
   )
 }
 
-function Party({ state }: { state: GameState }) {
+function Party({ state, ownerOf }: { state: GameState; ownerOf?: (charId: string) => string | undefined }) {
   return (
     <div className="party">
       {state.party.map((c) => (
-        <div key={c.id} className={`pc ${c.out ? 'out' : ''}`} style={{ ['--hue' as string]: c.hue }}>
+        <div key={c.id} className={`pc ${c.out ? 'out' : ''} ${state.turns?.activeId === c.id ? 'active' : ''}`} style={{ ['--hue' as string]: c.hue }}>
           <div className="pc-head">
             <Sigil c={c} size={36} />
             <div className="pc-name">
               <b>{c.name}</b> <small>{c.title}</small>
               {c.out && <span className="badge">暂时退出</span>}
+              {ownerOf?.(c.id) && <span className="owner">玩家：{ownerOf(c.id)}</span>}
             </div>
             <div className="pc-meters">
               <div title="承压"><small>承压</small><Boxes n={c.stress} max={3} kind="stress" /></div>
@@ -79,6 +80,7 @@ function Party({ state }: { state: GameState }) {
             {c.items.map((s) => <span key={s} className={`chip item ${c.spentItems.includes(s) ? 'spent' : ''} ${s.startsWith('静音') || s === '铜环' ? 'key' : ''}`}>{s}</span>)}
             {c.statuses.map((s) => <span key={s} className="chip status">{s}</span>)}
           </div>
+          <CondChips c={c} />
           <div className="pc-reason">“{c.reason}”</div>
           {c.relation && <div className="pc-reason rel">{c.relation}</div>}
         </div>

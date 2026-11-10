@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import type { GameState } from '../game/types'
-import type { GameAction } from '../game/engine'
 import { buildArchive } from '../game/endings'
 import { sound } from '../audio/sound'
 import Atmosphere from './Atmosphere'
@@ -8,7 +7,9 @@ import { Sigil } from './bits'
 
 interface Props {
   state: GameState
-  dispatch: (a: GameAction) => void
+  onTakeaways: (t: Record<string, string>) => void
+  restartLabel?: string
+  titleLabel?: string
   onRestart: () => void
   onTitle: () => void
 }
@@ -22,7 +23,7 @@ const ENDING_ART: Record<string, { img: string; cls: string }> = {
   custom: { img: 'core', cls: 'e-custom' },
 }
 
-export default function Ending({ state, dispatch, onRestart, onTitle }: Props) {
+export default function Ending({ state, onTakeaways, onRestart, onTitle, restartLabel, titleLabel }: Props) {
   const e = state.ending!
   const art = ENDING_ART[e.id]
   const [shown, setShown] = useState(0)
@@ -88,7 +89,7 @@ export default function Ending({ state, dispatch, onRestart, onTitle }: Props) {
               </div>
             ))}
             <div className="row end">
-              <button className="btn primary" onClick={() => { dispatch({ type: 'takeaways', takeaways: take }); setDone(true); sound.chime() }}>写入章节存档</button>
+              <button className="btn primary" onClick={() => { onTakeaways(take); setDone(true); sound.chime() }}>写入章节存档</button>
             </div>
           </div>
         )}
@@ -107,8 +108,8 @@ export default function Ending({ state, dispatch, onRestart, onTitle }: Props) {
             <div className="row end wrap">
               <button className="btn" onClick={async () => { try { await navigator.clipboard.writeText(archive); setCopied(true) } catch { /* clipboard unavailable */ } }}>{copied ? '已复制' : '复制存档'}</button>
               <button className="btn" onClick={download}>下载 .md</button>
-              <button className="btn ghost" onClick={onTitle}>回到标题</button>
-              <button className="btn primary" onClick={onRestart}>再开一局</button>
+              <button className="btn ghost" onClick={onTitle}>{titleLabel ?? '回到标题'}</button>
+              <button className="btn primary" onClick={onRestart}>{restartLabel ?? '再开一局'}</button>
             </div>
           </div>
         )}
