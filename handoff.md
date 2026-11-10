@@ -11,17 +11,19 @@ coverage: "PARTIAL"
 
 ### 当前目标 / Current goal
 
-最高优先级完成 Jiaojie Skill 的 GitHub 同步收尾；安装、Markdown实际应用、README强调和WorkBuddy只读接收已完成。紧接着执行用户新高优先级：将本机Codex与WorkBuddy的应用及数据迁到D盘并区分，完成后继续本地游戏任务。
+Jiaojie安装、Markdown实际应用、README强调、WorkBuddy只读接收及GitHub同步已完成；当前高优先级是将本机Codex与WorkBuddy的应用及数据迁到D盘并区分，完成后继续本地游戏任务。
 
 ### 停止位置 / Stopped at
 
 本机 Codex 已通过官方 Skill Installer 安装 jiaojie，来源固定为 Jordanwei1/jiaojie-skill 的 35cd1bf474495a61fe8925cfb822779d0dc78d22；已读取 SKILL.md 与 simple-workflow，项目运行资源镜像在 .agents/skills/jiaojie/，保留 MIT 许可。README、CONTINUE 和 WorkBuddy 协作要求已更新，已按该 Skill 选择最小充分的 Markdown。上游导出器在当前 Windows 返回 NOFOLLOW_UNSUPPORTED；按 Skill 允许的工具不可用降级路径直接生成本文件，没有弱化上游保护或冒称脚本校验通过。不能把安装成功当作跨运行时语义验证成功。
 
-GitHub 已有检查点 0f0a4807171a4e1599f952087d31ac34a74d795d，位于 feat/local-workbuddy-handoff 分支与 PR #4；Jiaojie 与后续增量需核对最新远端提交。WorkBuddy只读接收单元已实测completed且读回hy4free，已读取可见接收回执，不复做。随机车卡返工已结束，项目全量45通过、4个数据库相关测试跳过、TypeScript通过；界面和完整12条预算证据仍未最终验收。
+GitHub Skill检查点为6d1d86d09535cc3624590efd6726ebeee3cfce3d，位于feat/local-workbuddy-handoff与PR #4；109项增量远端树与本地暂存树逐字节一致，本地分支已同步。迁移脚本tools/windows/migrate-ai-tools.ps1及说明已准备，Windows PowerShell 5.1隔离复制/链接/拒绝覆盖/损坏/越界检查和真实只读Plan通过；尚未据此声称真实迁移成功。实际管理员助手是否已启动、应用是否退出、迁移是否发生，必须检查D盘Shared/Migration下state.json和当前路径。
+
+WorkBuddy只读接收单元已实测completed且读回hy4free，已读取可见接收回执，不复做。随机车卡返工已结束，项目全量45通过、4个数据库相关测试跳过、TypeScript通过；界面和完整12条预算证据仍未最终验收。
 
 ### 建议下一步 / Recommended next action
 
-先按Jiaojie接收并核对Skill的GitHub检查点，再继续已授权的D盘迁移准备与执行；应用仍运行时只盘点和备份准备，不直接切换活跃数据库。迁移完成并验证可恢复后，才继续随机车卡及视觉任务，不重做已完成安装或重新询问已接受的目录例外。
+先核验D盘迁移助手状态，不重启或重发已有执行单元。助手应只在用户正常退出应用后执行，需同一用户UAC管理员权限；应用仍运行时不切换活跃数据。迁移后运行-Mode Verify，核对服务、登录、历史、Skill、CLI与WorkBuddy接入，将本机接入配置executable对齐真实程序路径。验证真实启动后清理准确的C盘parked原副本、保留D盘回滚副本，才算释放数据占用。随后继续游戏任务，不重做Skill安装或重问目录例外。
 
 ### 完成标准 / Completion criteria
 
@@ -90,7 +92,7 @@ GitHub 已有检查点 0f0a4807171a4e1599f952087d31ac34a74d795d，位于 feat/lo
 
 ### 未决问题 / Open questions
 
-- 原生 WorkBuddy 任务是否已经结束、最新返工是否通过完整测试和界面验收，需要现场检查；不是让用户重新回答需求。
+- 原生WorkBuddy随机返工与Jiaojie接收已观察到结束，自动测试45通过、4跳过；仍待界面验收。当前是否出现其他任务须现场重验，不重发旧任务。
 - 当前原生接口无法可靠读取历史 tokens 与积分，实际模型用量和子 agent 成本仍不可证实。
 
 ### 已知缺失 / Known omissions
