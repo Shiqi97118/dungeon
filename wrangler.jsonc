@@ -20,6 +20,8 @@
     }
   ],
   "vars": {
+    "GM_BASE_URL": "https://api.deepseek.com",
+    "GM_MODEL": "deepseek-flash",
     "GM_DAILY_LIMIT": "1000"
   },
   "observability": {

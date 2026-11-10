@@ -24,7 +24,7 @@
 
 ## AI 主持人
 
-- **内置主持人**：服务器读取环境变量 `OPENAI_API_KEY`（可选 `GM_BASE_URL`、`GM_MODEL`）。接口和默认模型按密钥前缀自动选择：`xai-` 用 xAI 的 `grok-4.7`，`sk-or-` 用 OpenRouter 的 `openai/gpt-4o-mini`，其余用 OpenAI 的 `gpt-4o-mini`，密钥不会下发到浏览器。联机房间始终使用它，单人模式默认也使用；未配置时自动回退为离线规则主持。
+- **内置主持人**：服务器读取环境变量 `OPENAI_API_KEY`（可选 `GM_BASE_URL`、`GM_MODEL`）。能认出前缀的密钥会自动走对应服务：`xai-` 用 xAI 的 `grok-4.7`，`sk-or-` 用 OpenRouter，`sk-proj-` 用 OpenAI；其他密钥（如 DeepSeek、通义千问）走 `GM_BASE_URL` / `GM_MODEL`，公开部署里默认是 DeepSeek 的 `deepseek-flash`，密钥不会下发到浏览器。联机房间始终使用它，单人模式默认也使用；未配置时自动回退为离线规则主持。
 - **自带密钥（仅单人）**：在「AI 主持人」设置里填写任意兼容 OpenAI Chat Completions 的接口，密钥只保存在本机浏览器，由浏览器直接请求服务商。
 
 ## 开发
