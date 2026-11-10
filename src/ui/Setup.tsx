@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import type { Character, GameState } from '../game/types'
 import { STAT_NAMES, STAT_ORDER } from '../game/types'
-import { PREGENS, RELATIONS, SPECIALTIES, makeCharacter, randomCharacter } from '../game/data/characters'
+import { PREGENS, RELATIONS, SPECIALTIES, makeCharacter } from '../game/data/characters'
+import { randomPlayableCharacter } from '../game/characterDraft'
 import { CLUES } from '../game/data/clues'
 import { sound } from '../audio/sound'
 import Atmosphere from './Atmosphere'
@@ -32,7 +33,7 @@ export default function Setup({ onStart, onBack, online }: Props) {
   }
 
   const addRandom = () => {
-    const c = randomCharacter(pool.map((p) => p.name))
+    const c = randomPlayableCharacter(pool.map((p) => p.name))
     setPool((p) => [...p, c])
     if (chosen.length < 4) setChosen((cs) => [...cs, c.id])
     sound.bell(392, 0.15)
@@ -108,7 +109,7 @@ export default function Setup({ onStart, onBack, online }: Props) {
         {step === 1 && (
           <div className="panel setup-panel wide fade-in">
             <h2>组建队伍 <small>{online ? '选择 1–4 名角色——朋友们进入房间后各自认领一名，没人认领的由 AI 同伴扮演' : '选择 1–4 名角色（开启回合制时，你扮演其中一名，其余交给 AI 同伴）'}</small></h2>
-            <CharacterBuilder onAdd={c => { setPool(p => [...p,c]); if (chosen.length < 4) setChosen(p => [...p,c.id]) }} />
+            <CharacterBuilder takenNames={pool.map(p => p.name)} onAdd={c => { setPool(p => [...p,c]); if (chosen.length < 4) setChosen(p => [...p,c.id]) }} />
             <div className="pregen-grid">
               {pool.map((c) => (
                 <button key={c.id} className={`pregen ${chosen.includes(c.id) ? 'sel' : ''}`} onClick={() => toggle(c.id)} style={{ ['--hue' as string]: c.hue }}>

@@ -3,23 +3,49 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { validateTask, reserveTask, checkBinding, locked, writeJson, resolveConfig } from './core.mjs';
+import { validateTask, reserveTask, checkBinding, locked, writeJson, resolveConfig, latestVisibleReply } from './core.mjs';
 
 const request = () => ({ id: 'random-character-v1', prompt: 'Implement random character creation', allowedPaths: ['src/ui/CharacterBuilder.tsx'] });
+test('visible receipt reconstructs only the last public message and excludes thought events', () => {
+  const events = [
+    { update: { sessionUpdate: 'agent_message_chunk', messageId: 'progress', content: { type: 'text', text: 'Reading files' } } },
+    { update: { sessionUpdate: 'agent_thought_chunk', content: { type: 'text', text: 'not-visible' } } },
+    { update: { sessionUpdate: 'agent_message_chunk', messageId: 'final', content: { type: 'text', text: '接收成功，' } } },
+    { update: { sessionUpdate: 'agent_message_chunk', messageId: 'final', content: [{ type: 'text', text: '按要求未继续。' }] } },
+  ];
+  assert.equal(latestVisibleReply(events), '接收成功，按要求未继续。');
+});
 test('rejects unscoped tasks and traversal on either platform', () => {
   assert.throws(() => validateTask({ ...request(), allowedPaths: [] }));
   for (const target of ['../secret', '..\\secret', '/secret', 'C:\\secret', '.local/session.json']) assert.throws(() => validateTask({ ...request(), allowedPaths: [target] }));
   assert.throws(() => validateTask({ ...request(), id: '../id' }));
 });
+test('read-only handoff reception carries no write paths and cannot masquerade as a writable task', () => {
+  const task = validateTask({ ...request(), allowedPaths: [], readOnly: true });
+  assert.equal(task.readOnly, true);
+  assert.throws(() => validateTask({ ...request(), allowedPaths: [], readOnly: false }));
+  assert.throws(() => validateTask({ ...request(), allowedPaths: [], readOnly: 'true' }));
+});
 test('uncertain or rejected submissions cannot be silently submitted a second time', () => {
-  const record = {}; const task = validateTask(request());
+  const record = { budget: { limit: 30000, reservedTokens: 0 } }; const task = validateTask(request());
   const first = reserveTask(record, task);
   assert.equal(first.state, 'submitting');
   first.state = 'uncertain';
   assert.throws(() => reserveTask(record, task));
   assert.throws(() => reserveTask(record, validateTask({ ...request(), prompt: 'changed objective' })));
+  assert.equal(record.budget.reservedTokens, 4000);
   assert.throws(() => validateTask({ ...request(), status: 'in_progress' }));
   assert.throws(() => validateTask({ ...request(), status: 'accepted' }));
+});
+test('unknown historical usage and exhausted reservations block further dispatch', () => {
+  const task = validateTask(request());
+  assert.throws(() => reserveTask({}, task));
+  assert.throws(() => reserveTask({ budget: { limit: 30000, reservedTokens: 28000 } }, task));
+  assert.throws(() => reserveTask({ budget: { limit: 30000, reservedTokens: 0 } }, { ...task, budgetTokens: 4001 }));
+  const record = { budget: { limit: 30000, reservedTokens: 26000 } };
+  reserveTask(record, task);
+  assert.equal(record.budget.reservedTokens, 30000);
+  assert.throws(() => reserveTask(record, { ...task, id: 'next-unit' }));
 });
 test('session cannot move between machines or checkouts by copying state', () => {
   const workspace = path.resolve('checkout');

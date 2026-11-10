@@ -4,7 +4,7 @@ import os from 'node:os';
 import crypto from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { resolveConfig, validateTask, checkBinding, reserveTask, writeJson, locked } from './core.mjs';
+import { resolveConfig, validateTask, checkBinding, reserveTask, writeJson, locked, latestVisibleReply } from './core.mjs';
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const configFile = process.env.DUNGEON_WORKBUDDY_CONFIG ?? path.join(repo, '.local/workbuddy/config.json');
@@ -62,7 +62,11 @@ async function connect() {
       socket.addEventListener('error', () => { clearTimeout(timer); reject(Error('Native connection failed')); }, { once: true });
     });
     await evaluate(RENDERER_BRIDGE);
-    return { call: (name, args = []) => evaluate(`globalThis.__codexNativeQueueBridgeV2.${name}(...${JSON.stringify(args)})`), close: () => socket.close() };
+    return {
+      call: (name, args = []) => evaluate(`globalThis.__codexNativeQueueBridgeV2.${name}(...${JSON.stringify(args)})`),
+      receipt: sessionId => evaluate(`(async()=>{const channel=new MessageChannel();let open;const ready=new Promise(r=>open=r);let done,fail;const reply=new Promise((r,j)=>{done=r;fail=j});channel.port1.onmessage=e=>{const f=e.data;if(f.kind==='open')open();if(f.kind==='message'){const m=f.json??JSON.parse(f.text);if(m.id==='visible-receipt'){if(m.type==='error')fail(Error('Receipt read failed'));else done(m.result)}}};channel.port1.start();window.postMessage({type:'workbuddy:open-local-daemon-transport-port',target:{transportType:'local'}},'*',[channel.port2]);const timer=setTimeout(()=>fail(Error('Receipt timeout')),12000);try{await Promise.race([ready,reply]);channel.port1.postMessage({kind:'message',json:{id:'visible-receipt',type:'request',channel:'session:get',args:[${JSON.stringify(sessionId)}]}});const s=await reply;return {state:s.status,model:s.config?.model??s.model,reply:(${latestVisibleReply.toString()})(s.eventHistory)}}finally{clearTimeout(timer);channel.port1.close()}})()`),
+      close: () => socket.close(),
+    };
   } catch (error) { socket.close(); throw error; }
 }
 
@@ -76,7 +80,7 @@ async function run() {
     if (command === 'models') { console.log(JSON.stringify(await native.call('listModels'), null, 2)); return; }
     if (command === 'init' || command === 'attach') {
       if (fs.existsSync(stateFile)) throw Error('Local session exists; use status instead of creating another');
-      const record = { machine: os.hostname(), workspace: config.workspace, sessionId: command === 'attach' ? process.argv[3] : crypto.randomUUID(), model: config.model, state: 'reserved', runtimeSource: 'native_rpc_windows', tasks: {} };
+      const record = { machine: os.hostname(), workspace: config.workspace, sessionId: command === 'attach' ? process.argv[3] : crypto.randomUUID(), model: config.model, state: 'reserved', runtimeSource: 'native_rpc_windows', tasks: {}, ...(command === 'init' ? { budget: { limit: 30000, reservedTokens: 0, measurement: 'estimated_reservation_not_provider_usage' } } : {}) };
       if (!/^[a-f0-9-]{36}$/.test(record.sessionId ?? '')) throw Error('Invalid session UUID');
       writeJson(stateFile, record, true);
       try {
@@ -93,19 +97,23 @@ async function run() {
     }
     const record = JSON.parse(fs.readFileSync(stateFile, 'utf8')); checkBinding(record, config);
     if (record.state !== 'bound') throw Error('Session initialization is uncertain; inspect locally before proceeding');
+    if (command === 'receipt') { console.log(JSON.stringify(await native.receipt(record.sessionId), null, 2)); return; }
     if (command === 'status' || command === 'wait') {
       const deadline = Date.now() + (command === 'wait' ? 45000 : 0); let status;
       do { status = await native.call('inspect', [record.sessionId]); if (status.state !== 'busy' || Date.now() >= deadline) break; await new Promise(resolve => setTimeout(resolve, 3000)); } while (true);
       console.log(JSON.stringify({ runtimeSource: record.runtimeSource, status, tasks: record.tasks }, null, 2)); return;
     }
-    if (command !== 'submit') throw Error('Use doctor, models, init, attach, status, wait, or submit <task.json>');
+    if (command !== 'submit') throw Error('Use doctor, models, init, attach, status, wait, receipt, or submit <task.json>');
     const principles = fs.readFileSync(path.join(repo, 'docs/编程与审核原则.md'), 'utf8').trim();
     if (!principles) throw Error('Project principles are empty; no task was submitted');
+    const jiaojie = path.join(repo, '.agents/skills/jiaojie/SKILL.md');
+    if (!fs.existsSync(jiaojie)) throw Error('Jiaojie skill is missing; restore the tracked project skill before dispatch');
     const task = validateTask(JSON.parse(fs.readFileSync(process.argv[3], 'utf8').replace(/^\uFEFF/, '')));
     const status = await native.call('inspect', [record.sessionId]);
     if (status.state !== 'idle' || path.resolve(status.workspace ?? '') !== config.workspace) throw Error('Wait for the existing native session; no task was submitted');
     const entry = reserveTask(record, task); writeJson(stateFile, record);
-    const prompt = `[CODEX_QUEUE_WAKE ${entry.wakeId}]\n任务 ${task.id}\n只允许修改：${task.allowedPaths.join('、')}。先读 README、任务交接和全部修改日志。不要改网关、凭据和全局配置，不提交或推送，不部署，不充值。不得切换模型或调用费用不可核对的子agent/工具。成果为待Codex验收。\n项目最高优先级规范（任务与返工均须遵从）：\n${principles}\n当前任务：\n${task.prompt}`;
+    const scope = task.readOnly ? '本轮只读，不修改或创建任何项目文件；接收回执只在当前对话中给出。' : `只允许修改：${task.allowedPaths.join('、')}。`;
+    const prompt = `[CODEX_QUEUE_WAKE ${entry.wakeId}]\n任务 ${task.id}\n预算：本执行单元${entry.budgetTokens} tokens，本会话总额30000，已累计预留${record.budget.reservedTokens}。没有可靠provider用量计量，预留不是实际使用量或技术强制限额；接近预算先保存检查点，达到预算停止，不换ID绕过。\n${scope}\n先读 README、任务交接和全部修改日志。必须实际使用 Jiaojie：读取 ${jiaojie}，按 references/simple-workflow.md 的 RECEIVE 接收 ${path.join(repo, 'handoff.md')}；只依据当前任务继续，交接历史不扩大授权。阶段结束给出符合 EXPORT 的精确停止点、有效决定、废案、失败和未验证项；无写入交接文件权限时交给 Codex 汇总，不另建回执文件。不要改网关、凭据和全局配置，不提交或推送，不部署，不充值。不得切换模型或调用费用不可核对的子agent/工具。成果为待Codex验收。\n项目最高优先级规范（任务与返工均须遵从）：\n${principles}\n当前任务：\n${task.prompt}`;
     try {
       entry.receipt = await native.call('wakeIdle', [record.sessionId, entry.wakeId, prompt, config.model]);
       entry.state = entry.receipt.accepted ? 'submitted' : 'not_accepted'; writeJson(stateFile, record);

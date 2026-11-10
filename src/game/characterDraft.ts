@@ -4,14 +4,17 @@ import { SPECIALTIES, randomCharacter } from './data/characters.js'
 
 /**
  * 随机车卡（character draft）的单一数据来源与生成逻辑。
+ * 所有随机入口（车卡一键/再次随机、直接随机加入、Setup 旧随机卡）共用本模块。
  *
  * 设计边界（对齐 docs/workbuddy/协作规范.md 与已批准的轻量规则）：
  * - 职业/种族只作为角色背景写入 title，不提供任何数值或法术加成，
  *   与现有 CharacterBuilder 的行为一致，不新增「未经实现的职业加成」。
- * - 姓名、装备、动机、钩子、纪念物、符印等沿用现有 randomCharacter()
+ * - 装备、动机、钩子、纪念物、符印等沿用现有 randomCharacter()
  *   合法生成器（含 ITEMS 装备表与 RANDOM_NAMES 姓名池），不重复枚举。
- * - 本模块只新增「随机挑选职业/种族 + 组合出可填表草稿」的能力，
- *   不改动引擎、存档与联机协议。Setup.tsx 的旧随机组队入口不受影响。
+ * - 姓名沿用同一姓名池并按 takenNames 去重；姓名池耗尽后（现有生成器回退
+ *   固定名「无名」）用确定性递增后缀「·2」「·3」保证仍可区分、不重复，
+ *   不修改 characters.ts。
+ * - 不改动引擎、存档与联机协议。
  */
 
 /** 12 职业、8 种族常量；UI 与测试共用，避免在界面里重复枚举。 */
@@ -53,6 +56,20 @@ function shuffled<T>(xs: readonly T[]): T[] {
 }
 
 /**
+ * 取一个不与 takenNames 冲突的姓名，沿用现有 randomCharacter 的姓名池。
+ * 姓名池（12 个真实名）用尽后，randomCharacter 固定回退「无名」，连续生成会重名；
+ * 这里在「无名」也被占用后附加确定性递增后缀「·2」「·3」…，
+ * 保证耗尽后仍稳定、可区分、不重复，且不修改 characters.ts。
+ */
+function freshName(takenNames: string[]): string {
+  const base = randomCharacter(takenNames).name
+  if (!takenNames.includes(base)) return base
+  let n = 2
+  while (takenNames.includes(`${base}·${n}`)) n++
+  return `${base}·${n}`
+}
+
+/**
  * 校验一份草稿是否满足全部硬性规则：
  * 姓名非空、职业/种族合法、属性恰为 +2/+1/0/−1 各一次、
  * 专长恰好两项、互异且都在白名单内。
@@ -78,18 +95,17 @@ export function isDraftValid(d: CharacterDraft): boolean {
 
 /**
  * 生成一份完整、合法的随机车卡草稿（姓名/职业/种族/属性/专长）。
- * 姓名取用现有 randomCharacter 的姓名池并支持 takenNames 去重；
+ * 姓名取用现有 randomCharacter 的姓名池并支持 takenNames 去重（含池耗尽后缀）；
  * 属性与专长在本模块内按同一套规则重新随机，保证不变量可测。
  */
 export function randomDraft(takenNames: string[] = []): CharacterDraft {
-  const base = randomCharacter(takenNames)
   const vals = shuffled(STAT_BUDGET)
   const stats = {} as Record<Stat, number>
   STAT_ORDER.forEach((k, i) => {
     stats[k] = vals[i]
   })
   return {
-    name: base.name,
+    name: freshName(takenNames),
     job: pick(JOBS),
     ancestry: pick(ANCESTRIES),
     stats,

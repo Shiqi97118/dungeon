@@ -4,6 +4,8 @@
 
 > **换电脑或新开聊天：先读 [CONTINUE.md](CONTINUE.md)。** 代码、设计方案、WorkBuddy 接入源码、安装方法、任务目标与验收检查点均保存在本仓库；各电脑重新登录并建立本机会话。每次结束工作前同步任务状态和修改日志，再提交推送。接入步骤见 [本地 WorkBuddy 工具](tools/workbuddy/README.md)。
 
+> **最高优先级交接规范：必须使用 [Jiaojie Skill](.agents/skills/jiaojie/SKILL.md)。** Codex 和 WorkBuddy 开始接续任务时先按该 Skill 接收 [handoff.md](handoff.md)，确认当前目标、精确停止点、约束、废案和缺失；阶段结束、切换设备或交接前按其 EXPORT 流程更新并校验同一份交接文件。普通交接使用最小充分的 Markdown，不把整段聊天、登录凭据或隐藏推理上传。WorkBuddy 派工及返工同样必须遵从 Jiaojie 与项目 12 条核心准则。
+
 # 回声井：第七道门 · 网页跑团
 
 基于 `docs/module/` 中的原创模组包制作的网页跑团游戏。单人模式浏览器打开即可游玩；联机模式需要一个小服务端：可以部署成**公开链接**（Cloudflare Workers + D1，免登录），也可以发布到 Cursor（需登录）。

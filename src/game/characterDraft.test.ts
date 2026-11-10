@@ -11,7 +11,7 @@ import {
   type CharacterDraft,
 } from './characterDraft.js'
 import { STAT_ORDER } from './types.js'
-import { ITEMS, randomCharacter } from './data/characters.js'
+import { ITEMS } from './data/characters.js'
 import type { Character } from './types.js'
 
 const ROUNDS = 400
@@ -83,19 +83,56 @@ describe('randomDraft 多次生成始终合法', () => {
     expect(jobs.size).toBeGreaterThan(1)
     expect(ancestries.size).toBeGreaterThan(1)
   })
+})
 
-  it('takenNames 去重：占用真实姓名后，生成结果始终避开这些名字', () => {
-    // 从现有生成器采样还原真实姓名池（RANDOM_NAMES 未导出，不硬编码名单），
-    // 用其中 3 个作为占用名；若去重未接上，100 次采样几乎必现冲突。
-    const pool = new Set<string>()
-    for (let i = 0; i < 400; i++) pool.add(randomCharacter([]).name)
-    expect(pool.size).toBeGreaterThan(3)
-    const taken = [...pool].slice(0, 3)
-    for (let i = 0; i < 100; i++) {
+describe('takenNames 去重与姓名池耗尽', () => {
+  it('真实生成一个姓名加入 takenNames 后，再生成始终避开已用名', () => {
+    // 占用名来自真实生成器（确实在姓名池内），不是编造的不在池中的名字。
+    // 若去重未接上，400 次采样几乎必现与该名冲突。
+    const first = randomPlayableCharacter().name
+    expect(first.trim().length).toBeGreaterThan(0)
+    const taken = [first]
+    for (let i = 0; i < ROUNDS; i++) {
       const d = randomDraft(taken)
       expect(taken).not.toContain(d.name)
       expect(d.name.trim().length).toBeGreaterThan(0)
+      expect(isDraftValid(d)).toBe(true)
     }
+  })
+
+  it('连续生成远超姓名池数量仍互不重复，耗尽后使用稳定可区分后缀', () => {
+    const taken: string[] = []
+    const names: string[] = []
+    // RANDOM_NAMES 只有 12 个；连续生成 40 个必然耗尽并触发后缀分支。
+    for (let i = 0; i < 40; i++) {
+      const d = randomDraft(taken)
+      expect(taken).not.toContain(d.name)
+      expect(d.name.trim().length).toBeGreaterThan(0)
+      taken.push(d.name)
+      names.push(d.name)
+    }
+    expect(new Set(names).size).toBe(names.length) // 全程不重复
+    // 真实姓名不含数字，出现带数字的即可区分后缀名。
+    const suffixed = names.filter((n) => /\d/.test(n))
+    expect(suffixed.length).toBeGreaterThan(0)
+    expect(new Set(suffixed).size).toBe(suffixed.length)
+    // 同一已用名集合下后缀稳定（确定性，不随机漂移）。
+    expect(randomDraft(taken).name).toBe(randomDraft(taken).name)
+  })
+
+  it('randomPlayableCharacter 连续生成同样去重，且所有随机入口都含职业/种族', () => {
+    const taken: string[] = []
+    const names: string[] = []
+    for (let i = 0; i < 40; i++) {
+      const c = randomPlayableCharacter(taken)
+      expect(taken).not.toContain(c.name)
+      taken.push(c.name)
+      names.push(c.name)
+      const [ancestry, job] = c.title.split(' · ')
+      expect(ANCESTRIES).toContain(ancestry)
+      expect(JOBS).toContain(job)
+    }
+    expect(new Set(names).size).toBe(names.length)
   })
 })
 

@@ -47,6 +47,12 @@ node tools/workbuddy/client.mjs status
 
 任务必须有稳定 id、明确 prompt 和 allowedPaths。客户端在提交前持久保存轮次；同一 id 不重复提交，连接失败记为 uncertain，不能换 id 绕过核查。wait 最长约45秒，不取消任务。提交回执只代表受理；原生会话 idle 只代表当前不忙，必须检查实际文件和测试，才能验收。
 
+每次派工和返工都会携带项目12条准则全文，并要求实际读取仓库内 Jiaojie Skill，先 RECEIVE `handoff.md`，阶段结束按 EXPORT 提供精确检查点。`readOnly: true` 任务可使用空 allowedPaths，只在对话中给接收回执；这是提示约束，不是操作系统只读隔离。
+
+新执行会话按每任务最多4000、会话30000 tokens 做保守预留；实际 provider 输入、推理、输出消耗不可可靠读取，预留不等于实际计量或技术限额。达到预留上限停止派工；旧会话没有可信预算基线时，不继续派新任务，先保存其原目标和结果，再从明确检查点创建新执行单元。不能借换ID绕过旧任务预算。
+
+Jiaojie 原始 Python 工具在本机 Windows 实测返回 `NOFOLLOW_UNSUPPORTED`。保留上游安全保护，按 Skill 允许的工具不可用路径读写 Markdown，并明确未通过原始 CLI 校验；具有所需 POSIX 能力的环境可重新运行原校验。不要把人工格式检查描述成脚本、路径安全或语义连续性验证通过。
+
 allowedPaths 是传给 WorkBuddy 的任务约束，不是操作系统隔离沙箱；仍需 Codex 检查完整 diff 与测试。任务状态和检查结果由验收者同步更新任务 JSON、CONTINUE.md 和当天修改日志，再提交 GitHub。当前没有自动向 GitHub 回报的后台服务。
 
 同机客户端通过本地锁串行运行。异常退出留下锁时，先确认没有客户端和未闭合操作，再检查锁里的 PID；不自动抢锁或重发。换电脑通过已提交的任务目标与产物接续，不迁移正在运行的进程。
