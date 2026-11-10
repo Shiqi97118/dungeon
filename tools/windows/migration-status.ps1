@@ -5,10 +5,15 @@ try {
     Sort-Object LastWriteTime -Descending | Select-Object -First 1
   if (-not $stateFile) { throw '没有找到迁移状态记录。' }
   $state = Get-Content -LiteralPath $stateFile.FullName -Raw -Encoding UTF8 | ConvertFrom-Json
+  if ($state.PSObject.Properties['helperPid'] -and $state.stage -notin @('needs_attention','interrupted_after_store_move','migrated_pending_real_startup_verification') -and -not (Get-Process -Id $state.helperPid -ErrorAction SilentlyContinue)) {
+    $state.stage = 'needs_attention'
+    $state.detail = '迁移助手已结束，阶段记录尚未完成。不要重复执行或清理原文件。'
+  }
   $message = switch ($state.stage) {
     'waiting_for_normal_exit' { '正在等待 Codex 和 WorkBuddy 正常退出。请先保存其他工作，再从两个应用的菜单退出。' }
     'migrated_pending_real_startup_verification' { '迁移步骤已完成。请从 D:\AI Tools\Codex\Codex.lnk 打开 Codex，发送“继续核验迁移”。C盘原副本仍保留，核验后再清理。' }
     'needs_attention' { "迁移已停止，需要检查；请重新打开 Codex 并发送：检查迁移失败。错误：`n$($state.detail)" }
+    'interrupted_after_store_move' { 'Codex应用本体已在D盘，但数据迁移助手已中断。请在Codex中继续修复，不要清理C盘原数据。' }
     default { '正在迁移或校验文件，请勿提前启动 Codex 或 WorkBuddy。稍后可再次打开本窗口查看。' }
   }
   [void][Windows.Forms.MessageBox]::Show($message, 'AI Tools 迁移状态')

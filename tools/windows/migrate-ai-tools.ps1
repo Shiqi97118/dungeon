@@ -39,8 +39,20 @@ function AppProcesses {
   })
 }
 function WriteState([string]$Stage, [string]$Detail = '') {
-  @{ stage = $Stage; time = (Get-Date).ToString('o'); detail = $Detail; completed = @($script:completed) } |
+  @{ stage = $Stage; time = (Get-Date).ToString('o'); helperPid = $PID; detail = $Detail; completed = @($script:completed) } |
     ConvertTo-Json -Depth 6 | Set-Content -LiteralPath "$script:runRoot\state.json" -Encoding UTF8
+}
+function PackageRootOnD([string]$PackageName, [string]$Location, [string]$LinkType, $Targets) {
+  $expected = FullPath (Join-Path 'D:\WindowsApps' $PackageName)
+  if ((FullPath $Location) -eq $expected) { return $true }
+  return $LinkType -eq 'Junction' -and @($Targets).Count -eq 1 -and (FullPath ([string]@($Targets)[0])) -eq $expected
+}
+function PackageOnD($Package) {
+  $root = Get-Item -LiteralPath $Package.InstallLocation -Force
+  $physical = PackageRootOnD $Package.PackageFullName $Package.InstallLocation $root.LinkType @($root.Target)
+  $volume = Get-AppxVolume | Where-Object { $_.PackageStorePath -eq 'D:\WindowsApps' }
+  $registered = $volume -and @((Get-AppxPackage -Volume $volume -Name OpenAI.Codex) | Where-Object PackageFullName -eq $Package.PackageFullName).Count -gt 0
+  return $physical -and $registered
 }
 function Inventory([string]$Root) {
   $items = @(Get-ChildItem -LiteralPath $Root -Recurse -Force -ErrorAction Stop)
@@ -84,7 +96,7 @@ if ((Get-Volume -DriveLetter D).FileSystem -ne 'NTFS') { throw 'D: must be NTFS.
 $package = Get-AppxPackage -Name OpenAI.Codex
 if (-not $package) { throw 'Codex Store package not found for this user.' }
 if ($Mode -eq 'Plan') {
-  [pscustomobject]@{ Mode = 'ReadOnly'; Package = $package.PackageFullName; PackageLocation = $package.InstallLocation;
+  [pscustomobject]@{ Mode = 'ReadOnly'; Package = $package.PackageFullName; PackageLocation = $package.InstallLocation; StoreOnD = (PackageOnD $package);
     Mappings = $mappings; RunningApps = @(AppProcesses | Select-Object ProcessName, Id);
     DFreeBytes = (Get-Volume -DriveLetter D).SizeRemaining } | ConvertTo-Json -Depth 5
   exit 0
@@ -97,7 +109,7 @@ if ($Mode -eq 'Verify') {
       DestinationExists = Test-Path -LiteralPath $mapping.Target -PathType Container }
   }
   $results | ConvertTo-Json
-  if (@($results | Where-Object { -not $_.Linked -or -not $_.DestinationExists }).Count -or -not $package.InstallLocation.StartsWith('D:\', [StringComparison]::OrdinalIgnoreCase)) { exit 1 }
+  if (@($results | Where-Object { -not $_.Linked -or -not $_.DestinationExists }).Count -or -not (PackageOnD $package)) { exit 1 }
   exit 0
 }
 $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
@@ -132,12 +144,14 @@ try {
   WriteState 'quiescent'
   $service = Get-Service -Name 'CodexSandboxService.OpenAI.Codex' -ErrorAction SilentlyContinue
   if ($service -and $service.Status -eq 'Running') { $serviceWasRunning = $true; Stop-Service -InputObject $service; $service.WaitForStatus('Stopped', [TimeSpan]::FromSeconds(30)) }
-  WriteState 'moving_store_package'
-  $volume = Get-AppxVolume | Where-Object { $_.PackageStorePath -eq 'D:\WindowsApps' }
-  if (-not $volume) { $volume = Add-AppxVolume -Path 'D:\WindowsApps' }
-  Move-AppxPackage -Package $package.PackageFullName -Volume $volume
+  if (-not (PackageOnD $package)) {
+    WriteState 'moving_store_package'
+    $volume = Get-AppxVolume | Where-Object { $_.PackageStorePath -eq 'D:\WindowsApps' }
+    if (-not $volume) { $volume = Add-AppxVolume -Path 'D:\WindowsApps' }
+    Move-AppxPackage -Package $package.PackageFullName -Volume $volume
+  }
   $moved = Get-AppxPackage -Name OpenAI.Codex
-  if (-not $moved.InstallLocation.StartsWith('D:\', [StringComparison]::OrdinalIgnoreCase)) { throw 'Store package did not move to D:.' }
+  if (-not (PackageOnD $moved)) { throw 'Store package physical location and registered volume do not both point to D:.' }
   foreach ($mapping in $mappings) {
     if (@(AppProcesses).Count) { throw 'Application restarted during migration; stopped before next directory.' }
     WriteState 'copying_and_hashing' $mapping.Target

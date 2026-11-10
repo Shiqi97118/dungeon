@@ -10,6 +10,8 @@
 
 Codex Store 本体使用微软 `Add-AppxVolume D:\WindowsApps` / `Move-AppxPackage`，不手动搬 WindowsApps。原沙箱服务在退出后正常停止，迁移完成恢复；不更改整个系统默认应用卷。WorkBuddy 采用搬移与旧安装路径兼容链接；没有冒称使用厂商重新安装流程，后续自动升级/卸载仍需验证。
 
+实际Windows迁移后，InstallLocation可能继续显示C盘兼容Junction；以其目标目录和Appx注册卷同时确认物理位置，不能只检查路径前缀。已在D盘时跳过Store搬迁，继续尚未开始的数据目录阶段。`test-package-placement.ps1`覆盖直接D路径、官方兼容链接、未搬迁C路径及错误链接目标。部分目录已迁移时仍拒绝盲目重跑，须先检查状态。
+
 执行状态与回滚副本位于 `D:\AI Tools\Shared\Migration\<时间>/`，包含私密应用数据，**禁止提交 GitHub**。失败不自动重试，不回滚覆盖更新后的工作；先检查 state.json 中每个已完成目录。中途失败可能是部分迁移，不代表原路径丢失。
 
 `migration-status.ps1` 只读显示最新阶段，可作为D盘“查看迁移状态”快捷方式的目标。Windows PowerShell 5.1读取中文脚本需要UTF-8 BOM。该窗口不开始、取消或重复执行迁移，也不替代真实启动验收。

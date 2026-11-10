@@ -25,6 +25,8 @@ WorkBuddy只读接收单元已实测completed且读回hy4free，已读取可见�
 
 ### 建议下一步 / Recommended next action
 
+最新核验（2026-11-11）：原助手已结束，旧state停在moving_store_package且completed为空。系统00:41:45成功事件、D卷包枚举及C目录Junction目标共同证实Store本体已在D:\WindowsApps；当前应用与沙箱服务实际运行正常，C注册路径是兼容入口。六个数据/WorkBuddy源目录仍为C盘普通目录，D目标未创建。原助手终止的直接原因未证实，不能冒称全部迁移完成。已修正物理位置判定并跳过已搬Store，4项回归与4组隔离复制检查通过；新的管理员助手是否启动/结束仍须核对本地最新state，禁止重发已有执行单元。
+
 先核验D盘迁移助手状态，不重启或重发已有执行单元。助手应只在用户正常退出应用后执行，需同一用户UAC管理员权限；应用仍运行时不切换活跃数据。迁移后运行-Mode Verify，核对服务、登录、历史、Skill、CLI与WorkBuddy接入，将本机接入配置executable对齐真实程序路径。验证真实启动后清理准确的C盘parked原副本、保留D盘回滚副本，才算释放数据占用。随后继续游戏任务，不重做Skill安装或重问目录例外。
 
 ### 完成标准 / Completion criteria
