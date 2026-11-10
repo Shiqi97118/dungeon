@@ -1,11 +1,12 @@
-import { requireIdentity } from '../cursor/identity.js'
 import type { GameState, Stat, Tier } from '../src/game/types.js'
 import { SCENES } from '../src/game/data/scenes.js'
 import { HttpError, assertSameSite, fail, json, readJson } from './http.js'
-import { getStore } from './store.js'
+import { platform } from './platform.js'
 import { serverGm } from './gm.js'
+import { spendGlobalAi } from './rooms.js'
 
 const DAILY_LIMIT = 200
+const IP_DAILY_LIMIT = 300
 const STATS: Stat[] = ['str', 'dex', 'ins', 'soc']
 const TIERS: Tier[] = ['hit', 'partial', 'miss']
 
@@ -24,18 +25,22 @@ const text = (v: unknown, max: number) => {
 
 export async function handleGm(request: Request): Promise<Response> {
   try {
-    const ident = await requireIdentity(request)
+    const p = platform()
+    const ident = await p.viewer(request)
     if (ident instanceof Response) return ident
     const gm = serverGm()
     if (request.method === 'GET') return json({ available: !!gm })
     if (request.method !== 'POST') return json({ error: '不支持的请求' }, 405)
     assertSameSite(request)
     if (!gm) throw new HttpError(503, '内置 AI 主持人未配置')
-    const store = getStore()
+    const store = p.store()
     if (!store) throw new HttpError(503, '内置 AI 主持人暂不可用')
     const body = await readJson(request, 300_000)
     const state = cleanState(body.state)
-    if (!(await store.useQuota(ident.stage, ident.sub, DAILY_LIMIT))) throw new HttpError(429, '今天的 AI 主持次数已用完，已切换为离线规则')
+    const out = () => new HttpError(429, '今天的 AI 主持次数已用完，已切换为离线规则')
+    if (!(await store.useQuota(ident.stage, ident.sub, DAILY_LIMIT))) throw out()
+    if (ident.open && !(await store.useQuota(ident.stage, `gm-ip:${ident.ip ?? 'unknown'}`, IP_DAILY_LIMIT))) throw out()
+    if (!(await spendGlobalAi(store, ident))) throw out()
 
     if (body.op === 'propose') {
       return json(await gm.propose(state, text(body.text, 200), typeof body.actorName === 'string' ? body.actorName.slice(0, 12) : undefined))

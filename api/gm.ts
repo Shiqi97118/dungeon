@@ -1,3 +1,4 @@
+import '../server/node.js'
 import { handleGm } from '../server/gmProxy.js'
 
 export async function GET(request: Request) {

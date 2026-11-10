@@ -17,6 +17,7 @@
     "react-dom": "^19.3.1"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261110.1",
     "@types/node": "^24.19.2",
     "@types/pg": "^8.23.1",
     "@types/react": "^19.3.0",
@@ -25,6 +26,7 @@
     "oxlint": "^1.90.0",
     "typescript": "~7.0.2",
     "vite": "^8.3.6",
-    "vitest": "^5.1.0"
+    "vitest": "^5.1.0",
+    "wrangler": "^4.159.0"
   }
 }

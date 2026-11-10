@@ -1,7 +1,8 @@
-import { afterAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { PREGENS, makeCharacter } from '../src/game/data/characters.js'
 import { availableActions } from '../src/game/engine.js'
 import type { GameState } from '../src/game/types.js'
+import './node.js'
 import { handleRoom } from './rooms.js'
 
 type Json = Record<string, unknown>
@@ -15,6 +16,7 @@ async function call(method: 'GET' | 'POST', body?: Json, token?: string, query =
 }
 
 const party = ['helan', 'qilan'].map((id) => makeCharacter(PREGENS.find((p) => p.id === id)!))
+const solo = party.slice(0, 1)
 
 async function poll(code: string, token: string) {
   const r = await call('GET', undefined, token, `?code=${code}&v=0`)
@@ -28,6 +30,7 @@ function suite(name: string, url: string | undefined) {
       if (url) process.env.DATABASE_URL = url
       else delete process.env.DATABASE_URL
     })
+    afterEach(() => { vi.useRealTimers() })
     afterAll(() => { delete process.env.DATABASE_URL; g.__echoStore = undefined })
 
     it('creates, joins, claims seats and enforces turn order', async () => {
@@ -98,9 +101,8 @@ function suite(name: string, url: string | undefined) {
         return new Response(JSON.stringify({ choices: [{ message: { content } }] }), { status: 200, headers: { 'content-type': 'application/json' } })
       }) as typeof fetch
       try {
-        const host = (await call('POST', { op: 'create', name: 'x', party, safety: {} })).data as { code: string; token: string }
+        const host = (await call('POST', { op: 'create', name: 'x', party: solo, safety: {} })).data as { code: string; token: string }
         await call('POST', { op: 'claim', code: host.code, charId: 'helan' }, host.token)
-        await call('POST', { op: 'claim', code: host.code, charId: 'qilan' }, host.token)
         await call('POST', { op: 'start', code: host.code }, host.token)
         const before = await call('GET', undefined, host.token, `?code=${host.code}&v=0`)
         const r = await call('POST', { op: 'act', code: host.code, intent: { t: 'free', text: '敲击井壁' } }, host.token)
@@ -114,6 +116,39 @@ function suite(name: string, url: string | undefined) {
         globalThis.fetch = realFetch
         delete process.env.OPENAI_API_KEY
       }
+    })
+
+    it('gives each player one seat and lets companions play the rest at a watchable pace', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] })
+      const host = (await call('POST', { op: 'create', name: '阿岚', party, safety: {} })).data as { code: string; pid: string; token: string }
+      await call('POST', { op: 'claim', code: host.code, charId: 'qilan' }, host.token)
+      await call('POST', { op: 'claim', code: host.code, charId: 'helan' }, host.token)
+      let room = await poll(host.code, host.token)
+      expect(room.players[0].seats).toEqual(['helan'])
+      await call('POST', { op: 'start', code: host.code }, host.token)
+
+      let mine = 0
+      let theirs = 0
+      for (let i = 0; i < 120 && theirs < 4; i++) {
+        vi.setSystemTime(Date.now() + 3000)
+        room = await poll(host.code, host.token)
+        const st = room.state
+        if (st.turns?.activeId === 'qilan' && !st.queue.length && !st.rolling) {
+          expect((await call('POST', { op: 'act', code: host.code, intent: { t: 'pass' } }, host.token)).status).toBe(403)
+        }
+        if (st.turns?.activeId === 'helan' && !st.queue.length && !st.rolling && !st.rollReq) {
+          const r = await call('POST', { op: 'act', code: host.code, intent: { t: 'pass' } }, host.token)
+          expect(r.status).toBe(200)
+          mine++
+        }
+        theirs = st.log.filter((e) => e.kind === 'player' && e.speaker === '祁岚').length
+      }
+      expect(mine).toBeGreaterThan(0)
+      expect(theirs).toBeGreaterThan(0)
+
+      const before = await call('GET', undefined, host.token, `?code=${host.code}&v=0`)
+      const again = await call('GET', undefined, host.token, `?code=${host.code}&v=0`)
+      expect(again.data.version).toBe(before.data.version)
     })
 
     it('rejects malformed parties and intents', async () => {

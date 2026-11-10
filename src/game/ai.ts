@@ -135,7 +135,7 @@ async function chat(cfg: AiConfig, messages: { role: string; content: string }[]
     if (json && res.status === 400 && /response_format|json/i.test(t)) return chat(cfg, messages, false)
     throw new Error(`AI 接口返回 ${res.status}：${t.slice(0, 160)}`)
   }
-  const data = await res.json()
+  const data = (await res.json()) as { choices?: { message?: { content?: string } }[] } | null
   return data?.choices?.[0]?.message?.content ?? ''
 }
 

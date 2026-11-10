@@ -2,9 +2,9 @@ import react from '@vitejs/plugin-react'
 import { defineConfig, type Plugin, type ViteDevServer } from 'vite'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 
-const ROUTES: Record<string, [string, string]> = {
-  '/api/room': ['/server/rooms.ts', 'handleRoom'],
-  '/api/gm': ['/server/gmProxy.ts', 'handleGm'],
+const ROUTES: Record<string, string> = {
+  '/api/room': '/api/room.ts',
+  '/api/gm': '/api/gm.ts',
 }
 
 async function toRequest(req: IncomingMessage): Promise<Request> {
@@ -25,8 +25,9 @@ function devApi(): Plugin {
         const route = ROUTES[path]
         if (!route) return next()
         try {
-          const mod = await server.ssrLoadModule(route[0])
-          const out: Response = await mod[route[1]](await toRequest(req))
+          const mod = await server.ssrLoadModule(route)
+          const handler = mod[req.method ?? 'GET']
+          const out: Response = handler ? await handler(await toRequest(req)) : new Response('method not allowed', { status: 405 })
           res.statusCode = out.status
           out.headers.forEach((v, k) => res.setHeader(k, v))
           res.end(Buffer.from(await out.arrayBuffer()))

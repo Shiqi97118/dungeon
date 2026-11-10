@@ -1,3 +1,4 @@
+import '../server/node.js'
 import { handleRoom } from '../server/rooms.js'
 
 export async function GET(request: Request) {

@@ -17,7 +17,7 @@ export interface RoomView {
 
 export interface Seat { code: string; pid: string; token: string }
 
-export interface ServerInfo { me: { name: string }; online: boolean; gm: boolean }
+export interface ServerInfo { me: { name: string | null }; online: boolean; gm: boolean; open?: boolean }
 
 export class ApiError extends Error {
   status: number
@@ -27,8 +27,20 @@ export class ApiError extends Error {
   }
 }
 
+const UID_KEY = 'echo-well-uid'
+
+/** A random per-browser id; public deployments use it in place of a sign-in to recognise returning players. */
+function browserId() {
+  let id = localStorage.getItem(UID_KEY)
+  if (!id || !/^[A-Za-z0-9_-]{16,64}$/.test(id)) {
+    id = crypto.randomUUID().replace(/-/g, '')
+    localStorage.setItem(UID_KEY, id)
+  }
+  return id
+}
+
 async function call<T>(path: string, init: RequestInit & { token?: string } = {}): Promise<T> {
-  const headers: Record<string, string> = { 'x-echo-client': '1' }
+  const headers: Record<string, string> = { 'x-echo-client': '1', 'x-echo-uid': browserId() }
   if (init.body) headers['content-type'] = 'application/json'
   if (init.token) headers['x-echo-token'] = init.token
   let res: Response
