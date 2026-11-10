@@ -172,6 +172,26 @@ describe('scripted routes', () => {
     expect(s.clues).toContain('b_note')
   })
 
+  it('seal and repair stay available after a failed or cancelled attempt', () => {
+    let s = newGame(party(['qilan']), { softMemory: false, softTrapped: false })
+    s = act(s, 'gate_enter')
+    s = act(s, 'go_C')
+    s = act(s, 'c_score')
+    s = act(s, 'go_D')
+    s = act(s, 'd_vision')
+    s = act(s, 'go_E')
+    s = act(s, 'e_letter')
+    s = act(s, 'e_story')
+    s = act(s, 'go_G')
+    s = reduce(s, { type: 'perform', id: 'fin_seal' })
+    s = reduce(s, { type: 'bells', success: false, mistakes: 3 })
+    s = reduce(s, { type: 'perform', id: 'fin_repair' })
+    s = reduce(s, { type: 'dismissQueue' })
+    const ids = availableActions(s).map((a) => a.id)
+    expect(ids).toContain('fin_seal')
+    expect(ids).toContain('fin_repair')
+  })
+
   it('custom ending and takeaways', () => {
     let s = newGame(party(['helan']), { softMemory: false, softTrapped: false })
     s = reduce(s, { type: 'customEnding', plan: '把井带回镇上', paragraphs: ['甲', '乙'] })

@@ -771,13 +771,13 @@ export const SCENES: Record<LocId, SceneDef> = {
         },
       },
       {
-        id: 'fin_seal', group: 'final', label: '封存 · 第七道静音',
+        id: 'fin_seal', group: 'final', label: '封存 · 第七道静音', repeatable: true,
         hint: '依钟序敲响六音，以静默完成第七音',
         locked: (s) => (knowsFact(s.clues, 'bells') ? null : '需要先了解七音钟序（任一相关线索）'),
         run: (d) => { d.queue.push({ type: 'bells', mode: 'core' }) },
       },
       {
-        id: 'fin_repair', group: 'final', label: '修复 · 让记忆自愿留下',
+        id: 'fin_repair', group: 'final', label: '修复 · 让记忆自愿留下', repeatable: true,
         hint: '重建第七音，需要一段自愿交出的记忆作校准',
         when: (s) => !flag(s, 'repairFailed') && !flag(s, 'volunteer'),
         locked: (s) => (knowsFact(s.clues, 'bells') && knowsFact(s.clues, 'theft') ? null : '需要了解钟序，以及井如何夺取记忆'),
