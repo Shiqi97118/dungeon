@@ -155,6 +155,8 @@ export interface GameState {
   rollReq?: RollReq | null
   turnSpent?: boolean
   thinking?: string | null
+  /** Solo games only: characters an AI companion plays instead of the player. */
+  auto?: string[]
 }
 
 export interface RollSpec {
