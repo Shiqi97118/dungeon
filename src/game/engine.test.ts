@@ -179,6 +179,7 @@ describe('scripted routes', () => {
     s = act(s, 'c_score')
     s = act(s, 'go_D')
     s = act(s, 'd_vision')
+    s = act(s, 'd_tracks')
     s = act(s, 'go_E')
     s = act(s, 'e_letter')
     s = act(s, 'e_story')
