@@ -1,34 +1,62 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { GameState, LogEntry } from '../game/types'
 import { CLUES } from '../game/data/clues'
 import { TIER_LABEL } from '../game/engine'
 import { Die } from './bits'
 
 export default function Log({ state, thinking }: { state: GameState; thinking?: boolean }) {
-  const end = useRef<HTMLDivElement>(null)
-  const seen = useRef<number>(-1)
-  const lastId = state.log[state.log.length - 1]?.id ?? 0
-  const firstNew = seen.current < 0 ? lastId : seen.current
-
+  const root = useRef<HTMLDivElement>(null)
+  const seen = useRef(state.log.at(-1)?.id ?? 0)
+  const anchor = useRef<number | null>(null)
+  const [unread, setUnread] = useState(false)
+  const [fontSize, setFontSize] = useState(18)
+  const [reading, setReading] = useState(false)
+  const lastId = state.log.at(-1)?.id ?? 0
+  const firstNew = seen.current
+  const speechAvailable = typeof window !== 'undefined' && 'speechSynthesis' in window
+  const speak = () => {
+    if (!speechAvailable) return
+    window.speechSynthesis.cancel()
+    const text = state.log.filter(e => ['read', 'narr', 'npc', 'ai'].includes(e.kind) && !e.forgotten).slice(-6).map(e => e.text).join('。')
+    const utterance = new SpeechSynthesisUtterance(text)
+    utterance.lang = 'zh-CN'
+    window.speechSynthesis.speak(utterance)
+  }
+  const showUnread = () => {
+    const el = root.current
+    const entry = el?.querySelector<HTMLElement>('[data-entry-id="' + anchor.current + '"]')
+    if (el && entry) el.scrollTop += entry.getBoundingClientRect().top - el.getBoundingClientRect().top - 12
+    anchor.current = null
+    setUnread(false)
+  }
+  useEffect(() => () => { if (speechAvailable) window.speechSynthesis.cancel() }, [speechAvailable])
   useEffect(() => {
-    end.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
-    const t = setTimeout(() => { seen.current = lastId }, 50)
-    return () => clearTimeout(t)
-  }, [lastId, thinking])
+    const first = state.log.find(e => e.id > seen.current)
+    if (first && anchor.current === null) { anchor.current = first.id; setUnread(true) }
+    seen.current = lastId
+  }, [lastId, state.log])
 
   let stagger = 0
   return (
-    <div className="log" role="log" aria-live="polite">
+    <>
+    <div className="reading-controls">
+      <label>字号 <input aria-label="阅读字号" type="range" min="16" max="26" value={fontSize} onChange={e => setFontSize(Number(e.target.value))} /></label>
+      <button onClick={() => setReading(!reading)}>{reading ? '恢复布局' : '专注阅读'}</button>
+      {speechAvailable && <><button onClick={speak}>朗读最近叙事</button><button onClick={() => window.speechSynthesis.cancel()}>停止朗读</button></>}
+      {unread && <button onClick={showUnread}>从未读处继续 ↓</button>}
+    </div>
+    <div ref={root} className={'log' + (reading ? ' reading-expanded' : '')} role="log" aria-live="polite" style={{ fontSize }}>
       {state.log.map((e) => {
         const isNew = e.id > firstNew
         const delay = isNew ? stagger++ * 220 : 0
-        return <Entry key={e.id} e={e} isNew={isNew} delay={delay} />
+        return <div key={e.id} data-entry-id={e.id}><Entry e={e} isNew={isNew} delay={delay} /></div>
       })}
       {thinking && (
         <div className="entry ai thinking"><span className="dots"><i /><i /><i /></span> 主持人正在倾听井底的回声……</div>
       )}
-      <div ref={end} />
+
     </div>
+  </>
   )
 }
 

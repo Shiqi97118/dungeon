@@ -52,6 +52,11 @@ const SYSTEM = `你是《回声井：第七道门》的 AI 主持人。你负责
 6. 叙事简洁而有感官细节（2–5 句中文）。结尾留一个开放问题，不要列出“正确选项”。
 7. 规则：2d6+属性(+专长1)(+情境±1)，总加值 -2~+3。10+ 成功；7–9 成功但有代价；6- 局势复杂化但故事继续。
 
+【连续性与引导】
+每次回应承接最近行动的具体结果；新设定先通过可观察细节解释，不突然更换目标。用 NPC 的具体请求或环境线索给出可执行的下一步，但保留自由行动。
+角色的入团理由、关系、纪念物是个人支线素材：先埋线索，再通过调查验证，不把背景猜测直接宣布为真相。指出现有工具在当前环境的一种合理用途，不能凭空消耗物品或赋予魔法。
+无风险调查、询问背景和阅读线索不增加压力；不要用连续加压代替内容。每个地点先呈现人物诉求、可调查细节和选择的后果，避免一次回应直接跳到结局。不得为拖长时长重复叙事。
+
 【主持人秘闻（不可直接告诉玩家，只能通过线索与 NPC 逐步揭示）】
 回声井是古代“记忆库”的损坏核心。旧文明将临终者的记忆存入井内，维护者用七音钟序控制读写；第七音是静音（锁）。第七音失衡后，装置把活人的记忆当作修复材料。井中声音是数据与拼接，不等于完整灵魂，但玩家可以选择相信其意义。井不恶意说谎、不全知。
 NPC：宁芮（测绘队长，相信晶核里有妹妹，说话前先听一秒、会重复对方最后一个词）；乔安（幸存测绘员，警惕嘴硬，忘了自己的姓氏）；伊芙琳（守井者，曾封井一次，因此忘了搭档；只讲亲历的事）；陆铎（公会代理人，礼貌务实，隐瞒了两名矿工失忆被送回地面的事；证据显示失控时愿意撤退）。
@@ -82,7 +87,7 @@ NPC：宁芮（测绘队长，相信晶核里有妹妹，说话前先听一秒�
 function contextFor(s: GameState): string {
   const scene = SCENES[s.location]
   const party = s.party.map((c) =>
-    `- ${c.name}（id:${c.id}，${c.title}）强韧${c.stats.str} 灵巧${c.stats.dex} 洞察${c.stats.ins} 交涉${c.stats.soc}｜专长：${c.specialties.join('、')}｜物品：${c.items.join('、')}｜承压${c.stress}/3 优势${c.advantage}${c.out ? '｜暂时退出' : ''}${condsOf(c).length ? `｜状态：${condsOf(c).map((x) => CONDS[x.id].name).join('、')}` : ''}｜动机：${c.motive}`,
+    `- ${c.name}（id:${c.id}，${c.title}）强韧${c.stats.str} 灵巧${c.stats.dex} 洞察${c.stats.ins} 交涉${c.stats.soc}｜专长：${c.specialties.join('、')}｜物品：${c.items.join('、')}｜承压${c.stress}/3 优势${c.advantage}${c.out ? '｜暂时退出' : ''}${condsOf(c).length ? `｜状态：${condsOf(c).map((x) => CONDS[x.id].name).join('、')}` : ''}｜动机：${c.motive}｜入团理由：${c.reason}｜关系：${c.relation ?? "暂无"}｜纪念物：${c.memento}｜个人伏笔：${c.hook}`,
   ).join('\n')
   const npcs = Object.entries(s.npcs).map(([k, v]) => `- ${k}：${v.met ? `已接触，${v.attitude}，位于${v.where}，${v.status}` : '未接触'}`).join('\n')
   const found = s.clues.map((c) => `${c}（${CLUES[c]?.title}）`).join('、') || '无'

@@ -733,3 +733,17 @@ details summary { cursor: pointer; color: var(--echo); margin: 8px 0; }
 .mine-opt:last-child { padding-left: 14px; }
 .mine-opt:hover { border-color: hsl(var(--hue) 50% 55%); }
 .mine-opt.sel { border-color: hsl(var(--hue) 60% 60%); background: hsl(var(--hue) 60% 50% / .14); box-shadow: 0 0 0 1px hsl(var(--hue) 60% 60%); }
+
+.reading-controls { display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding:8px 16px; border-bottom:1px solid var(--line); }
+.reading-controls label { display:flex; align-items:center; gap:6px; }
+.log .entry { font-size:inherit; line-height:1.85; }
+.stage:has(.reading-expanded) .scene-header { height:90px; }
+.stage:has(.reading-expanded) .actions { max-height:20vh; }
+.active-character { text-align:center; padding:18px; background:radial-gradient(ellipse at top, #29384a, transparent); }
+.active-character .sigil { margin:auto; }
+.active-character h3 { margin:8px 0; }
+
+.character-builder { padding:16px; margin:16px 0; border:1px solid var(--line); border-radius:12px; }
+.character-builder summary { cursor:pointer; font-weight:bold; }
+.character-builder > label { display:inline-block; margin:8px; }
+.character-builder .chips { display:grid; gap:8px; margin:16px 0; }

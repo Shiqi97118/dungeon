@@ -5,6 +5,7 @@ import { PREGENS, RELATIONS, SPECIALTIES, makeCharacter, randomCharacter } from 
 import { CLUES } from '../game/data/clues'
 import { sound } from '../audio/sound'
 import Atmosphere from './Atmosphere'
+import CharacterBuilder from './CharacterBuilder'
 import { Sigil, fmt } from './bits'
 
 interface Props {
@@ -107,6 +108,7 @@ export default function Setup({ onStart, onBack, online }: Props) {
         {step === 1 && (
           <div className="panel setup-panel wide fade-in">
             <h2>组建队伍 <small>{online ? '选择 1–4 名角色——朋友们进入房间后各自认领一名，没人认领的由 AI 同伴扮演' : '选择 1–4 名角色（开启回合制时，你扮演其中一名，其余交给 AI 同伴）'}</small></h2>
+            <CharacterBuilder onAdd={c => { setPool(p => [...p,c]); if (chosen.length < 4) setChosen(p => [...p,c.id]) }} />
             <div className="pregen-grid">
               {pool.map((c) => (
                 <button key={c.id} className={`pregen ${chosen.includes(c.id) ? 'sel' : ''}`} onClick={() => toggle(c.id)} style={{ ['--hue' as string]: c.hue }}>
@@ -139,7 +141,12 @@ export default function Setup({ onStart, onBack, online }: Props) {
             </div>
             <div className="row end">
               <button className="btn ghost" onClick={() => setStep(0)}>上一步</button>
-              <button className="btn primary" disabled={party.length === 0} onClick={() => { sound.click(); setStep(2) }}>
+              <button className="btn primary" disabled={party.length === 0} onClick={() => {
+                sound.click()
+                setReasons(old => Object.fromEntries(party.map(c => [c.id, old[c.id] ?? c.motive])))
+                setRelations(old => Object.fromEntries(party.filter(() => party.length > 1).map((c, i) => [c.id, old[c.id] && party.some(p => p.id === old[c.id].target && p.id !== c.id) ? old[c.id] : { idx: Math.floor(Math.random() * RELATIONS.length), target: party[(i + 1) % party.length].id }])))
+                setStep(2)
+              }}>
                 {party.length === 0 ? '至少选择一名角色' : `带上这 ${party.length} 人`}
               </button>
             </div>
@@ -156,7 +163,7 @@ export default function Setup({ onStart, onBack, online }: Props) {
                 <div className="stamp">矿业公会</div>
               </div>
               <div className="intro-list">
-                <p className="lead">每位角色补一句：<b>为什么接受这份委托？</b>以及，和同伴之间有什么还没解决的事？</p>
+                <p className="lead"><b>入团理由与队伍关系已自动生成。</b>可以直接出发，也可以修改。主持人会根据这些背景铺设伏笔。</p>
                 {party.map((c) => (
                   <div key={c.id} className="intro-row" style={{ ['--hue' as string]: c.hue }}>
                     <Sigil c={c} size={38} />

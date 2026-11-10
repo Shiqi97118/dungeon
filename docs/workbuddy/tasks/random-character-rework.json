@@ -1,0 +1,8 @@
+{
+  "id": "dungeon-random-character-2026-11-10-rework1",
+  "title": "随机车卡验收返工：统一入口及真实重名测试",
+  "status": "in_progress",
+  "dependsOn": "dungeon-random-character-2026-11-10-v1",
+  "allowedPaths": ["src/ui/CharacterBuilder.tsx", "src/ui/Setup.tsx", "src/game/characterDraft.ts", "src/game/characterDraft.test.ts", "docs/workbuddy/design/随机车卡实现记录.md"],
+  "prompt": "Codex 已读完初版随机车卡代码和测试，核心属性/专长生成合格，现对同一功能提出集中返工。只修改 allowedPaths：1. 当前 takenNames 测试传入根本不在姓名池的占用名，不能证明去重。改成真实生成一个姓名后将其加入takenNames再生成，并覆盖连续生成超过姓名池数量时不会重复（全池耗尽应使用稳定可区分的后缀，不修改原characters.ts）。2. CharacterBuilder 接收父级已用姓名并传给随机填表和直接随机加入；Setup 的旧随机组队入口也改用 shared randomPlayableCharacter，使所有随机入口都包含职业/种族并遵循同一规则。保留现有预制角色和手动编辑行为，不重构联机协议。3. 一键随机与再次随机现在是两个行为完全相同的常驻按钮，合并成一个可重复点击的随机按钮（生成后可改为再次随机），保留直接随机加入按钮；生成后可微调和保存。4. 只读核查改动、补充真实测试结果与未验证事项。Codex 已新增根目录 vitest.config.ts 修复 .local 第三方测试误发现，并把接入 Node 测试改为 core.node-test.mjs；不要修改这些文件，不必再用仅指定src/server文件来规避全量测试。运行 node node_modules/vitest/vitest.mjs run、node node_modules/typescript/bin/tsc -b、node node_modules/vite/bin/vite.js build。固定hy4free，不调用费用不明子agent/工具，不改依赖、网关、凭据、其他文档或日志，不git提交推送部署；日志由Codex补记。完成后回复真实产物路径及测试证据，状态仅为待审。"
+}

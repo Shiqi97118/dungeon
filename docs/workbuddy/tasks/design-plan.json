@@ -1,0 +1,19 @@
+{
+  "id": "dungeon-design-2026-11-10-v1",
+  "title": "首章、车卡、美术交互和开发实施方案",
+  "status": "needs_review",
+  "executor": "WorkBuddy 桌面端 hy4free，同会话按角色执行，非独立专业子 agent",
+  "allowedPaths": ["docs/workbuddy/design/首章与车卡方案.md", "docs/workbuddy/art/视觉与阅读方案.md", "docs/workbuddy/design/开发实施清单.md", "docs/workbuddy/design/执行证据.md"],
+  "prompt": "只读核查现有源码和全部修改日志，交付现有2d6规则下的完整车卡、道具、伏笔、首章节奏、先建房再车卡状态、视觉与阅读行为、逐文件实施顺序和真实执行证据。只写四份方案，不改游戏代码，不部署。",
+  "review": {
+    "artifact_delivery": "Codex 已确认四个文件存在并读取核心方案与执行证据，WorkBuddy 当前任务已结束。",
+    "design_acceptance": "尚未整体批准；不能直接按全部方案实现。",
+    "required_followups": [
+      "统一伏笔状态的权威来源：方案同时写不接受AI自由推进和AI effects.hooks/动态flag，须落实为服务端校验的确定事件迁移。",
+      "新角色校验必须区分原始车卡输入与服务端注入的职业专长/装备，避免把已加成角色当非法输入。",
+      "存档迁移及已开局房间兼容先于版本升级；不得静默丢弃旧档。",
+      "完整随机车卡需求须覆盖职业、种族、标准属性和技能；已有局部实现任务另行跟踪。",
+      "目标时长和好玩程度需实机试玩，不以方案字数或通过构建代替。"
+    ]
+  }
+}

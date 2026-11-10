@@ -26,3 +26,11 @@ dist-ssr
 # wrangler local secrets
 .dev.vars*
 .wrangler
+
+# Private local integration source, state and diagnostics
+.local/
+
+# Machine credentials stay local; committed examples are safe placeholders.
+.env
+.env.*
+!.env.example

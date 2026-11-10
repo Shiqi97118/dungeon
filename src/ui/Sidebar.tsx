@@ -9,9 +9,11 @@ import { Boxes, CondChips, Sigil, fmt } from './bits'
 type Tab = 'party' | 'clues' | 'truth' | 'npcs' | 'map'
 
 export default function Sidebar({ state, onMove, canMove, ownerOf }: { state: GameState; onMove: (loc: LocId) => void; canMove: (loc: LocId) => boolean; ownerOf?: (charId: string) => string | undefined }) {
+  const active = state.party.find(c => c.id === state.turns?.activeId)
   const [tab, setTab] = useState<Tab>('party')
   return (
     <aside className="sidebar">
+      {active && <section className="active-character" aria-label="当前行动角色"><small>此刻轮到</small><Sigil c={active} size={80} /><h3>{active.name}</h3><div>{active.title}</div><p>{active.specialties.join(' · ')}</p><CondChips c={active} /></section>}
       <PressureClock p={state.pressure} />
       <div className="tabs">
         {([['party', '队伍'], ['clues', `线索 ${state.clues.length}`], ['truth', '真相'], ['npcs', '人物'], ['map', '地图']] as [Tab, string][]).map(([k, l]) => (
