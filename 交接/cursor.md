@@ -15,7 +15,7 @@ coverage: "PARTIAL"
 
 ### 停止位置 / Stopped at
 
-2026-11-11 16:50（北京时间），Cursor 已完成六张卡，都等 Codex 审核：
+2026-11-11 16:40（北京时间），Cursor 已完成六张卡，都等 Codex 审核：
 - ENG-01：PR #7（cursor/eng-01-data-config-034a → feat/iselan-v1），生成类型与配置。
 - CNT-01：PR #8（基于 #7 分支），灰港两种玩家事业的 22 条文本。
 - ENG-02：PR #10（基于 #7 分支），事件账本、快照归约、存档版本 5。
