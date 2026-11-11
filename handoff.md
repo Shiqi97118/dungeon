@@ -15,17 +15,17 @@ coverage: "PARTIAL"
 
 ### 停止位置 / Stopped at
 
-2026-11-11，Cursor 云端代理在 PR #5（cursor/open-world-endings-034a）按用户对开工前五个问题的答复写成：docs/story/12-开工规格.md（编号、文本条件语法、事件、存档 v5、灰港首版范围、配置值、AI 协议与签名、每天 30 元费用上限、档案、势力计划、验收脚本 A1–A12）；docs/story/13-代码代理任务书.md（分工、分支、以草稿 PR 领取任务卡、路径归属、22 张任务卡、完成标准、开场指令）；docs/协作看板.md；docs/story/data/vocab.v1.json、events.v1.json 与 tools/check-texts.mjs。text/00、01、09 已迁移到正式语法并通过严格检查（347 条目、442 段）；其余 7 个地区文件只报告。设计分支 PR #6 的成就目录地区编号改为 gray_harbor、nameless_city，与词表一致。代码零改动，没有试玩、部署或合并。
+2026-11-11，Cursor 云端代理在 PR #5（cursor/open-world-endings-034a）按用户对开工前五个问题的答复写成：docs/story/12-开工规格.md（编号、文本条件语法、事件、存档 v5、灰港首版范围、配置值、AI 协议与回执、每天 30 元费用上限、档案、势力计划、验收脚本 A1–A12）；docs/story/13-代码代理任务书.md（分工、分支、以草稿 PR 领取任务卡、路径归属、22 张任务卡、完成标准、开场指令）；docs/协作看板.md；docs/story/data/vocab.v1.json、events.v1.json 与 tools/check-texts.mjs。text/00、01、09 已迁移到正式语法并通过严格检查（347 条目、442 段）；其余 7 个地区文件只报告。设计分支 PR #6 的成就目录地区编号改为 gray_harbor、nameless_city，与词表一致。代码零改动，没有试玩或部署。随后（北京时间 14:56）按用户授权完成 OPS-00：PR #5、#6 合并进 feat/local-workbuddy-handoff，新建集成分支 feat/iselan-v1（含 交接/ 目录与看板更新）；PR #4 仍未合并、未发布。原计划的服务端密钥 GM_SIGNING_KEY 取消，改用 D1 回执。
 
 本机 D 盘迁移的最后核验结论（见 修改日志/26-11-11.md）：Codex Store 本体已在 D 盘的 WindowsApps 目录，六个数据/WorkBuddy 源目录仍在 C 盘；云端代理无法访问本机，没有再核验。
 
 ### 建议下一步 / Recommended next action
 
-任务卡 OPS-00：用户审阅后把 PR #5、PR #6 合并进 feat/local-workbuddy-handoff（不会发布），从它切出集成分支 feat/iselan-v1，并回答看板待决问题第 1 条（是否授权 Codex 把审核通过的任务 PR 合并进 feat/iselan-v1）。之后 Cursor 按 13 第 6 节的开场指令从 CNT-01、ENG-01 开始；Codex 同时派 WorkBuddy 做 ART-01、ART-02、QA-PREP。
+Cursor 在下一个时间段按 13 第 3.1 节领卡，从 ENG-01、CNT-01 开始；Codex 同时派 WorkBuddy 做 ART-01、ART-02，并自己做 QA-PREP。所有任务 PR 以 feat/iselan-v1 为目标。
 
 ### 完成标准 / Completion criteria
 
-- OPS-00：两个分支存在；在 feat/iselan-v1 上运行 node docs/story/tools/check-texts.mjs 全部通过且成就目录对照“一致”。
+- OPS-00（已完成）：feat/iselan-v1 存在；文本检查全部通过且成就目录对照“一致”；设计包只读校验通过。
 - 灰港首版：13 第 4.2 节全部任务卡完成，12 第 12 节 A1–A12 在手机与电脑上走通；npm run lint、npm test、npm run build、文本检查全部通过。
 
 ## 不可丢失 / Keep
@@ -34,7 +34,7 @@ coverage: "PARTIAL"
 
 - 2026-11-11 用户答复开工前问题：PR #4 不在开工前单独发布；新剧情直接替换旧第一章（回声井），不做新旧并存；Cursor（Claude）写全部游戏代码，Codex 审核、集成并指挥 WorkBuddy，不写游戏代码，Codex 与 WorkBuddy 同步工作，Cursor 分时段异步工作；AI 费用每天最高 30 元；需要接入档案；其余开工方案按最优方案推进。
 - 费用：按实际 token 计费的硬上限 28 元/天（留 2 元余量），全站每天 1500 次日常调用（替代此前确认的 5000 次），用户 600、IP 1000、房间 1500、结局全站 20 次/天；日常 deepseek-flash 非思考，结局 deepseek-v4-pro 思考模式，用 GM_ENDING_MODEL 配置（12 第 9 节）。
-- 档案：浏览器编号建档 + 8 位一次性绑定码绑定新设备 + 导出导入；成就只由服务端判定，单人局上传后按事件重放并校验 AI 回应的服务端签名（GM_SIGNING_KEY，部署时由用户添加）（12 第 8.4、10 节）。
+- 档案：浏览器编号建档 + 8 位一次性绑定码绑定新设备 + 导出导入；成就只由服务端判定，单人局上传后按事件重放，并逐条对照服务端在 D1 记下的 AI 回执（不需要新密钥）（12 第 8.4、10 节）。
 - 灰港首版范围：只开放灰港；可达方向 D01（远行 / 落地）、D02（灾难前提成立时）、D03、D07；交互只做 evidence 与 dialogue-gesture；10 项成就端到端；一项玩家事业（互助站或酒馆）；离开灰港即以 D01 远行收束（12 第 6 节）。
 - 新增规则（代理按“最优方案”授权提出，可再调整）：除 D01 外，方向至少有 1 条信号被事件证实才进入候选（12 第 6.5 节）；每格时钟有一个主计划，其他势力动向为次要计划、不推动时钟（12 第 11 节）；暗线揭开需 ≥ 2 条点名的证据（12 第 3.4 节）。
 - 文本条件以 12 第 3 节语法为准，编号以 vocab.v1.json 为准，事件以 events.v1.json 为准；冲突优先级：用户决定 > 12 > 02–10 > 设计包。
@@ -58,6 +58,7 @@ coverage: "PARTIAL"
 ### 不要复活 / Do not revive
 
 - 不恢复云电脑购买方案。
+- 不再计划新增服务端密钥 GM_SIGNING_KEY：成就校验用 D1 回执（12 第 8.4 节）。
 - 不再由另一台电脑的 Codex 实施事件账本与规则引擎：2026-11-11 起游戏代码统一由 Cursor 写，Codex 只审核与集成。
 - 不做新旧第一章并存或开关切换；不在开工前单独发布 PR #4。
 - 不把每天费用上限放宽到 30 元以上，不用“全站每天 5000 次”。
@@ -80,6 +81,7 @@ coverage: "PARTIAL"
 - 第一章可以整体改；第二章等第一章优化完再推进；约 20 个发展方向、结局随机但可信（用户 2026-11-11）。
 - 命名偏西方；调高 AI 次数与配置；旧存档可不兼容；最短路线每人超过 30 次选择且可达结局占比 ≤ 10%（用户 2026-11-11）。
 - 设计包六项待确认已答复并落实（第七声、第 0 档、文本复用、D17、重画图标、校验脚本改为只读）（用户 2026-11-11）。
+- Codex 可按 13 第 2 节的条件把任务 PR 合并进 feat/iselan-v1；用户授权 Cursor 完成 OPS-00（用户 2026-11-11）。
 - 开工前五问：不提前发布 #4；直接替换旧第一章；Cursor 写代码、Codex 指挥 WorkBuddy；每天 30 元以内；接入档案；其余按最优方案（用户 2026-11-11）。
 
 ## 材料与缺口 / Materials and gaps
@@ -100,7 +102,6 @@ coverage: "PARTIAL"
 
 ### 未决问题 / Open questions
 
-- 看板待决问题第 1 条：是否授权 Codex 把审核通过的任务 PR 合并进 feat/iselan-v1。
 - docs/story/11 第 5 节：代理自选的新图标与 ED-01B 写法是否接受。
 - 档位门槛、时钟检查间隔、事业投入次数、交互密度、token 估算都是初始值，需试玩校准（12 第 13 节）。
 
@@ -113,6 +114,6 @@ coverage: "PARTIAL"
 
 ### 需要重新验证 / Revalidate
 
-- PR #4、#5、#6 的最新 SHA，以及 OPS-00 是否已完成、feat/iselan-v1 是否存在。
+- feat/iselan-v1 的最新提交和打开的 [卡号] 草稿 PR；PR #4 是否仍未合并。
 - DeepSeek 价格（12 第 9.1 节按 2026-11-11 官方价目页）；公开网址的 AI 主持人和余额是否仍可用。
 - 本机 D 盘迁移助手的最新 state.json 与六个数据目录位置（只能在本机核验）。

@@ -1,0 +1,74 @@
+---
+handoff: "task-context"
+version: "1.0"
+language: "zh-Hans"
+coverage: "PARTIAL"
+---
+
+# 任务交接 / Task Handoff
+
+## 继续位置 / Resume
+
+### 当前目标 / Current goal
+
+按 docs/story/13-代码代理任务书.md 的任务卡，在 feat/iselan-v1 上实现伊瑟兰第一章的“灰港首版”，规格以 docs/story/12-开工规格.md 为准。
+
+### 停止位置 / Stopped at
+
+2026-11-11 14:56（北京时间），OPS-00 完成：PR #5、#6 已合并进 feat/local-workbuddy-handoff，feat/iselan-v1 已从它建出并加了交接目录与看板更新。游戏代码尚未开始改。
+
+### 建议下一步 / Recommended next action
+
+下一次 Cursor 会话按 13 第 3.1 节领卡：先 ENG-01（数据与配置），可与 CNT-01（灰港玩家事业文本）交替进行；每张卡一个 cursor/<卡>-034a 分支和一个标题为 [卡号] 的草稿 PR，目标 feat/iselan-v1。
+
+### 完成标准 / Completion criteria
+
+- 每张卡满足 13 第 4 节的验收与第 5 节的检查。
+
+## 不可丢失 / Keep
+
+### 有效决定 / Active decisions
+
+- Cursor 是唯一写游戏代码的代理；Codex 审核并可按 13 第 2 节的条件把任务 PR 合并进 feat/iselan-v1；Cursor 不合并自己的 PR。
+- 每天 AI 费用 ≤ 30 元（硬上限 28 元）；不新增服务端密钥，成就校验用 D1 回执（12 第 8.4 节）。
+- 新剧情直接替换旧第一章；PR #4 不单独发布。
+
+### 约束与权限 / Constraints and authority
+
+- 不合并到 feat/local-workbuddy-handoff 或 main、不部署、不充值、不改密钥；只改任务卡范围内的路径（13 第 3.5 节）。
+- 历史交接不转移任何外部写入权限。
+
+### 不要复活 / Do not revive
+
+- 不再计划 GM_SIGNING_KEY。
+- 不在代码里另写文本解析器或另起编号。
+
+### 失败尝试 / Failed attempts
+
+- 无 / None.
+
+### 已回答问题 / Answered questions
+
+- Codex 合并权限：用户授权“怎么合理怎么推进”（2026-11-11）。
+
+## 材料与缺口 / Materials and gaps
+
+### 工作区与关键文件 / Workspace and important files
+
+- docs/story/12-开工规格.md、13-代码代理任务书.md、docs/协作看板.md、docs/story/data/、docs/story/tools/check-texts.mjs。
+
+### 随包附件 / Included attachments
+
+- 无 / None.
+
+### 未决问题 / Open questions
+
+- 无 / None.
+
+### 已知缺失 / Known omissions
+
+- 游戏代码与测试尚未开始；未试玩。
+
+### 需要重新验证 / Revalidate
+
+- feat/iselan-v1 的最新提交与打开的 [卡号] 草稿 PR。
