@@ -1,10 +1,15 @@
-import { StrictMode } from 'react'
+import { StrictMode, Suspense, lazy } from 'react'
 import { createRoot } from 'react-dom/client'
 import './styles.css'
 import App from './App.tsx'
 
+const Root =
+  import.meta.env.DEV && new URLSearchParams(location.search).get('demo') === 'reading' ? lazy(() => import('./ui/reading/Demo')) : App
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <Suspense>
+      <Root />
+    </Suspense>
   </StrictMode>,
 )
