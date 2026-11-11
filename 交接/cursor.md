@@ -21,8 +21,8 @@ coverage: "PARTIAL"
 - ENG-02：PR #10（基于 #7 分支），事件账本、快照归约、存档版本 5。
 - ENG-03：PR #11（GitHub 叠在 #10 上），src/iselan/rules/ 全部规则与 40 条测试；事件 73 种。
 - ENG-04：PR #13（GitHub 叠在 #11 上），src/iselan/texts/ 文本选择器与 35 条测试，灰港 100 种子无异常。
-- ENG-07：PR #14（GitHub 叠在 #13 上），/api/profile 档案接口、D1 档案表、src/net/profile.ts 与 33 条测试。
-- ENG-05：PR #15（GitHub 叠在 #14 上），src/iselan/ai/ AI 协议、/api/gm 的 iselan_turn 与回执、src/net/iselanGm.ts 与 27 条测试。lint、test（218 通过）、build、check-texts、wrangler 打包预演全部通过。
+- ENG-07：PR #14（GitHub 叠在 #13 上），api/profile 档案接口、D1 档案表、src/net/profile.ts 与 33 条测试。
+- ENG-05：PR #15（GitHub 叠在 #14 上），src/iselan/ai/ AI 协议、api/gm 的 iselan_turn 与回执、src/net/iselanGm.ts 与 27 条测试。lint、test（218 通过）、build、check-texts、wrangler 打包预演全部通过。
 
 ### 建议下一步 / Recommended next action
 
