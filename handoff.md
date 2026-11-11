@@ -108,7 +108,7 @@ coverage: "PARTIAL"
 ### 未决问题 / Open questions
 
 - 第七声响起组与沉默组的分组、D02 的五项前提（docs/story/11 第 5 节）。
-- 设计包图标 EX02 与 EX10、LG02 与 LG03 的 PNG 完全相同，是否重画。
+- 设计包有 4 对 PNG 图标内容完全相同（EX02=EX10、LG02=LG03、LG05=LG08、RE02=RE06），是否重画。
 - 玩家事业规则、沙盒下时钟是否仍强制终局：等设计包 docs/01。
 - 结局用的更强模型具体型号与价格（实施时按 DeepSeek 官方文档确认）。
 - 有效选择 31/40/50/60 的档位门槛、时钟每 6 轮 +1、中途加入 ≥ 6 次、倾向分阈值 3、地区收束节点都是初始值，需试玩校准。
@@ -116,7 +116,7 @@ coverage: "PARTIAL"
 ### 已知缺失 / Known omissions
 
 - 第二章原始资料只在用户上传的文件里，未进入仓库。
-- 设计包 117 个文件中只收到 00、CURSOR、CODEX、SHA256SUMS、VALIDATION 与 15 张 PNG；docs/01–08、data、contracts、tools、ui 和其余图标未收到，逐条差异审阅未完成。
+- 设计包清单 125 个文件中只收到 18 个（00、CURSOR、CODEX、成就图标总览、14 个 PNG），另有 SHA256SUMS、VALIDATION；docs/01–08、data、contracts、tools、ui 和其余图标未收到，逐条差异审阅未完成。
 - 约 80 段地区 ENV、SCN、BEAT 仍是单段，待扩写。
 - 剧情框架与文本没有经过试玩；节奏与时长估计未验证。
 - 173 张插图中 153 张尚未制作。
