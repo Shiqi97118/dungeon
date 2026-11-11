@@ -1,4 +1,5 @@
-import type { AnyEvent, Snapshot } from '../src/iselan/events/index.js'
+import { catalogView } from '../src/iselan/achievements/index.js'
+import { reduceEvents, type AnyEvent, type Snapshot } from '../src/iselan/events/index.js'
 import { loadSave, serializeSave, type SaveFile } from '../src/iselan/save.js'
 import {
   LINK_CODE_TTL_MS, attributable, bareSummary, newLinkCode, noAchievements, normalizeLinkCode, openExport, responseHash, sealExport, sha256Hex,
@@ -98,25 +99,41 @@ export async function verifyResponses(
   return null
 }
 
-async function uploadRun(store: ProfileStore, profile: Profile, body: Record<string, unknown>, now: number): Promise<UploadOutcome> {
+/**
+ * Judges a replayed run and stores each achievement once per profile. `earned` is everything the
+ * run achieved (for the ending page); `unlocked` only what this profile did not have yet.
+ */
+async function unlockEarned(store: ProfileStore, profileId: string, runId: string, s: Snapshot, events: readonly AnyEvent[], now: number) {
+  const earned: string[] = []
+  const unlocked: string[] = []
+  for (const e of attributable(rules.judge(s, events), events)) {
+    earned.push(e.achievementId)
+    if (await store.unlock(profileId, { achievementId: e.achievementId, runId, eventId: e.eventId, unlockedAt: now, notified: false })) {
+      unlocked.push(e.achievementId)
+    }
+  }
+  return { earned, unlocked }
+}
+
+/**
+ * 12 §10.3: online runs are judged by the room server on its own committed log, with no upload
+ * and no receipts. The room calls this once per participating profile (UI-02).
+ */
+export async function judgeRoomRun(store: ProfileStore, profileId: string, runId: string, events: readonly AnyEvent[], now = Date.now()) {
+  return unlockEarned(store, profileId, runId, reduceEvents(runId, events), events, now)
+}
+
+async function uploadRun(store: ProfileStore, profile: Profile, body: Record<string, unknown>, now: number): Promise<UploadOutcome & { earned: readonly string[] }> {
   const { save, snapshot: s } = soloSave(body.save)
   const owner = await store.runOwner(save.runId)
   if (owner && owner !== profile.id) throw new HttpError(409, '这一局已经属于另一份档案')
   const responses = cleanResponses(body.responses ?? save.aiResponses)
   const problem = await verifyResponses(store, save.runId, responses, now, save.events)
-
-  const unlocked: string[] = []
-  if (!problem) {
-    for (const e of attributable(rules.judge(s, save.events), save.events)) {
-      if (await store.unlock(profile.id, { achievementId: e.achievementId, runId: save.runId, eventId: e.eventId, unlockedAt: now, notified: false })) {
-        unlocked.push(e.achievementId)
-      }
-    }
-  }
+  const result = problem ? null : await unlockEarned(store, profile.id, save.runId, s, save.events, now)
   if (s.ending) {
     await store.putRun(profile.id, { runId: save.runId, directionId: s.ending.directionId, ...rules.summarize(s, save.events), endedAt: now, verified: !problem })
   }
-  return problem ? { verified: false, reason: problem, unlocked: [] } : { verified: true, unlocked }
+  return result ? { verified: true, ...result } : { verified: false, reason: problem ?? '', unlocked: [], earned: [] }
 }
 
 async function importFile(store: ProfileStore, raw: unknown, dev: string, now: number) {
@@ -199,8 +216,11 @@ export async function handleProfile(request: Request): Promise<Response> {
       }
       case 'upload_run': {
         const outcome = await uploadRun(store, profile, body, now)
-        return json({ ...outcome, profile: await view(store, profile) })
+        const v = await view(store, profile)
+        return json({ ...outcome, profile: v, achievements: catalogView(v.unlocks) })
       }
+      case 'achievements':
+        return json(catalogView(await store.unlocks(profile.id)))
       case 'notified': {
         const ids = Array.isArray(body.ids) ? body.ids.filter((x): x is string => typeof x === 'string').slice(0, 100) : []
         await store.markNotified(profile.id, ids)

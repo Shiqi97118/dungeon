@@ -1,4 +1,3 @@
-import { DatabaseSync } from 'node:sqlite'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { draft, stableStringify } from '../src/iselan/events/index.js'
 import {
@@ -9,35 +8,10 @@ import { TestRun } from '../src/iselan/rules/testRun.js'
 import { createSave, serializeSave } from '../src/iselan/save.js'
 import { anonymousViewer, setPlatform } from './platform.js'
 import { configureProfileRules, handleProfile } from './profile.js'
-import { MemoryProfileStore, RECEIPT_RETAIN_MS, SqlProfileStore, type ProfileStore, type SqlDatabase, type SqlStatement } from './profileStore.js'
+import { MemoryProfileStore, RECEIPT_RETAIN_MS, SqlProfileStore, type ProfileStore } from './profileStore.js'
+import { sqliteD1 } from './sqliteD1.js'
 
 type Json = Record<string, unknown>
-
-/** Wraps node:sqlite in the slice of the D1 API that SqlProfileStore uses, so the real SQL runs in tests. */
-function sqliteD1(): SqlDatabase {
-  const db = new DatabaseSync(':memory:')
-  const stmt = (sql: string, values: unknown[] = []): SqlStatement & { exec(): void } => ({
-    bind: (...v: unknown[]) => stmt(sql, v),
-    first: async <T,>() => (db.prepare(sql).get(...(values as never[])) as T | undefined) ?? null,
-    all: async <T,>() => ({ results: db.prepare(sql).all(...(values as never[])) as T[] }),
-    run: async () => ({ meta: { changes: Number(db.prepare(sql).run(...(values as never[])).changes) } }),
-    exec: () => void db.prepare(sql).run(...(values as never[])),
-  })
-  return {
-    prepare: (sql) => stmt(sql),
-    batch: async (list) => {
-      db.exec('begin')
-      try {
-        for (const s of list) (s as ReturnType<typeof stmt>).exec()
-        db.exec('commit')
-      } catch (e) {
-        db.exec('rollback')
-        throw e
-      }
-      return []
-    },
-  }
-}
 
 const UID_A = 'device-a-0123456789abcdef'
 const UID_B = 'device-b-0123456789abcdef'

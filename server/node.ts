@@ -3,6 +3,10 @@ import { anonymousViewer, setPlatform } from './platform.js'
 import { MemoryStore, type Store } from './store.js'
 import { PgStore } from './pgStore.js'
 import { MemoryProfileStore, type ProfileStore } from './profileStore.js'
+import { configureProfileRules } from './profile.js'
+import { judgeAchievements } from '../src/iselan/achievements/index.js'
+
+configureProfileRules({ judge: judgeAchievements })
 
 const g = globalThis as unknown as { __echoStore?: Store | null; __echoProfiles?: ProfileStore | null }
 

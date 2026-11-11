@@ -2,9 +2,12 @@ import { anonymousViewer, setPlatform } from '../server/platform.js'
 import { D1Store } from '../server/d1Store.js'
 import { handleRoom } from '../server/rooms.js'
 import { handleGm } from '../server/gmProxy.js'
-import { handleProfile } from '../server/profile.js'
+import { configureProfileRules, handleProfile } from '../server/profile.js'
 import { SqlProfileStore } from '../server/profileStore.js'
 import { json } from '../server/http.js'
+import { judgeAchievements } from '../src/iselan/achievements/index.js'
+
+configureProfileRules({ judge: judgeAchievements })
 
 let store: D1Store | null = null
 let profiles: SqlProfileStore | null = null
