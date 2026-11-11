@@ -6,6 +6,8 @@
 
 ## 先读
 
+> 本分支根目录的 `handoff.md` 是基础分支留下的旧版；剧情工作的最新交接点是 PR #5 分支（`cursor/open-world-endings-034a`）上的 `handoff.md` 与 `docs/story/11-审阅与修订记录.md`，接收时用 `git show origin/cursor/open-world-endings-034a:handoff.md` 读取。
+
 1. `00-先读我.md`：已确认的方向、包内文件用途、同步与冲突规则。
 2. `CODEX_跨电脑接收.md`：给另一台电脑上的 Codex 的接收步骤（用户原文）。
 3. `CURSOR_立即发送.md`：发给 Cursor 的同步任务（用户原文）。
