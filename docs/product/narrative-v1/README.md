@@ -33,10 +33,16 @@
 
 做法：在 `tools/build_assets.py` 的图形表里加入 4 个新图形，并改了这 4 项成就的 `iconKey`，然后重新运行脚本（cairosvg 2.x、Noto Sans CJK 字体）。改之前先确认过：未改动的原脚本在这台机器上能逐字节复现原包全部 125 个文件。重新生成后，变化的只有这 4 项成就的 SVG 与 PNG、`data/achievements.v1.json` 里的 4 个 `iconKey`、`成就图标总览.png`、脚本本身和 `SHA256SUMS.txt`；50 个 PNG 中已没有内容相同的。`achievements.public.json` 没有变化。
 
-### `tools/validate_package.py` 的两个副作用（已核对源码，未修改包内文件）
+### `tools/validate_package.py`：已改为正常的校验脚本（用户同意，2026-11-11）
 
-1. **它会重写 `SHA256SUMS.txt`**：脚本按当前目录重新生成清单，而不是对照原清单校验。在本目录运行后，清单会把本分支的 `README.md`、`tools/check_received.py` 也写进去，原始校验值就丢了。请先运行 `tools/check_received.py`；如需运行 `validate_package.py`，之后用 `git checkout -- docs/product/narrative-v1/SHA256SUMS.txt docs/product/narrative-v1/VALIDATION.txt` 还原。
-2. **`VALIDATION.txt` 中“Browser smoke test …”一句是脚本里的固定文字**，每次运行都会原样写出，并不代表这一次真的执行了浏览器测试。脚本真实检查的只有：50 项成就数据结构、隐藏成就脱敏、图标文件存在、原型页含 `OFFLINE MOCK ONLY` 与 5 个关键元素。
+原版有两个问题：运行时会按当前目录重写 `SHA256SUMS.txt`，而不是对照它校验，文件被改坏也查不出来；`VALIDATION.txt` 里“Browser smoke test …”一句是写死的文字，并不代表真的测过浏览器。现在：
+
+| 用法 | 做什么 | 写文件吗 |
+|---|---|---|
+| `python tools/validate_package.py` | 对照清单逐个核对：缺失、内容变化、清单外多出的文件都算失败；再检查 50 项成就数据、隐藏成就脱敏、图标文件存在、**图标画面重复**、原型页标记 | 不写（只读） |
+| `python tools/validate_package.py --update` | 有意修改后（例如重新运行 `build_assets.py`）使用：先做同样的内容检查，通过后才按当前文件重写清单与 `VALIDATION.txt`；检查不通过时拒绝写入 | 写，提交前请看 diff |
+
+任何检查失败时退出码为 1。`VALIDATION.txt` 现在写明“脚本不运行浏览器”。宿主仓库加的 `README.md` 与 `tools/check_received.py` 不计入清单。已验证：干净目录通过；改动文档、多放一个文件、删掉一个文件、把两个图标改成同一张图，都会被报出来。
 
 ## 以后要更新设计包时
 
