@@ -3,6 +3,7 @@ import { CATALOG, V1_ACHIEVEMENTS, judgeAchievements, type CatalogView } from '.
 import { grayportRun } from '../src/iselan/achievements/sampleRun.js'
 import { draft, type AnyEvent } from '../src/iselan/events/index.js'
 import { responseHash, type ProfileView } from '../src/iselan/profile/index.js'
+import { choiceDraft } from '../src/iselan/rules/index.js'
 import { TestRun } from '../src/iselan/rules/testRun.js'
 import { createSave, serializeSave } from '../src/iselan/save.js'
 import { anonymousViewer, setPlatform } from './platform.js'
@@ -116,11 +117,24 @@ function suite(name: string, make: () => ProfileStore) {
       const room = new TestRun([{ seatId: 's1', actorId: 'helan', controller: 'human' }, { seatId: 's2', actorId: 'qilan', controller: 'human' }])
       room.settle([draft('npc_met', { npcId: 'rosa' })])
       const events = withRunId('room-1', room.events)
-      expect(await judgeRoomRun(store, profileA, 'room-1', events)).toEqual({ earned: ['ST01', 'RE01'], unlocked: ['ST01', 'RE01'] })
-      expect(await judgeRoomRun(store, profileB, 'room-1', events)).toEqual({ earned: ['ST01', 'RE01'], unlocked: ['ST01', 'RE01'] })
-      expect(await judgeRoomRun(store, profileA, 'room-1', events)).toEqual({ earned: ['ST01', 'RE01'], unlocked: [] })
+      expect(await judgeRoomRun(store, profileA, 'room-1', events, ['helan'])).toEqual({ earned: ['ST01', 'RE01'], unlocked: ['ST01', 'RE01'] })
+      expect(await judgeRoomRun(store, profileB, 'room-1', events, ['qilan'])).toEqual({ earned: ['ST01', 'RE01'], unlocked: ['ST01', 'RE01'] })
+      expect(await judgeRoomRun(store, profileA, 'room-1', events, ['helan'])).toEqual({ earned: ['ST01', 'RE01'], unlocked: [] })
       expect((await me(UID_A)).unlocks.map((u) => u.achievementId).sort()).toEqual(['RE01', 'ST01'])
       expect((await gallery(UID_B)).v1Unlocked).toBe(2)
+    })
+
+    it('联机局的个人成就只给行动的那位角色；队伍成就人人都有', async () => {
+      const profileA = (await me(UID_A)).profile.id
+      const profileB = (await me(UID_B)).profile.id
+      const room = new TestRun([{ seatId: 's1', actorId: 'helan', controller: 'human' }, { seatId: 's2', actorId: 'qilan', controller: 'human' }])
+      const met = draft('npc_met', { npcId: 'rosa' })
+      room.settle([met, choiceDraft(room.s, {
+        seatId: 's1', actorId: 'helan', kind: 'act', sceneId: 'tavern', target: 'rosa', method: 'talk', drafts: [met], settled: ['relation'],
+      })!])
+      const events = withRunId('room-2', room.events)
+      expect((await judgeRoomRun(store, profileA, 'room-2', events, ['helan'])).earned).toEqual(['ST01', 'RE01'])
+      expect((await judgeRoomRun(store, profileB, 'room-2', events, ['qilan'])).earned).toEqual(['ST01'])
     })
   })
 }

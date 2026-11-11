@@ -11,7 +11,11 @@ export interface Earned {
  * Achievement rules (ACH-01) plug in here. They run only on the server, on a log the server
  * has replayed itself; the client never reports its own unlocks.
  */
-export type AchievementJudge = (snapshot: Snapshot, events: readonly AnyEvent[]) => readonly Earned[]
+/**
+ * `actorIds` are the characters one participant played in an online run; personal achievements
+ * go only to them. Omitted for a solo run, where every achievement is the player's.
+ */
+export type AchievementJudge = (snapshot: Snapshot, events: readonly AnyEvent[], actorIds?: readonly string[]) => readonly Earned[]
 
 export const noAchievements: AchievementJudge = () => []
 

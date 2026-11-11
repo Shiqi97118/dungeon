@@ -103,10 +103,10 @@ export async function verifyResponses(
  * Judges a replayed run and stores each achievement once per profile. `earned` is everything the
  * run achieved (for the ending page); `unlocked` only what this profile did not have yet.
  */
-async function unlockEarned(store: ProfileStore, profileId: string, runId: string, s: Snapshot, events: readonly AnyEvent[], now: number) {
+async function unlockEarned(store: ProfileStore, profileId: string, runId: string, s: Snapshot, events: readonly AnyEvent[], now: number, actorIds?: readonly string[]) {
   const earned: string[] = []
   const unlocked: string[] = []
-  for (const e of attributable(rules.judge(s, events), events)) {
+  for (const e of attributable(rules.judge(s, events, actorIds), events)) {
     earned.push(e.achievementId)
     if (await store.unlock(profileId, { achievementId: e.achievementId, runId, eventId: e.eventId, unlockedAt: now, notified: false })) {
       unlocked.push(e.achievementId)
@@ -117,10 +117,11 @@ async function unlockEarned(store: ProfileStore, profileId: string, runId: strin
 
 /**
  * 12 §10.3: online runs are judged by the room server on its own committed log, with no upload
- * and no receipts. The room calls this once per participating profile (UI-02).
+ * and no receipts. The room calls this once per participating profile (UI-02) with the characters
+ * that profile played; personal achievements go only to the player whose action earned them.
  */
-export async function judgeRoomRun(store: ProfileStore, profileId: string, runId: string, events: readonly AnyEvent[], now = Date.now()) {
-  return unlockEarned(store, profileId, runId, reduceEvents(runId, events), events, now)
+export async function judgeRoomRun(store: ProfileStore, profileId: string, runId: string, events: readonly AnyEvent[], actorIds: readonly string[], now = Date.now()) {
+  return unlockEarned(store, profileId, runId, reduceEvents(runId, events), events, now, actorIds)
 }
 
 async function uploadRun(store: ProfileStore, profile: Profile, body: Record<string, unknown>, now: number): Promise<UploadOutcome & { earned: readonly string[] }> {
