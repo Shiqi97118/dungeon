@@ -11,102 +11,108 @@ coverage: "PARTIAL"
 
 ### 当前目标 / Current goal
 
-Jiaojie安装、Markdown实际应用、README强调、WorkBuddy只读接收及GitHub同步已完成；当前高优先级是将本机Codex与WorkBuddy的应用及数据迁到D盘并区分，完成后继续本地游戏任务。
+把第一章重写为恢弘的原创奇幻世界“伊瑟兰”，产品方向为“史诗主线 + 自由沙盒”：玩家做任何事都合理，世界、地区、人物与玩家事业各自发展又互相影响；结局不固定，从 20 个发展方向中按实际进展由 AI 在合适时机给出。剧情框架与文本已写成文档；开工规格与代理任务书已写好，下一阶段按任务卡写代码，先做“灰港首版”这个可玩切片。
 
 ### 停止位置 / Stopped at
 
-本机 Codex 已通过官方 Skill Installer 安装 jiaojie，来源固定为 Jordanwei1/jiaojie-skill 的 35cd1bf474495a61fe8925cfb822779d0dc78d22；已读取 SKILL.md 与 simple-workflow，项目运行资源镜像在 .agents/skills/jiaojie/，保留 MIT 许可。README、CONTINUE 和 WorkBuddy 协作要求已更新，已按该 Skill 选择最小充分的 Markdown。上游导出器在当前 Windows 返回 NOFOLLOW_UNSUPPORTED；按 Skill 允许的工具不可用降级路径直接生成本文件，没有弱化上游保护或冒称脚本校验通过。不能把安装成功当作跨运行时语义验证成功。
+2026-11-11，Cursor 云端代理在 PR #5（cursor/open-world-endings-034a）按用户对开工前五个问题的答复写成：docs/story/12-开工规格.md（编号、文本条件语法、事件、存档 v5、灰港首版范围、配置值、AI 协议与签名、每天 30 元费用上限、档案、势力计划、验收脚本 A1–A12）；docs/story/13-代码代理任务书.md（分工、分支、以草稿 PR 领取任务卡、路径归属、22 张任务卡、完成标准、开场指令）；docs/协作看板.md；docs/story/data/vocab.v1.json、events.v1.json 与 tools/check-texts.mjs。text/00、01、09 已迁移到正式语法并通过严格检查（347 条目、442 段）；其余 7 个地区文件只报告。设计分支 PR #6 的成就目录地区编号改为 gray_harbor、nameless_city，与词表一致。代码零改动，没有试玩、部署或合并。
 
-GitHub Skill检查点为6d1d86d09535cc3624590efd6726ebeee3cfce3d，位于feat/local-workbuddy-handoff与PR #4；109项增量远端树与本地暂存树逐字节一致，本地分支已同步。迁移脚本tools/windows/migrate-ai-tools.ps1及说明已准备，Windows PowerShell 5.1隔离复制/链接/拒绝覆盖/损坏/越界检查和真实只读Plan通过；尚未据此声称真实迁移成功。实际管理员助手是否已启动、应用是否退出、迁移是否发生，必须检查D盘Shared/Migration下state.json和当前路径。
-
-WorkBuddy只读接收单元已实测completed且读回hy4free，已读取可见接收回执，不复做。随机车卡返工已结束，项目全量45通过、4个数据库相关测试跳过、TypeScript通过；界面和完整12条预算证据仍未最终验收。
-
-迁移准备检查点82bf16e已发布。2026-11-11 00:34（上海）实际启动了同一用户的管理员迁移助手，脚本副本哈希已与已发布版本核对；实际state为waiting_for_normal_exit、completed为空，原安装和数据仍在C盘。助手等待120分钟，超时停止，不强杀。助手身份和启动信息只在被忽略的.local/migration-launch.json；阶段记录在D盘Shared/Migration日期目录中。先查这些记录及当前路径，不能把助手启动当成迁移完成。用户需要从菜单退出两个应用；Codex自身退出后当前模型不会继续运行，重新打开后从本交接接续。
+本机 D 盘迁移的最后核验结论（见 修改日志/26-11-11.md）：Codex Store 本体已在 D 盘的 WindowsApps 目录，六个数据/WorkBuddy 源目录仍在 C 盘；云端代理无法访问本机，没有再核验。
 
 ### 建议下一步 / Recommended next action
 
-最新核验（2026-11-11）：原助手已结束，旧state停在moving_store_package且completed为空。系统00:41:45成功事件、D卷包枚举及C目录Junction目标共同证实Store本体已在D:\WindowsApps；当前应用与沙箱服务实际运行正常，C注册路径是兼容入口。六个数据/WorkBuddy源目录仍为C盘普通目录，D目标未创建。原助手终止的直接原因未证实，不能冒称全部迁移完成。已修正物理位置判定并跳过已搬Store，4项回归与4组隔离复制检查通过；新的管理员助手是否启动/结束仍须核对本地最新state，禁止重发已有执行单元。
-
-先核验D盘迁移助手状态，不重启或重发已有执行单元。助手应只在用户正常退出应用后执行，需同一用户UAC管理员权限；应用仍运行时不切换活跃数据。迁移后运行-Mode Verify，核对服务、登录、历史、Skill、CLI与WorkBuddy接入，将本机接入配置executable对齐真实程序路径。验证真实启动后清理准确的C盘parked原副本、保留D盘回滚副本，才算释放数据占用。随后继续游戏任务，不重做Skill安装或重问目录例外。
+任务卡 OPS-00：用户审阅后把 PR #5、PR #6 合并进 feat/local-workbuddy-handoff（不会发布），从它切出集成分支 feat/iselan-v1，并回答看板待决问题第 1 条（是否授权 Codex 把审核通过的任务 PR 合并进 feat/iselan-v1）。之后 Cursor 按 13 第 6 节的开场指令从 CNT-01、ENG-01 开始；Codex 同时派 WorkBuddy 做 ART-01、ART-02、QA-PREP。
 
 ### 完成标准 / Completion criteria
 
-- 已安装 Skill 可读取，项目副本保留来源/许可；脚本成功或运行限制如实记录，使用允许的 Markdown 降级路径；README 和派工客户端明确要求 WorkBuddy 使用该 Skill。
-- Codex 独立读取 WorkBuddy 接收回执或明确标记尚未验证；收到回执不等于游戏功能验收。
-- 新增内容已在同一 GitHub 分支，任务状态、handoff.md 和当天修改日志与实际结果一致；不包含凭据、真实机器会话或隐藏推理。
+- OPS-00：两个分支存在；在 feat/iselan-v1 上运行 node docs/story/tools/check-texts.mjs 全部通过且成就目录对照“一致”。
+- 灰港首版：13 第 4.2 节全部任务卡完成，12 第 12 节 A1–A12 在手机与电脑上走通；npm run lint、npm test、npm run build、文本检查全部通过。
 
 ## 不可丢失 / Keep
 
 ### 有效决定 / Active decisions
 
-- 最高优先级是安装并应用 https://github.com/Jordanwei1/jiaojie-skill ，同步 Skill 到本仓库，README 强调，WorkBuddy 同样遵从。普通交接采用 handoff.md，所需源码/截图在共享 GitHub 中，不为换设备强制打包整仓库。
-- 最新高优先级：Jiaojie收尾后迁移本机应用和数据。用户接受Codex Store本体的官方目录例外D:\WindowsApps；Codex数据/缓存/入口归D:\AI Tools\Codex，WorkBuddy归D:\AI Tools\WorkBuddy；已创建分开的D盘目录，尚未移动原文件。先备份、验证、停止写入、切换并保留回滚，不擅自删除C盘原数据或在运行中搬数据库。
-- 本地执行，云电脑因费用已被用户取消。Codex 严格复核，WorkBuddy 做设计/开发/美术工作；目前证据仅为同一桌面会话按角色执行，不是假定存在三个独立专业 agent。
-- 免费 Hy4 优先；用户也允许核对过的低积分模型。原生实际 ID 已读到 hy4free/hy4std，执行明确使用 hy4free；实际扣费和历史 tokens 不可可靠计量，不能声称技术零扣费或历史预算已核验。
-- 所有可复现的代码、需求、截图、设计、工具和交接检查点放 GitHub，以便换电脑。认证缓存、机器配置及执行会话留在各电脑本地，重新登录和建立会话。
-- 随机车卡必须包含职业、种族、合法属性与技能，可再随机、微调或直接加入；各随机入口应统一，姓名池耗尽也须可区分。
-- 新增视觉要求：桌面和手机以单屏为主，不能靠整页反复上下滚动。长文本采用弹窗翻页，底部进度滑条、上一页/下一页和页码；阅读时新 AI 内容不抢页，关闭恢复原位置；手机软键盘不能遮住主要输入和操作。这些是待实现要求，不能写成已完成。
+- 2026-11-11 用户答复开工前问题：PR #4 不在开工前单独发布；新剧情直接替换旧第一章（回声井），不做新旧并存；Cursor（Claude）写全部游戏代码，Codex 审核、集成并指挥 WorkBuddy，不写游戏代码，Codex 与 WorkBuddy 同步工作，Cursor 分时段异步工作；AI 费用每天最高 30 元；需要接入档案；其余开工方案按最优方案推进。
+- 费用：按实际 token 计费的硬上限 28 元/天（留 2 元余量），全站每天 1500 次日常调用（替代此前确认的 5000 次），用户 600、IP 1000、房间 1500、结局全站 20 次/天；日常 deepseek-flash 非思考，结局 deepseek-v4-pro 思考模式，用 GM_ENDING_MODEL 配置（12 第 9 节）。
+- 档案：浏览器编号建档 + 8 位一次性绑定码绑定新设备 + 导出导入；成就只由服务端判定，单人局上传后按事件重放并校验 AI 回应的服务端签名（GM_SIGNING_KEY，部署时由用户添加）（12 第 8.4、10 节）。
+- 灰港首版范围：只开放灰港；可达方向 D01（远行 / 落地）、D02（灾难前提成立时）、D03、D07；交互只做 evidence 与 dialogue-gesture；10 项成就端到端；一项玩家事业（互助站或酒馆）；离开灰港即以 D01 远行收束（12 第 6 节）。
+- 新增规则（代理按“最优方案”授权提出，可再调整）：除 D01 外，方向至少有 1 条信号被事件证实才进入候选（12 第 6.5 节）；每格时钟有一个主计划，其他势力动向为次要计划、不推动时钟（12 第 11 节）；暗线揭开需 ≥ 2 条点名的证据（12 第 3.4 节）。
+- 文本条件以 12 第 3 节语法为准，编号以 vocab.v1.json 为准，事件以 events.v1.json 为准；冲突优先级：用户决定 > 12 > 02–10 > 设计包。
+- 每个在场席位至少 31 次有效选择才能进入终局（R1）；中途加入者本人另需 ≥ 6 次，换角色继承席位计数，只有带来结算变化的行动才计、重复只计第一次（02 R1a–R1c）。第 0 档只有 D01（远行 / 落地两版）；D02 是只看世界灾难事实的灾难方向。
+- 大势时钟由势力计划与重大事件推进（每 6 轮检查），事件按最高到达格只触发一次；到 12 为世界危机，不强制终局；第四幕只由收束故事或抵达门前进入（02 R2–R4）。结局分世界、玩家事业、角色三轴（06 第 6 节）。第七声的版本由门前结算的“门的结果”决定。
+- 预写文本：后置中的世界变化须先结算才展示，知情项展示后写入；结果类节拍在结果提交后才展示；每屏不少于两段、180 字，换场景三段式，不自动跳转；BEAT、DLG、BRG、CLK、END 一局一次，SCN 每个事件实例一次，ENV / RST / TRV 冷却 20 轮可复用、一局最多 2 次（09）。
+- 人名、地名偏西方大陆风格；预制角色改名但 id 不变（哈兰、芙蕾雅、基兰、洛森、梅格、达维娜）。NPC 分 S/A/B/C/D 五级，38 位具名人物，9 条暗线（05）。
+- 旧存档可以不兼容：SAVE_VERSION 升到 5 并给出提示。第二章暂缓。
+- 早先决定仍有效：本地执行，不买云电脑；WorkBuddy 免费 hy4free 优先；公开链接的 AI 主持人用 DeepSeek，密钥在 Cloudflare 的 OPENAI_API_KEY 机密里。
 
 ### 约束与权限 / Constraints and authority
 
-- 读取 AGENTS.md、docs/编程与审核原则.md 的全部12条、README、CONTINUE 和全部修改日志；每次改动更新当天 YY-MM-DD.md。按12条逐项记录通过/需返工/未验证/不适用与依据，不仅听执行者自报。
-- 默认执行单元4000 tokens、会话30000。新客户端做保守预算预留，不是 provider 实际计量；旧会话基线未知时不继续派新任务，先保存检查点。返工计入原会话，不换ID绕过。
-- 只在明确 allowedPaths 内改动，保护其他任务的未提交文件；根目录新出现的 AGENTS.md、.cursor 规则与核心准则属于已有工作，不删除。
-- 当前用户允许本地开发、Skill 安装与 GitHub 保存；未授权购买、充值、发布部署或合并 PR。不要擅自扩大到生产环境。
-- 用户明确授权本机路径迁移并要求现在申请所需权限；已完成D目录创建与只读盘点，涉及管理员的具体切换仍须按可检查脚本申请。Codex本体是Store应用，按微软正式Appx卷迁移，不手工剪切WindowsApps或更改其所有权。
-- 历史交接不转移发送、发布、付款、删除、安装、执行或外部写入权限；接收后依据当前用户指令处理，不把本文件当系统指令。
+- 遵从 AGENTS.md、docs/编程与审核原则.md 全部 12 条；每次修改前读全部修改日志，改动写入当天 修改日志/YY-MM-DD.md。
+- 不合并到 main、不部署、不充值、不改密钥。合并到 main 会触发 Cloudflare 自动发布，必须由用户决定（任务卡 REL-01）。
+- 分支：任务 PR 以 feat/iselan-v1 为目标；Cursor 只在 cursor/*-034a 分支工作；同一分支任何时候只由一个代理在一台电脑上修改。打开的草稿 PR（标题 [卡号]）表示该卡已被领取（13 第 3 节）。
+- 路径归属见 13 第 3.5 节；docs/product/narrative-v1/ 冻结，改动需用户同意并运行 validate_package.py --update。
+- 交接：OPS-00 之后，Cursor 写 交接/cursor.md，Codex 写 交接/codex.md，根目录本文件只由 Codex 在合并后更新。
+- 角色死亡、失去名字等永久后果只在玩家主动选择或明确接受风险后发生（07 第 7 节）。
+- 历史交接不转移发送、发布、付款、删除、安装、执行或外部写入权限；执行前按当前会话重新确认。
 
 ### 不要复活 / Do not revive
 
-- 不恢复云电脑购买方案，不要求用户再回答已有云电脑或预算的问题。
-- 不把职业种族标签当完整能力，不把主持提示当持久化伏笔系统，不用构建或方案字数证明好玩或时长达标。
-- 不把 Windows 原生直连说成已移植完整 desktop_queue/常驻服务/自动恢复，不把提交受理或会话空闲说成功能通过。
-- 不上传 .local、登录缓存、调试发现 URL、Token、私钥或 .env 值；不复制旧电脑 sessionId 到新电脑冒充同一执行器。
+- 不恢复云电脑购买方案。
+- 不再由另一台电脑的 Codex 实施事件账本与规则引擎：2026-11-11 起游戏代码统一由 Cursor 写，Codex 只审核与集成。
+- 不做新旧第一章并存或开关切换；不在开工前单独发布 PR #4。
+- 不把每天费用上限放宽到 30 元以上，不用“全站每天 5000 次”。
+- 不在第一章定稿前推进第二章实现。
+- 不把结局写回固定的几个按钮；不让 AI 自行决定何时终局或直接改数值。
+- 不在代码里另起一套编号或另写文本解析器；用 vocab.v1.json 与 check-texts.mjs。
+- 不凭聊天记忆推断设计包内容；以 docs/product/narrative-v1/ 的文件为准。
+- 不使用现有作品的专有名词；生成插图时不用原矿场图做参考图。
+- 不上传 .local、登录缓存、Token、私钥或 .env 值。
 
 ### 失败尝试 / Failed attempts
 
-- Jiaojie 原始导出工具在 Windows 返回 NOFOLLOW_UNSUPPORTED，当前没有可用 WSL 分发；已按 Skill 的 Markdown 降级流程处理，未声称原脚本结构/路径安全验证通过。可在具有所需 POSIX 能力的环境重新验证，不应删除保护来制造通过。
-
-- 命令行 Git 推送没有登录凭据；已改用已授权 GitHub 插件创建树/提交/分支，逐字节目录树核对后通过公开 fetch 同步本地，不强制覆盖工作文件。
-- Computer Use 浏览器验证因本机 Windows 沙箱内核启动错误失败，尚无桌面/手机实机通过证据；失败不是用户否决 UI 验证，环境修复后可以重试。
-- 测试曾误发现 .local 中第三方网关套件；已新增 vitest.config.ts 排除本地第三方项目与独立 Node 测试，保留项目默认发现。修正后项目43通过、4个数据库相关测试跳过；后续返工改动仍须重跑。
-- 上游网关服务依赖 macOS launchd，不能直接在 Windows 安装；本项目只验证了原生 MessageChannel 直连、文件交付和同会话返工。
+- Jiaojie 原始导出工具在 Windows 返回 NOFOLLOW_UNSUPPORTED；在云端 Linux 环境 receive/export 可以正常运行。
+- 本机 Computer Use 浏览器验证因 Windows 沙箱错误失败，尚无桌面/手机实机证据。
+- 首个 D 盘迁移助手停在 moving_store_package、completed 为空；终止原因未证实。
 
 ### 已回答问题 / Answered questions
 
-- 仓库为 https://github.com/Shiqi97118/dungeon ，预览为 https://echo-well.tintenfisch.workers.dev/ 。目前工作分支 feat/local-workbuddy-handoff，PR 为 https://github.com/Shiqi97118/dungeon/pull/4 。
-- 用户想要本地继续、GitHub 保留全部相关可复现内容、免费优先但允许低积分模型；不是必须完全免费。
-- 用户已要求在休息期间继续已授权任务；遇到实际登录、额外费用或生产发布边界应保留检查点，不模拟授权或询问已回答事项。
-- 用户已接受Codex应用本体在D:\WindowsApps的目录例外，其他数据与入口仍归D:\AI Tools；不要重复确认此选择。迁移后继续本地任务。
+- 仓库 https://github.com/Shiqi97118/dungeon ；公开游玩网址 https://echo-well.tintenfisch.workers.dev/ 。
+- 第一章可以整体改；第二章等第一章优化完再推进；约 20 个发展方向、结局随机但可信（用户 2026-11-11）。
+- 命名偏西方；调高 AI 次数与配置；旧存档可不兼容；最短路线每人超过 30 次选择且可达结局占比 ≤ 10%（用户 2026-11-11）。
+- 设计包六项待确认已答复并落实（第七声、第 0 档、文本复用、D17、重画图标、校验脚本改为只读）（用户 2026-11-11）。
+- 开工前五问：不提前发布 #4；直接替换旧第一章；Cursor 写代码、Codex 指挥 WorkBuddy；每天 30 元以内；接入档案；其余按最优方案（用户 2026-11-11）。
 
 ## 材料与缺口 / Materials and gaps
 
 ### 工作区与关键文件 / Workspace and important files
 
-- 当前仓库根目录；接收方可以克隆指定 GitHub 分支取得稳定材料，实际未提交增量以 git status 和远端检查点复核。
-- .agents/skills/jiaojie/SKILL.md、references/simple-workflow.md、scripts/handoff.py、UPSTREAM.md：Skill 源码、使用与出处。
-- CONTINUE.md：新电脑准备；tools/workbuddy/README.md 与 client.mjs：接入；docs/workbuddy/协作规范.md 与 docs/编程与审核原则.md：约束。
-- docs/workbuddy/tasks/：设计、随机车卡与返工的任务目标和状态；docs/workbuddy/design/ 与 art/：实际交付，方案不代表已实现。
-- docs/workbuddy/需求与参考.md 与 references/ 三张 PNG：原始问题、用户新要求和车卡参考。修改日志/26-11-10.md：本次工作历程。
-- src/game/characterDraft.ts、characterDraft.test.ts、src/ui/CharacterBuilder.tsx、Setup.tsx：随机车卡；Log.tsx 与 styles.css：下一阶段阅读需求的相关代码。
+- docs/story/12-开工规格.md、13-代码代理任务书.md、docs/协作看板.md：开工规格、分工与任务卡、实时状态。
+- docs/story/data/vocab.v1.json、events.v1.json、tools/check-texts.mjs：编号、事件、文本检查（node docs/story/tools/check-texts.mjs）。
+- docs/story/README.md 与 01–11：剧情正本；text/ 10 个文件 442 段。
+- 设计交接分支 cursor/isrlan-design-handoff-034a（PR #6 https://github.com/Shiqi97118/dungeon/pull/6 ）：docs/product/narrative-v1/ 下 125 个文件。
+- 分支 cursor/open-world-endings-034a（PR #5 https://github.com/Shiqi97118/dungeon/pull/5 ，基于 feat/local-workbuddy-handoff）；PR #4 https://github.com/Shiqi97118/dungeon/pull/4 （草稿，未合并）。
+- 修改日志/26-11-11.md：当天记录，含各节 12 条复核。
+- src/game/、server/：将被替换或改造的现有代码；server/platform.ts 是现在的匿名身份。
 
 ### 随包附件 / Included attachments
 
-- 无 / None。所需可复现材料使用同一 GitHub 仓库中的稳定相对路径；本文件不携带整个仓库。
+- 无 / None.
 
 ### 未决问题 / Open questions
 
-- 原生WorkBuddy随机返工与Jiaojie接收已观察到结束，自动测试45通过、4跳过；仍待界面验收。当前是否出现其他任务须现场重验，不重发旧任务。
-- 当前原生接口无法可靠读取历史 tokens 与积分，实际模型用量和子 agent 成本仍不可证实。
+- 看板待决问题第 1 条：是否授权 Codex 把审核通过的任务 PR 合并进 feat/iselan-v1。
+- docs/story/11 第 5 节：代理自选的新图标与 ED-01B 写法是否接受。
+- 档位门槛、时钟检查间隔、事业投入次数、交互密度、token 估算都是初始值，需试玩校准（12 第 13 节）。
 
 ### 已知缺失 / Known omissions
 
-- 不含整段聊天逐字稿、隐藏推理、登录态、运行进程和真实本机执行器身份；不声称无损、FULL 或跨运行时完整验证。
-- 翻页弹窗、全站单屏、完整职业能力、持久化伏笔和先建房再车卡仍未完成；真实游玩时长与乐趣未验证。
-- 部分本地增量在导出时尚未发布；必须以最新 GitHub 提交、git status 和当天日志确认实际覆盖，不能仅凭本生产者声明。
+- 7 个地区文本文件（text/02–08）尚未迁移到正式语法（任务卡 CNT-02）；其余势力的计划前提与方向信号待补（CNT-03）；约 80 段单段地区文本待扩写（CNT-04）。
+- 灰港玩家事业的预写文本尚未写（CNT-01）。
+- 剧情没有经过试玩；174 张插图中 154 张尚未制作。
+- 不含聊天逐字稿、隐藏推理、本机登录态和 WorkBuddy 会话身份。
 
 ### 需要重新验证 / Revalidate
 
-- GitHub 分支最新提交与 PR 状态、未提交变更、WorkBuddy 原生忙闲/模型、已存在的任务和成果、当前会话权限。
-- 所有当前改动的完整测试、类型/生产构建；浏览器/手机分页、软键盘、滚动和随机车卡流程。
-- Jiaojie 原生脚本验证结果与 WorkBuddy 接收证据分别核对；结构校验不等于来源、当前授权或语义连续性全部通过。
+- PR #4、#5、#6 的最新 SHA，以及 OPS-00 是否已完成、feat/iselan-v1 是否存在。
+- DeepSeek 价格（12 第 9.1 节按 2026-11-11 官方价目页）；公开网址的 AI 主持人和余额是否仍可用。
+- 本机 D 盘迁移助手的最新 state.json 与六个数据目录位置（只能在本机核验）。
