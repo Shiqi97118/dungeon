@@ -1,0 +1,10 @@
+Static package validation: PASS
+Achievements: 50
+By category: {'ST': 12, 'RE': 10, 'EX': 10, 'SB': 8, 'LG': 10}
+Secret achievements: 10
+SVG icons: 51
+PNG icons: 51
+UI prototype: offline mock, contains no backend implementation
+Browser smoke test: Playwright Chromium via set_content; desktop and mobile, filter grid opens, detail closes, unlock updates 10/50 to 11/50, ending stats updated, 390px no horizontal overflow, JS page errors 0.
+Note: external navigation was blocked by browser policy; used local content injection only; no production/live acceptance claim.
+Errors: []
