@@ -15,11 +15,11 @@ coverage: "PARTIAL"
 
 ### 停止位置 / Stopped at
 
-2026-11-11 14:56（北京时间），OPS-00 完成：PR #5、#6 已合并进 feat/local-workbuddy-handoff，feat/iselan-v1 已从它建出并加了交接目录与看板更新。游戏代码尚未开始改。
+2026-11-11 15:15（北京时间），ENG-01 完成并改为可审核：PR #7（cursor/eng-01-data-config-034a → feat/iselan-v1）。npm run texts 生成 src/iselan/data/*.generated.ts（不提交），dev / test / build 前自动运行；src/iselan/config.ts 收齐 12 第 7 节与相关数值；lint、test（57 通过）、build、check-texts 全部通过。
 
 ### 建议下一步 / Recommended next action
 
-下一次 Cursor 会话按 13 第 3.1 节领卡：先 ENG-01（数据与配置），可与 CNT-01（灰港玩家事业文本）交替进行；每张卡一个 cursor/<卡>-034a 分支和一个标题为 [卡号] 的草稿 PR，目标 feat/iselan-v1。
+用户要求 Codex 与 WorkBuddy 暂停到用户回家；Cursor 继续自己的卡。ENG-02（事件账本）依赖 ENG-01：在 PR #7 合并前，可以从 cursor/eng-01-data-config-034a 切出 ENG-02 分支并把 PR 目标设为 feat/iselan-v1（PR 正文注明依赖 #7）；CNT-01（灰港事业文本）不依赖代码，可先做。
 
 ### 完成标准 / Completion criteria
 
@@ -63,7 +63,7 @@ coverage: "PARTIAL"
 
 ### 未决问题 / Open questions
 
-- 无 / None.
+- PR #7 待 Codex 审核（用户回家后）。
 
 ### 已知缺失 / Known omissions
 
@@ -71,4 +71,4 @@ coverage: "PARTIAL"
 
 ### 需要重新验证 / Revalidate
 
-- feat/iselan-v1 的最新提交与打开的 [卡号] 草稿 PR。
+- PR #7 是否已合并；feat/iselan-v1 的最新提交和打开的 [卡号] 草稿 PR。
