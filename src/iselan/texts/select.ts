@@ -77,6 +77,20 @@ export function withLogContext(s: Snapshot, ctx: SceneContext = {}): SceneContex
   return { ...ctx, tags, npcWhere }
 }
 
+/**
+ * Variables the log answers. Text selection never lets the caller override them, so an AI
+ * claim (e.g. a door outcome not yet committed, 08 §6 NC-BEAT-08) cannot unlock a text.
+ */
+const LOG_VARS: ReadonlySet<string> = new Set([
+  'act', 'party_size', 'clock', 'crisis_rounds', 'truth_level', 'bell_hearts_held', 'hunger', 'opening_hook',
+  'door_outcome', 'act4_entry', 'friendly_faction_cluster', 'location', 'visited_place', 'text_shown',
+])
+
+function logOnly(ctx: SceneContext): SceneContext {
+  if (!ctx.vars) return ctx
+  return { ...ctx, vars: Object.fromEntries(Object.entries(ctx.vars).filter(([k]) => !LOG_VARS.has(k))) }
+}
+
 /** Why a unit cannot be shown now, ignoring usage and score; null when it can. */
 export function whyNot(u: TextUnit, s: Snapshot, ctx: SceneContext = {}): Ineligible | null {
   if (!allHold(u.requires, s, ctx)) return 'requires'
@@ -191,7 +205,7 @@ function best<C extends { u: TextUnit; score: number }>(cands: readonly C[], s: 
 
 /** 09 §3.2–§3.4: filter, score, threshold, pick the best with seeded ties, reuse after cooldown, then fallback. */
 export function selectText(s: Snapshot, req: TextRequest, units: readonly TextUnit[] = ALL_UNITS): Selection {
-  const ctx = withLogContext(s, req.ctx)
+  const ctx = withLogContext(s, logOnly(req.ctx ?? {}))
   const scored = units
     .filter((u) => req.kinds.includes(u.kind) && (!req.ids || req.ids.includes(u.id) || req.ids.includes(u.entry.id)))
     .map((u) => ({ u, ctx: unitContext(u, s, ctx) }))

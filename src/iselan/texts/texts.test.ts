@@ -178,6 +178,21 @@ describe('结果类节拍与展示前的世界变化（09 §2.1，12 §3.4）', 
     expect(whyNot(unit('GH-BEAT-09'), run.s, { vars: { arc: 'gray_well', outcome: 'destroyed' } as never })).toBe('outcome')
   })
 
+  it('门的结果未提交前不展示 NC-BEAT-08 系列；存档能回答的变量不接受调用方覆盖（08 §6）', () => {
+    const nc08: TextUnit[] = [{
+      ...unit('GH-BEAT-01'),
+      id: 'NC-BEAT-08A',
+      entry: { ...unit('GH-BEAT-01').entry, id: 'NC-BEAT-08A', effects: [] },
+      requires: [{ var: 'door_outcome', op: 'eq', value: 'hold' }],
+      effects: [],
+    }]
+    const run = new TestRun()
+    const claimed: SceneContext = { vars: { door_outcome: 'hold' } as never }
+    expect(selectFor(run.s, 'beat', { ctx: claimed }, nc08).pick).toBeNull()
+    run.commit([draft('door_outcome_committed', { outcome: 'hold', votes: ['s1'], tieRoll: 0 })])
+    expect(selectFor(run.s, 'beat', {}, nc08).pick?.unit.id).toBe('NC-BEAT-08A')
+  })
+
   it('“或”里列出的结果同样要求存档里有对应结果', () => {
     const run = new TestRun()
     const ctx: SceneContext = { vars: { arc: 'gray_well', outcome: 'traded' } as never }
