@@ -1,4 +1,4 @@
-import type { Snapshot } from '../src/iselan/events/index.js'
+import type { AnyEvent, Snapshot } from '../src/iselan/events/index.js'
 import { loadSave, serializeSave, type SaveFile } from '../src/iselan/save.js'
 import {
   LINK_CODE_TTL_MS, attributable, bareSummary, newLinkCode, noAchievements, normalizeLinkCode, openExport, responseHash, sealExport, sha256Hex,
@@ -76,8 +76,19 @@ function cleanResponses(raw: unknown): UploadedResponse[] {
  * 12 §8.4: every AI response in the run must match a receipt written when the server returned it,
  * no older than 30 days. A run with no AI responses at all has nothing the server vouched for.
  */
-export async function verifyResponses(store: ProfileStore, runId: string, responses: readonly UploadedResponse[], now: number): Promise<string | null> {
+export async function verifyResponses(
+  store: ProfileStore,
+  runId: string,
+  responses: readonly UploadedResponse[],
+  now: number,
+  events: readonly AnyEvent[] = [],
+): Promise<string | null> {
   if (!responses.length) return '这一局没有 AI 回执，无法验证'
+  const have = new Set(responses.map((r) => r.seq))
+  for (const e of events) {
+    const seq = /^ai:(\d+)$/.exec(e.sourceIntentId ?? '')?.[1]
+    if (seq !== undefined && !have.has(Number(seq))) return `事件 ${e.seq} 来自第 ${seq} 条 AI 回应，但存档里没有这条回应`
+  }
   for (const r of responses) {
     const receipt = await store.receipt(runId, r.seq)
     if (!receipt) return `第 ${r.seq} 条 AI 回应没有回执`
@@ -91,7 +102,8 @@ async function uploadRun(store: ProfileStore, profile: Profile, body: Record<str
   const { save, snapshot: s } = soloSave(body.save)
   const owner = await store.runOwner(save.runId)
   if (owner && owner !== profile.id) throw new HttpError(409, '这一局已经属于另一份档案')
-  const problem = await verifyResponses(store, save.runId, cleanResponses(body.responses), now)
+  const responses = cleanResponses(body.responses ?? save.aiResponses)
+  const problem = await verifyResponses(store, save.runId, responses, now, save.events)
 
   const unlocked: string[] = []
   if (!problem) {

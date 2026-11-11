@@ -17,7 +17,7 @@ export const profileApi = {
   /** The raw save text; pass it to `loadSave`. */
   getSave: () => post<{ save: string | null; meta: CloudSaveMeta | null }>(PATH, { op: 'save_get' }),
   /** Single-player runs only: the server checks receipts, replays the log and decides the unlocks. */
-  uploadRun: (save: SaveFile, responses: readonly UploadedResponse[]) =>
+  uploadRun: (save: SaveFile, responses: readonly UploadedResponse[] = save.aiResponses ?? []) =>
     post<UploadOutcome & { profile: ProfileView }>(PATH, { op: 'upload_run', save: serializeSave(save), responses }),
   markNotified: (achievementIds: readonly string[]) => post<ProfileView>(PATH, { op: 'notified', ids: achievementIds }),
 }

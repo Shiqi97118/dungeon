@@ -3,6 +3,7 @@ import { SCENES } from '../src/game/data/scenes.js'
 import { HttpError, assertSameSite, fail, json, readJson } from './http.js'
 import { platform } from './platform.js'
 import { serverGm } from './gm.js'
+import { cleanTurnRequest, iselanModel, iselanTurn } from './iselanTurn.js'
 import { spendGlobalAi } from './rooms.js'
 
 const DAILY_LIMIT = 200
@@ -29,18 +30,33 @@ export async function handleGm(request: Request): Promise<Response> {
     const ident = await p.viewer(request)
     if (ident instanceof Response) return ident
     const gm = serverGm()
-    if (request.method === 'GET') return json({ available: !!gm })
+    if (request.method === 'GET') return json({ available: !!gm, iselan: !!iselanModel() && !!p.profiles?.() })
     if (request.method !== 'POST') return json({ error: '不支持的请求' }, 405)
     assertSameSite(request)
-    if (!gm) throw new HttpError(503, '内置 AI 主持人未配置')
     const store = p.store()
-    if (!store) throw new HttpError(503, '内置 AI 主持人暂不可用')
     const body = await readJson(request, 300_000)
-    const state = cleanState(body.state)
     const out = () => new HttpError(429, '今天的 AI 主持次数已用完，已切换为离线规则')
-    if (!(await store.useQuota(ident.stage, ident.sub, DAILY_LIMIT))) throw out()
-    if (ident.open && !(await store.useQuota(ident.stage, `gm-ip:${ident.ip ?? 'unknown'}`, IP_DAILY_LIMIT))) throw out()
-    if (!(await spendGlobalAi(store, ident))) throw out()
+    const spend = async () => {
+      if (!store) throw new HttpError(503, '内置 AI 主持人暂不可用')
+      if (!(await store.useQuota(ident.stage, ident.sub, DAILY_LIMIT))) throw out()
+      if (ident.open && !(await store.useQuota(ident.stage, `gm-ip:${ident.ip ?? 'unknown'}`, IP_DAILY_LIMIT))) throw out()
+      if (!(await spendGlobalAi(store, ident))) throw out()
+    }
+
+    if (body.op === 'iselan_turn') {
+      const model = iselanModel()
+      const receipts = p.profiles?.()
+      if (!model) throw new HttpError(503, '内置 AI 主持人未配置')
+      if (!receipts) throw new HttpError(503, '内置 AI 主持人暂不可用')
+      const req = cleanTurnRequest(body)
+      await spend()
+      const { seq, text } = await iselanTurn(model, receipts, req, Date.now())
+      return json({ seq, text })
+    }
+
+    if (!gm) throw new HttpError(503, '内置 AI 主持人未配置')
+    const state = cleanState(body.state)
+    await spend()
 
     if (body.op === 'propose') {
       return json(await gm.propose(state, text(body.text, 200), typeof body.actorName === 'string' ? body.actorName.slice(0, 12) : undefined))

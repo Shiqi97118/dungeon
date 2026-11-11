@@ -22,16 +22,16 @@ export class TestRun {
     return (this.cache ??= reduceEvents(this.runId, this.events))
   }
 
-  commit(drafts: readonly AnyDraft[]): this {
-    this.events = commitIntent(this.events, `i${++this.intent}`, drafts, { runId: this.runId, committedAt: '2026-11-11T00:00:00.000Z' }).events
+  commit(drafts: readonly AnyDraft[], intentId = `i${++this.intent}`): this {
+    this.events = commitIntent(this.events, intentId, drafts, { runId: this.runId, committedAt: '2026-11-11T00:00:00.000Z' }).events
     this.cache = null
     return this
   }
 
   /** Commit `drafts` with every consequence the rules attach. */
-  settle(drafts: readonly AnyDraft[], options?: SettleOptions) {
+  settle(drafts: readonly AnyDraft[], options?: SettleOptions, intentId?: string) {
     const r = withConsequences(this.s, drafts, [], options)
-    this.commit(r.drafts)
+    this.commit(r.drafts, intentId)
     return r
   }
 

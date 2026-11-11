@@ -15,6 +15,8 @@ export interface SaveFile {
   readonly snapshot: Snapshot
   readonly snapshotSeq: number
   readonly profileId?: string
+  /** Every AI response of the run, for the server to match against its receipts on upload (12 §8.4). */
+  readonly aiResponses?: readonly { readonly seq: number; readonly text: string }[]
 }
 
 export type LoadResult =
@@ -28,7 +30,14 @@ export type LoadResult =
   | { readonly status: 'outdated'; readonly version: number | null; readonly message: typeof OUTDATED_SAVE_MESSAGE; readonly action: typeof OUTDATED_SAVE_ACTION }
   | { readonly status: 'corrupt'; readonly problems: readonly string[] }
 
-export function createSave(input: { runId: string; seed: string; createdAt: string; events: readonly AnyEvent[]; profileId?: string }): SaveFile {
+export function createSave(input: {
+  runId: string
+  seed: string
+  createdAt: string
+  events: readonly AnyEvent[]
+  profileId?: string
+  aiResponses?: SaveFile['aiResponses']
+}): SaveFile {
   const snapshot = reduceEvents(input.runId, input.events)
   return {
     version: SAVE_VERSION,
@@ -39,6 +48,7 @@ export function createSave(input: { runId: string; seed: string; createdAt: stri
     snapshot,
     snapshotSeq: snapshot.seq,
     ...(input.profileId === undefined ? {} : { profileId: input.profileId }),
+    ...(input.aiResponses === undefined ? {} : { aiResponses: input.aiResponses }),
   }
 }
 
@@ -66,6 +76,10 @@ export function loadSave(raw: string): LoadResult {
   if (typeof s.createdAt !== 'string') problems.push('缺少 createdAt')
   if (!Array.isArray(s.events)) problems.push('缺少事件日志')
   if (s.profileId !== undefined && typeof s.profileId !== 'string') problems.push('profileId 不是字符串')
+  const responses = s.aiResponses
+  if (responses !== undefined && (!Array.isArray(responses) || !responses.every((r) => r && Number.isInteger(r.seq) && typeof r.text === 'string'))) {
+    problems.push('AI 回应记录格式错误')
+  }
   if (problems.length) return { status: 'corrupt', problems }
 
   const runId = s.runId as string
@@ -84,6 +98,7 @@ export function loadSave(raw: string): LoadResult {
     snapshot,
     snapshotSeq: snapshot.seq,
     ...(s.profileId === undefined ? {} : { profileId: s.profileId as string }),
+    ...(responses === undefined ? {} : { aiResponses: responses as SaveFile['aiResponses'] }),
   }
   return { status: 'ok', save, snapshot, snapshotRebuilt }
 }
