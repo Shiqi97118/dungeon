@@ -34,11 +34,15 @@ export default function Reader({ screens, fallbackImage, end }: { screens: reado
   const view = readerView(screens, page)
   const endRef = useRef<HTMLDivElement>(null)
   const screenRef = useRef<HTMLDivElement>(null)
+  const sectionRef = useRef<HTMLElement>(null)
+  const continueRef = useRef<HTMLButtonElement>(null)
   const turned = useRef(false)
 
-  // 继续 is disabled on the last screen; keep keyboard focus inside the reader.
+  // 继续 is disabled on the last screen and the end slot leaves when paging back; keep keyboard focus inside the reader.
   useEffect(() => {
-    if (turned.current && view.atEnd) (endRef.current ?? screenRef.current)?.focus()
+    if (!turned.current) return
+    if (view.atEnd) (endRef.current ?? screenRef.current)?.focus()
+    else if (!sectionRef.current?.contains(document.activeElement)) continueRef.current?.focus()
   }, [view.atEnd, view.page])
 
   const go = (delta: 1 | -1) => {
@@ -60,7 +64,7 @@ export default function Reader({ screens, fallbackImage, end }: { screens: reado
   if (fallbackImage) images.push(fallbackImage)
 
   return (
-    <section className="rd-reader" aria-label="叙述" onKeyDown={onKeyDown}>
+    <section className="rd-reader" ref={sectionRef} aria-label="叙述" onKeyDown={onKeyDown}>
       <Art key={view.page} ids={images} />
       <div className="rd-screen" ref={screenRef} aria-live="polite" aria-atomic="true" tabIndex={-1}>
         {sc?.paragraphs.map((p, i) => {
@@ -80,7 +84,7 @@ export default function Reader({ screens, fallbackImage, end }: { screens: reado
       <nav className="rd-nav" aria-label="翻页">
         <button className="btn ghost small" onClick={() => go(-1)} disabled={!view.canBack} aria-keyshortcuts="ArrowLeft">上一屏</button>
         <span className="rd-count dim small">第 {view.total ? view.page + 1 : 0} / {view.total} 屏</span>
-        <button className="btn primary" onClick={() => go(1)} disabled={!view.canContinue} aria-keyshortcuts="Enter Space ArrowRight">
+        <button className="btn primary" ref={continueRef} onClick={() => go(1)} disabled={!view.canContinue} aria-keyshortcuts="Enter Space ArrowRight">
           {view.canContinue ? '继续' : '已读完'}
         </button>
       </nav>

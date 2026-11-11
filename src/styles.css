@@ -749,8 +749,8 @@ details summary { cursor: pointer; color: var(--echo); margin: 8px 0; }
 .character-builder .chips { display:grid; gap:8px; margin:16px 0; }
 
 /* ---------- reading pager & world panels (UI-01) ---------- */
-.rd-demo { min-height: 100vh; display: flex; flex-direction: column; background: radial-gradient(ellipse at 30% 0%, #141b24, var(--bg) 60%); }
-.rd-layout { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 360px; height: calc(100vh - 55px); }
+.rd-demo { height: 100vh; display: flex; flex-direction: column; background: radial-gradient(ellipse at 30% 0%, #141b24, var(--bg) 60%); }
+.rd-layout { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 360px; }
 .rd-reader { display: flex; flex-direction: column; min-height: 0; overflow-y: auto; padding: 18px 32px 20px; }
 .rd-art { margin: 0 auto 16px; width: 100%; max-width: 780px; height: 220px; border-radius: 14px; overflow: hidden; border: 1px solid var(--line); flex: none; }
 .rd-art img { width: 100%; height: 100%; object-fit: cover; display: block; filter: saturate(.85) brightness(.8); }
@@ -793,7 +793,8 @@ details summary { cursor: pointer; color: var(--echo); margin: 8px 0; }
 .rd-steps li.on { color: #1b1209; background: var(--copper); border-color: var(--copper); }
 .rd-steps li[aria-current='step'] { box-shadow: 0 0 0 2px rgba(240,184,120,.35); }
 @media (max-width: 980px) {
-  .rd-layout { grid-template-columns: 1fr; height: auto; }
+  .rd-demo { height: auto; min-height: 100vh; }
+  .rd-layout { grid-template-columns: 1fr; }
   .rd-reader { overflow: visible; padding: 14px 16px 16px; }
   .rd-art { height: 150px; margin-bottom: 12px; }
   .rd-para { font-size: 16px; line-height: 1.9; }
