@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { draft, verifyLog } from '../events'
 import type { UnlockRecord } from '../profile'
 import { TestRun } from '../rules/testRun'
+import { selectFor, shownDrafts } from '../texts'
 import { CATALOG, V1_ACHIEVEMENTS } from './catalog'
 import { HIDDEN_ICONS } from './hiddenIcons'
 import { judgeAchievements } from './judge'
@@ -103,6 +104,28 @@ describe('首版成就判定（12 §6.1）', () => {
     const run = new TestRun()
     run.commit([draft('truth_verified', { truthId: 'bellkeeper_price', layer: 0 })])
     expect(ids(run)).toEqual(['ST01'])
+  })
+})
+
+describe('暗线八在真实文本里揭开（LG07）', () => {
+  const tim = { present: ['tim'] } as const
+  const show = (run: TestRun, id: string) => {
+    const pick = selectFor(run.s, 'action', { ids: [id], ctx: tim }).pick
+    if (pick) run.commit(shownDrafts(run.s, pick, tim).drafts)
+    return pick?.unit.id ?? null
+  }
+
+  it('提姆的揭开台词要先看过账本和他的调查；两条证据都在，揭开才生效', () => {
+    const run = new TestRun().commit([draft('npc_attitude_changed', { npcId: 'tim', towardsId: 'party', delta: 2, value: 2 })])
+    expect(show(run, 'GH-DLG-提姆·小丘/转折')).toBeNull()
+    expect(show(run, 'GH-DLG-提姆·小丘/态度≥+1')).toBe('GH-DLG-提姆·小丘/态度≥+1')
+    expect(show(run, 'GH-DLG-提姆·小丘/失言')).toBe('GH-DLG-提姆·小丘/失言')
+    expect(run.s.darkLines.dl8?.evidence.map((e) => e.id)).toEqual(['tim_investigation'])
+    expect(show(run, 'GH-DLG-提姆·小丘/转折')).toBeNull()
+    const run2 = grayportRun()
+    expect(run2.s.darkLines.dl8?.state).toBe('revealed')
+    expect(run2.s.darkLines.dl8?.evidence.map((e) => e.id).sort()).toEqual(['felix_ledger', 'tim_investigation'])
+    expect(run2.events.some((e) => e.type === 'truth_verified' && e.payload.truthId === 'merchant_funds_namekeepers')).toBe(true)
   })
 })
 

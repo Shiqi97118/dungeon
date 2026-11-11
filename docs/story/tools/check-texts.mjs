@@ -79,7 +79,7 @@ function typedValue(type, raw) {
     case 'openingHook': return vocab.openingHooks[v] ?? null
     case 'direction': return directions.has(v) ? v : null
     case 'doorOutcome': return vocab.doorOutcomes[v] ?? null
-    case 'textId': return /^[A-Z]+-[A-Z0-9-]+$/.test(v) ? v : null
+    case 'textId': return /^[A-Z]+-[A-Z]+-[^\s/]+(\/[^\s/]+)?$/.test(v) ? v : null
     case 'route': {
       const ends = v.split('↔').map((x) => regions.get(x.trim())?.id)
       return ends.length === 2 && ends.every(Boolean) ? ends.sort().join('|') : null

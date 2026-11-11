@@ -1,6 +1,7 @@
 import { draft } from '../events'
 import { choiceDraft, createProject, d01Variant, endingCandidates, foundProject } from '../rules'
 import { TestRun } from '../rules/testRun'
+import type { SceneContext } from '../rules/conditions'
 import { selectFor, shownDrafts } from '../texts'
 
 /**
@@ -29,20 +30,24 @@ export function grayportRun(): TestRun {
 
   run.settle([draft('npc_attitude_changed', { npcId: 'ludo', towardsId: 'party', delta: 1, value: 2 }), draft('npc_trust_earned', { npcId: 'ludo' })]) // RE03
 
-  run.commit([
-    draft('truth_evidence_added', { darkLineId: 'dl1', evidenceId: 'felix_ledger', reliable: true }),
-    draft('truth_evidence_added', { darkLineId: 'dl1', evidenceId: 'fabian_letter', reliable: true }),
-  ])
-  const turn = selectFor(run.s, 'beat', { ids: ['GH-BEAT-05'], ctx: { vars: { arc: 'gray_well', beat: 'turn' } as never } }).pick
-  if (!turn) throw new Error('没有选中 GH-BEAT-05')
-  run.commit(shownDrafts(run.s, turn).drafts) // dl1 revealed with two pieces of evidence: truth_verified, ST03
+  const show = (moment: 'beat' | 'action', id: string, ctx: SceneContext) => {
+    const pick = selectFor(run.s, moment, { ids: [id], ctx }).pick
+    if (pick?.unit.id !== id) throw new Error(`没有选中 ${id}`)
+    run.commit(shownDrafts(run.s, pick, ctx).drafts)
+  }
+  const arc = (beat: string): SceneContext => ({ present: ['felix'], vars: { arc: 'gray_well', beat } as never })
 
-  run.commit([
-    draft('truth_evidence_added', { darkLineId: 'dl8', evidenceId: 'broker_draft', reliable: true }),
-    draft('truth_evidence_added', { darkLineId: 'dl8', evidenceId: 'tim_investigation', reliable: true }),
-    draft('dark_line_changed', { darkLineId: 'dl8', state: 'revealed' }),
-    draft('truth_verified', { truthId: 'merchant_funds_namekeepers', layer: 0 }),
-  ]) // LG07
+  // dl1 and dl8 both get the ledger; Fabian's letter is dl1's second piece of evidence.
+  show('beat', 'GH-BEAT-04', arc('discovery'))
+  run.commit([draft('truth_evidence_added', { darkLineId: 'dl1', evidenceId: 'fabian_letter', reliable: true })])
+  show('beat', 'GH-BEAT-05', arc('turn')) // dl1 revealed with two pieces of evidence: truth_verified, ST03
+
+  // dl8 through Tim's lines: a clue, his investigation, then the reveal once the ledger has been seen.
+  const tim: SceneContext = { present: ['tim'] }
+  run.settle([draft('npc_attitude_changed', { npcId: 'tim', towardsId: 'party', delta: 2, value: 2 })])
+  show('action', 'GH-DLG-提姆·小丘/态度≥+1', tim)
+  show('action', 'GH-DLG-提姆·小丘/失言', tim)
+  show('action', 'GH-DLG-提姆·小丘/转折', tim) // truth_verified merchant_funds_namekeepers: LG07
 
   run.settle([draft('core_arc_resolved', { arcId: 'gray_well', outcomes: ['exposed'] })]) // ST05
 
