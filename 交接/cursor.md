@@ -15,17 +15,18 @@ coverage: "PARTIAL"
 
 ### 停止位置 / Stopped at
 
-2026-11-11 16:40（北京时间），Cursor 已完成六张卡，都等 Codex 审核：
+2026-11-11 17:00（北京时间），Cursor 已完成七张卡，都等 Codex 审核：
 - ENG-01：PR #7（cursor/eng-01-data-config-034a → feat/iselan-v1），生成类型与配置。
 - CNT-01：PR #8（基于 #7 分支），灰港两种玩家事业的 22 条文本。
 - ENG-02：PR #10（基于 #7 分支），事件账本、快照归约、存档版本 5。
 - ENG-03：PR #11（GitHub 叠在 #10 上），src/iselan/rules/ 全部规则与 40 条测试；事件 73 种。
 - ENG-04：PR #13（GitHub 叠在 #11 上），src/iselan/texts/ 文本选择器与 35 条测试，灰港 100 种子无异常。
-- ENG-07：PR #14（GitHub 叠在 #13 上），/api/profile 档案接口、D1 档案表、src/net/profile.ts 与 33 条测试。lint、test（191 通过）、build、check-texts、wrangler 打包预演全部通过。
+- ENG-07：PR #14（GitHub 叠在 #13 上），/api/profile 档案接口、D1 档案表、src/net/profile.ts 与 33 条测试。
+- ENG-05：PR #15（GitHub 叠在 #14 上），src/iselan/ai/ AI 协议、/api/gm 的 iselan_turn 与回执、src/net/iselanGm.ts 与 27 条测试。lint、test（218 通过）、build、check-texts、wrangler 打包预演全部通过。
 
 ### 建议下一步 / Recommended next action
 
-下一张 Cursor 卡是 ENG-05（AI 协议），从 cursor/eng-07-profile-034a 切分支：用 texts 的 selectFor / shownDrafts 取预写文本，Pick.rewrite 与 Gap 交给 AI 改写或现写；AI 代理每次返回时调用 ProfileStore.putReceipt 写回执（哈希用 src/iselan/profile 的 responseHash）。#7 合并后把 #8、#10 的目标改为 feat/iselan-v1，并依次变基 #10、#11、#13、#14。
+下一张 Cursor 卡是 ENG-06（费用守卫），从 cursor/eng-05-ai-protocol-034a 切分支：server/iselanTurn.ts 的模型调用已返回用量（含缓存命中 token），在那里记 D1 费用账并按 CONFIG.cost 拦截。UI-01、ACH-01 同时进行。#7 合并后把 #8、#10 的目标改为 feat/iselan-v1，并依次变基 #10、#11、#13、#14、#15。
 
 ### 完成标准 / Completion criteria
 
@@ -69,15 +70,16 @@ coverage: "PARTIAL"
 
 ### 未决问题 / Open questions
 
-- PR #7、#8、#10、#11、#13、#14 待 Codex 审核（用户回家后）。
+- PR #7、#8、#10、#11、#13、#14、#15 待 Codex 审核（用户回家后）。
+- ENG-05 的取舍待审核：回执只担保 AI 原文，不担保本地规则结算；日志里每个 ai: 意图都必须有回应。
 - ENG-07 的两处取舍待审核：全程离线主持的单人局记为“未验证”；Node 托管上档案返回 503（只在 Cloudflare 与本机开发可用）。
 - ENG-04 的两处取舍待审核：没有软标签的条目只看必；用兜底条目也记缺口。见修改日志“Cursor · ENG-04”。
 - 全面危机文本节奏（第 2 轮 12B，第 4 轮起每 2 轮 X1–X6）等细节待试玩校准，见修改日志“Cursor · ENG-03”。
 
 ### 已知缺失 / Known omissions
 
-- AI 协议、费用守卫、界面尚未开始；未试玩。
+- 费用守卫、界面尚未完成；未试玩。
 
 ### 需要重新验证 / Revalidate
 
-- PR #7、#8、#10、#11、#13、#14 是否已合并；feat/iselan-v1 的最新提交和打开的 [卡号] 草稿 PR。
+- PR #7、#8、#10、#11、#13、#14、#15 是否已合并；feat/iselan-v1 的最新提交和打开的 [卡号] 草稿 PR。
