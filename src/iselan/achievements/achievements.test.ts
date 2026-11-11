@@ -1,4 +1,3 @@
-import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { draft, verifyLog } from '../events'
 import type { UnlockRecord } from '../profile'
@@ -9,7 +8,8 @@ import { judgeAchievements } from './judge'
 import { grayportRun } from './sampleRun'
 import { catalogView } from './view'
 
-const ICONS = new URL('../../../docs/product/narrative-v1/assets/icons/svg/', import.meta.url)
+const SVG_FILES = import.meta.glob<string>('../../../docs/product/narrative-v1/assets/icons/svg/*.svg', { query: '?raw', import: 'default', eager: true })
+const svgFile = (id: string) => SVG_FILES[`../../../docs/product/narrative-v1/assets/icons/svg/${id}.svg`]
 const judge = (run: TestRun) => judgeAchievements(run.s, run.events)
 const ids = (run: TestRun) => judge(run).map((e) => e.achievementId)
 const unlock = (achievementId: string, notified = false): UnlockRecord => ({ achievementId, runId: 'r1', eventId: 'r1:1', unlockedAt: 1, notified })
@@ -34,7 +34,9 @@ describe('成就目录（02 §2、§10）', () => {
   it('隐藏与秘密成就的图标只在服务端，与设计包文件逐字一致', () => {
     const hidden = CATALOG.filter((a) => a.visibility !== 'public').map((a) => a.id)
     expect(Object.keys(HIDDEN_ICONS).sort()).toEqual(hidden.sort())
-    for (const id of hidden) expect(HIDDEN_ICONS[id]).toBe(readFileSync(new URL(`${id}.svg`, ICONS), 'utf8'))
+    expect(CATALOG.every((a) => svgFile(a.id))).toBe(true)
+    expect(svgFile('LOCKED')).toBeTruthy()
+    for (const id of hidden) expect(HIDDEN_ICONS[id]).toBe(svgFile(id))
   })
 })
 
@@ -63,6 +65,14 @@ describe('首版成就判定（12 §6.1）', () => {
     }
     const seqs = earned.map((e) => run.events.find((x) => x.eventId === e.eventId)!.seq)
     expect(seqs).toEqual([...seqs].sort((a, b) => a - b))
+  })
+
+  it.each(V1_ACHIEVEMENTS)('%s 正是由归因的那条事件解锁：日志截到它之前没有，包含它就有', (id) => {
+    const run = grayportRun()
+    const at = run.events.findIndex((e) => e.eventId === judge(run).find((x) => x.achievementId === id)!.eventId)
+    const upTo = (n: number) => judgeAchievements(run.s, run.events.slice(0, n)).map((e) => e.achievementId)
+    expect(upTo(at)).not.toContain(id)
+    expect(upTo(at + 1)).toContain(id)
   })
 
   it('确定性：同一日志判定结果完全一致；同一成就只归到第一次达成', () => {
