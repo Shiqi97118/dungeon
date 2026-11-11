@@ -80,7 +80,7 @@
     { "id": "gh_tower_banquet", "name": "铜塔的晚宴", "region": "gray_harbor", "kind": "side" }
   ],
   "npcs": [
-    { "id": "nameless_chorus", "name": "空名者", "aliases": [], "tier": "S", "faction": "the_nameless" },
+    { "id": "nameless_chorus", "name": "空名者（合唱）", "aliases": ["合唱"], "tier": "S", "faction": "the_nameless" },
     { "id": "astrion", "name": "阿斯特里昂·卡莱斯特", "aliases": ["阿斯特里昂"], "tier": "S", "faction": "the_nameless" },
     { "id": "cedric", "name": "柯德里克·瓦恩", "aliases": ["柯德里克", "会长"], "tier": "A", "faction": "copper_guild", "region": "gray_harbor" },
     { "id": "aetherlyn", "name": "艾瑟琳·卡尔维斯", "aliases": ["艾瑟琳", "公主"], "tier": "A", "faction": "kalvis_crown", "region": "kalvis" },
@@ -235,7 +235,7 @@
     { "id": "copper_tower", "name": "铜塔", "states": { "完好": "intact", "已被毁": "destroyed", "被攻占": "occupied" }, "initial": "intact" },
     { "id": "tower_banquet", "name": "晚宴", "states": { "未邀请": "none", "已定期": "scheduled", "今晚": "tonight", "已举行": "held", "已取消": "cancelled" }, "initial": "none" },
     { "id": "whitestone_well", "name": "白砾回声井", "states": { "未封": "open", "已封": "sealed", "已毁": "destroyed" }, "initial": "open" },
-    { "id": "crown_bell_engine", "name": "冠钟城", "states": { "未启用": "idle", "已启用": "active", "已毁": "destroyed" }, "initial": "idle" }
+    { "id": "crown_bell_engine", "name": "冠钟", "states": { "未启用": "idle", "已启用": "active", "已毁": "destroyed" }, "initial": "idle" }
   ],
   "facts": [
     { "id": "red_cord_clasp", "name": "红绳铜扣", "kind": "knowledge", "about": "红绳病人的结都带同一种铜扣" },
@@ -300,5 +300,6 @@
   "interactions": ["memory-assembly", "resonance", "mechanism", "evidence", "dialogue-gesture", "crisis-action"],
   "textKinds": ["ENV", "SCN", "BEAT", "DLG", "BRG", "TRV", "RST", "CLK", "END"],
   "textRegions": { "GEN": null, "GH": "gray_harbor", "KV": "kalvis", "WP": "whitestone", "SL": "silverleaf", "QZ": "bell_valley", "EM": "ember_plains", "SS": "silent_sea", "NC": "nameless_city", "ED": null },
-  "dialogueLabels": ["初见", "再见", "失言", "转折", "清醒", "终局", "结局用", "被识破", "发出邀请"]
+  "dialogueLabels": ["初见", "再见", "失言", "转折", "清醒", "终局", "结局用", "被识破", "发出邀请"],
+  "placeholders": ["角色", "同伴", "队伍", "纪念物", "钟心数", "到访之声", "钟心去向", "收束之地"]
 }
