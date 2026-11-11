@@ -1,3 +1,4 @@
+import type { CatalogView } from '../iselan/achievements/types'
 import type { CloudSaveMeta, ProfileExport, ProfileView, UploadOutcome, UploadedResponse } from '../iselan/profile'
 import { serializeSave, type SaveFile } from '../iselan/save'
 import { call, post } from './api'
@@ -16,8 +17,13 @@ export const profileApi = {
   putSave: (save: SaveFile) => post<{ save: CloudSaveMeta }>(PATH, { op: 'save_put', save: serializeSave(save) }),
   /** The raw save text; pass it to `loadSave`. */
   getSave: () => post<{ save: string | null; meta: CloudSaveMeta | null }>(PATH, { op: 'save_get' }),
-  /** Single-player runs only: the server checks receipts, replays the log and decides the unlocks. */
+  /**
+   * Single-player runs only: the server checks receipts, replays the log and decides the unlocks.
+   * `earned` is everything this run achieved, including achievements the profile already had.
+   */
   uploadRun: (save: SaveFile, responses: readonly UploadedResponse[] = save.aiResponses ?? []) =>
-    post<UploadOutcome & { profile: ProfileView }>(PATH, { op: 'upload_run', save: serializeSave(save), responses }),
+    post<UploadOutcome & { earned: readonly string[]; profile: ProfileView; achievements: CatalogView }>(PATH, { op: 'upload_run', save: serializeSave(save), responses }),
+  /** The gallery, with locked hint and secret achievements already redacted by the server. */
+  achievements: () => post<CatalogView>(PATH, { op: 'achievements' }),
   markNotified: (achievementIds: readonly string[]) => post<ProfileView>(PATH, { op: 'notified', ids: achievementIds }),
 }
