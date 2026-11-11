@@ -1,3 +1,4 @@
+import type { ProfileStore } from './profileStore.js'
 import type { Store } from './store.js'
 
 export interface Viewer {
@@ -16,6 +17,8 @@ export interface Viewer {
 export interface Platform {
   viewer(request: Request): Promise<Viewer | Response>
   store(): Store | null
+  /** 12 §10 profiles; null where the host has no database for them. */
+  profiles?(): ProfileStore | null
 }
 
 const g = globalThis as unknown as { __echoPlatform?: Platform }

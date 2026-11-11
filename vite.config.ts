@@ -5,6 +5,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 const ROUTES: Record<string, string> = {
   '/api/room': '/api/room.ts',
   '/api/gm': '/api/gm.ts',
+  '/api/profile': '/api/profile.ts',
 }
 
 async function toRequest(req: IncomingMessage): Promise<Request> {
