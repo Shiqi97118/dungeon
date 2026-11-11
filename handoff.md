@@ -21,7 +21,7 @@ coverage: "PARTIAL"
 
 ### 建议下一步 / Recommended next action
 
-请用户审阅 PR #5 与 docs/story/11 第 5 节剩余两项（设计包脚本是否改为只校验、代理自选的图标与 ED-01B 写法）。之后扩写约 80 段单段地区条目、补势力计划逐格前提；再按 08 第 5 节顺序开发；事件账本、成就、QTE 由另一台电脑的 Codex 在独立分支按设计包 docs/06 实施。
+请用户审阅 PR #5 与 docs/story/11 第 5 节剩余一项（代理自选的图标与 ED-01B 写法）。之后扩写约 80 段单段地区条目、补势力计划逐格前提；再按 08 第 5 节顺序开发；事件账本、成就、QTE 由另一台电脑的 Codex 在独立分支按设计包 docs/06 实施。
 
 ### 完成标准 / Completion criteria
 
@@ -65,7 +65,7 @@ coverage: "PARTIAL"
 - 不把结局写回固定的几个按钮；不让 AI 自行决定何时终局或直接改数值。
 - 不在用户确认剧情框架前开始改代码。
 - 不凭聊天记忆或本文件推断设计包内容；以设计交接分支 docs/product/narrative-v1/ 的文件为准。
-- 不在设计包目录直接运行 tools/validate_package.py：它会重写 SHA256SUMS.txt 与 VALIDATION.txt；先用 tools/check_received.py，必要时运行后用 git 还原。
+- 设计包的 tools/validate_package.py 已改为默认只读校验；只有有意修改资产后才用 --update 重写清单，并在提交前检查 diff。
 - 不用 PR 通过构建或文档数量来证明剧情系统已经可玩。
 - 不使用现有作品（魔兽世界等）的专有名词。
 - 生成插图时不用原矿场图做参考图（会照搬构图），只用风格前缀。
@@ -108,7 +108,7 @@ coverage: "PARTIAL"
 
 ### 未决问题 / Open questions
 
-- docs/story/11 第 5 节：设计包 validate_package.py 是否改为只校验、去掉固定的测试文字；代理自选的新图标与 ED-01B 写法是否接受。
+- docs/story/11 第 5 节：代理自选的新图标与 ED-01B 写法是否接受。
 - 结局用的更强模型具体型号与价格（实施时按 DeepSeek 官方文档确认）。
 - 有效选择 31/40/50/60 的档位门槛、时钟检查间隔 6 轮、中途加入 ≥ 6 次、倾向分阈值 3、地区收束节点、每段核心冒险 3 处交互都是初始值，需试玩校准。
 
