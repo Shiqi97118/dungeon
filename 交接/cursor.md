@@ -15,18 +15,19 @@ coverage: "PARTIAL"
 
 ### 停止位置 / Stopped at
 
-2026-11-11 17:00（北京时间），Cursor 已完成七张卡，都等 Codex 审核：
+2026-11-11 17:00（北京时间），Cursor 已完成八张卡，都等 Codex 审核：
 - ENG-01：PR #7（cursor/eng-01-data-config-034a → feat/iselan-v1），生成类型与配置。
 - CNT-01：PR #8（基于 #7 分支），灰港两种玩家事业的 22 条文本。
 - ENG-02：PR #10（基于 #7 分支），事件账本、快照归约、存档版本 5。
 - ENG-03：PR #11（GitHub 叠在 #10 上），src/iselan/rules/ 全部规则与 40 条测试；事件 73 种。
 - ENG-04：PR #13（GitHub 叠在 #11 上），src/iselan/texts/ 文本选择器与 35 条测试，灰港 100 种子无异常。
 - ENG-07：PR #14（GitHub 叠在 #13 上），api/profile 档案接口、D1 档案表、src/net/profile.ts 与 33 条测试。
-- ENG-05：PR #15（GitHub 叠在 #14 上），src/iselan/ai/ AI 协议、api/gm 的 iselan_turn 与回执、src/net/iselanGm.ts 与 27 条测试。lint、test（218 通过）、build、check-texts、wrangler 打包预演全部通过。
+- ENG-05：PR #15（GitHub 叠在 #14 上），src/iselan/ai/ AI 协议、api/gm 的 iselan_turn 与回执、src/net/iselanGm.ts 与 27 条测试。
+- UI-01：叠在 #15 上，src/ui/reading/ 与 src/ui/world/ 阅读节奏和四个世界面板、23 条测试与截图。lint、test（241 通过）、build、check-texts、wrangler 打包预演全部通过。
 
 ### 建议下一步 / Recommended next action
 
-下一张 Cursor 卡是 ENG-06（费用守卫），从 cursor/eng-05-ai-protocol-034a 切分支：server/iselanTurn.ts 的模型调用已返回用量（含缓存命中 token），在那里记 D1 费用账并按 CONFIG.cost 拦截。UI-01、ACH-01 同时进行。#7 合并后把 #8、#10 的目标改为 feat/iselan-v1，并依次变基 #10、#11、#13、#14、#15。
+下一张 Cursor 卡是 ENG-06（费用守卫），从 cursor/eng-05-ai-protocol-034a 切分支：server/iselanTurn.ts 的模型调用已返回用量（含缓存命中 token），在那里记 D1 费用账并按 CONFIG.cost 拦截。ACH-01 已由子代理完成实现，待审核后叠在 UI-01 上。#7 合并后把 #8、#10 的目标改为 feat/iselan-v1，并依次变基 #10、#11、#13、#14、#15。
 
 ### 完成标准 / Completion criteria
 
@@ -78,7 +79,7 @@ coverage: "PARTIAL"
 
 ### 已知缺失 / Known omissions
 
-- 费用守卫、界面尚未完成；未试玩。
+- 费用守卫（ENG-06）已暂停，未开工；未试玩。
 
 ### 需要重新验证 / Revalidate
 
