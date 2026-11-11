@@ -14,8 +14,10 @@ export interface SeatState {
   readonly controller: P<'seat_changed'>['controller']
   /** Counts toward the seat's quota, including choices inherited from a previous occupant. */
   readonly choices: number
-  /** Made by the current occupant since joining. */
+  /** Made by the current occupant in person since joining (not while an AI stands in). */
   readonly ownChoices: number
+  /** Joined mid-run or took over from another character, so R1a/R1b's own-choice minimum applies. */
+  readonly mustOwn: boolean
   readonly dedupeKeys: readonly string[]
 }
 
@@ -48,6 +50,11 @@ export interface ProjectSnapshot {
   readonly kind: P<'player_project_created'>['kind']
   readonly regionId: RegionId
   readonly stage: P<'player_project_stage_changed'>['stage']
+  readonly foundedRound: number | null
+  readonly operationalRound: number | null
+  /** Distinct rounds with a counted choice tagged `project:<id>`. */
+  readonly investedRounds: readonly number[]
+  readonly risks: readonly (P<'player_project_risk'> & { readonly round: number })[]
   readonly marks: readonly string[]
 }
 
@@ -67,13 +74,24 @@ export interface Snapshot {
   readonly hooksTaken: readonly P<'first_hook_taken'>[]
   readonly arcs: Readonly<Partial<Record<ArcId, { readonly beats: readonly BeatId[]; readonly outcomes: readonly OutcomeId[] | null }>>>
   readonly texts: Readonly<Record<string, { readonly count: number; readonly lastRound: number }>>
-  readonly clock: { readonly value: number; readonly highest: number; readonly crisis: boolean; readonly crisisStartedRound: number | null; readonly crisisStep: number }
+  readonly clock: {
+    readonly value: number
+    readonly highest: number
+    readonly crisis: boolean
+    readonly crisisStartedRound: number | null
+    readonly crisisStep: number
+    /** Extra advances outside the scheduled check (R2), by planId. */
+    readonly extras: readonly { readonly planId: string; readonly round: number }[]
+    readonly reversals: readonly string[]
+  }
+  readonly plansAdvanced: readonly string[]
   readonly factions: Readonly<Partial<Record<FactionId, FactionSnapshot>>>
   readonly treaties: readonly P<'faction_treaty_signed'>[]
   readonly regions: Readonly<Partial<Record<RegionId, { readonly stage: P<'region_stage_changed'>['stage']; readonly defaultOutcome: string | null; readonly visits: number; readonly stabilized: boolean }>>>
   readonly location: { readonly regionId: RegionId; readonly placeId: PlaceId | null } | null
   readonly ambience: P<'ambience_changed'> | null
   readonly places: readonly PlaceId[]
+  readonly visitedPlaces: readonly PlaceId[]
   readonly routes: readonly string[]
   readonly facts: Readonly<Partial<Record<FactId, { readonly source: string; readonly seq: number }>>>
   readonly objects: Readonly<Record<ObjectId, string>>
@@ -94,12 +112,17 @@ export interface Snapshot {
   readonly door: P<'door_outcome_committed'> | null
   readonly interactions: Readonly<Record<string, { readonly template: InteractionId; readonly outcome: P<'interaction_completed'>['outcome']; readonly textId: string }>>
   readonly directions: Readonly<Partial<Record<DirectionId, number>>>
+  /** Net change per direction in the current round, for the ±3 per round cap. */
+  readonly directionsThisRound: Readonly<Partial<Record<DirectionId, number>>>
   readonly ending: P<'ending_committed'> | null
   readonly legends: readonly string[]
   readonly resolutions: readonly ({ readonly kind: 'nonviolent'; readonly severity: string } | { readonly kind: 'custom'; readonly importance: string })[]
   readonly projects: Readonly<Record<string, ProjectSnapshot>>
   readonly homes: readonly P<'home_established'>[]
 }
+
+/** `choice_counted.changeKinds` entry marking a choice invested in a player project. */
+export const PROJECT_KIND_PREFIX = 'project:'
 
 const ATTITUDE_RANGE = [-3, 3] as const
 const HUNGER_RANGE = [0, 10] as const
@@ -109,13 +132,14 @@ export function initialSnapshot(runId: string): Snapshot {
   return {
     runId, seq: 0, mode: null, partySize: 0, seed: '', openingHook: null, round: 0, act: 1, actVia: null,
     seats: {}, consents: [], hooksTaken: [], arcs: {}, texts: {},
-    clock: { value: 0, highest: 0, crisis: false, crisisStartedRound: null, crisisStep: 0 },
-    factions: {}, treaties: [], regions: {}, location: null, ambience: null, places: [], routes: [],
+    clock: { value: 0, highest: 0, crisis: false, crisisStartedRound: null, crisisStep: 0, extras: [], reversals: [] },
+    plansAdvanced: [],
+    factions: {}, treaties: [], regions: {}, location: null, ambience: null, places: [], visitedPlaces: [], routes: [],
     facts: {}, objects: Object.fromEntries(VOCAB.objects.map((o) => [o.id, o.initial])) as Record<ObjectId, string>,
     darkLines: {}, truths: [], records: [], correctedPeriods: [], memoryFragments: [],
     npcs: {}, hunger: 0, namesInvoked: [],
     bells: { verifiedCities: [], hearts: {}, dispositions: {}, ringPrevented: null },
-    door: null, interactions: {}, directions: {}, ending: null, legends: [], resolutions: [], projects: {}, homes: [],
+    door: null, interactions: {}, directions: {}, directionsThisRound: {}, ending: null, legends: [], resolutions: [], projects: {}, homes: [],
   }
 }
 
@@ -147,6 +171,7 @@ function apply(s: Draft<Snapshot>, e: AnyEvent): void {
     }
     case 'round_started':
       s.round = e.payload.round
+      s.directionsThisRound = {}
       return
     case 'seat_changed': {
       const { seatId, actorId, controller, inheritedChoices } = e.payload
@@ -154,15 +179,19 @@ function apply(s: Draft<Snapshot>, e: AnyEvent): void {
       s.seats[seatId] =
         prev && prev.actorId === actorId
           ? { ...prev, controller }
-          : { actorId, controller, choices: inheritedChoices, ownChoices: 0, dedupeKeys: [] }
+          : { actorId, controller, choices: inheritedChoices, ownChoices: 0, mustOwn: prev !== undefined || s.round > 0, dedupeKeys: [] }
       return
     }
     case 'choice_counted': {
       const seat = s.seats[e.payload.seatId]
       if (!seat || seat.dedupeKeys.includes(e.payload.dedupeKey)) return
       seat.choices += 1
-      seat.ownChoices += 1
+      if (seat.controller === 'human') seat.ownChoices += 1
       seat.dedupeKeys.push(e.payload.dedupeKey)
+      for (const kind of e.payload.changeKinds) {
+        const p = kind.startsWith(PROJECT_KIND_PREFIX) ? s.projects[kind.slice(PROJECT_KIND_PREFIX.length)] : undefined
+        if (p) pushOnce(p.investedRounds, s.round)
+      }
       return
     }
     case 'consent_given':
@@ -190,9 +219,13 @@ function apply(s: Draft<Snapshot>, e: AnyEvent): void {
       return
     }
     case 'clock_advanced':
-    case 'clock_reversed':
       s.clock.value = e.payload.to
       s.clock.highest = Math.max(s.clock.highest, e.payload.to)
+      if (e.payload.cause === 'world_event') s.clock.extras.push({ planId: e.payload.planId, round: s.round })
+      return
+    case 'clock_reversed':
+      s.clock.value = e.payload.to
+      s.clock.reversals.push(e.payload.cause)
       return
     case 'world_crisis_started':
       s.clock.crisis = true
@@ -205,6 +238,7 @@ function apply(s: Draft<Snapshot>, e: AnyEvent): void {
       const f = faction(s, e.payload.factionId)
       f.plan = { planId: e.payload.planId, stage: e.payload.stage }
       f.blocked = null
+      pushOnce(s.plansAdvanced, e.payload.planId)
       return
     }
     case 'faction_plan_blocked':
@@ -240,6 +274,7 @@ function apply(s: Draft<Snapshot>, e: AnyEvent): void {
       return
     case 'location_changed':
       s.location = { regionId: e.payload.regionId, placeId: e.payload.placeId === 'none' ? null : e.payload.placeId }
+      if (e.payload.placeId !== 'none') pushOnce(s.visitedPlaces, e.payload.placeId)
       return
     case 'ambience_changed':
       s.ambience = { ...e.payload }
@@ -348,9 +383,12 @@ function apply(s: Draft<Snapshot>, e: AnyEvent): void {
     case 'interaction_completed':
       s.interactions[e.payload.interactionInstanceId] ??= { template: e.payload.template, outcome: e.payload.outcome, textId: e.payload.textId }
       return
-    case 'direction_weight_changed':
-      s.directions[e.payload.directionId] = e.payload.value
+    case 'direction_weight_changed': {
+      const id = e.payload.directionId
+      s.directions[id] = e.payload.value
+      s.directionsThisRound[id] = (s.directionsThisRound[id] ?? 0) + e.payload.delta
       return
+    }
     case 'ending_committed':
       s.ending ??= { ...e.payload }
       return
@@ -364,13 +402,21 @@ function apply(s: Draft<Snapshot>, e: AnyEvent): void {
       s.resolutions.push({ kind: 'custom', importance: e.payload.importance })
       return
     case 'player_project_created':
-      s.projects[e.payload.projectId] ??= { kind: e.payload.kind, regionId: e.payload.regionId, stage: 'idea', marks: [] }
+      s.projects[e.payload.projectId] ??= {
+        kind: e.payload.kind, regionId: e.payload.regionId, stage: 'idea', foundedRound: null, operationalRound: null, investedRounds: [], risks: [], marks: [],
+      }
       return
     case 'player_project_stage_changed': {
       const p = s.projects[e.payload.projectId]
-      if (p) p.stage = e.payload.stage
+      if (!p) return
+      p.stage = e.payload.stage
+      if (e.payload.stage === 'founded') p.foundedRound ??= s.round
+      if (e.payload.stage === 'operational') p.operationalRound ??= s.round
       return
     }
+    case 'player_project_risk':
+      s.projects[e.payload.projectId]?.risks.push({ ...e.payload, round: s.round })
+      return
     case 'business_operational':
     case 'business_profitable':
     case 'trade_route_established':
