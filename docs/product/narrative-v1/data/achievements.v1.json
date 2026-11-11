@@ -46,7 +46,7 @@
         "op": "event",
         "type": "first_hook_taken",
         "where": {
-          "regionId": "gray-harbor"
+          "regionId": "gray_harbor"
         }
       },
       "reward": {
@@ -784,7 +784,7 @@
         "op": "event",
         "type": "region_visited",
         "where": {
-          "regionId": "nameless-city"
+          "regionId": "nameless_city"
         }
       },
       "reward": {
@@ -892,7 +892,7 @@
         "type": "business_operational",
         "where": {
           "kind": "tavern",
-          "regionId": "gray-harbor"
+          "regionId": "gray_harbor"
         }
       },
       "reward": {

@@ -35,7 +35,7 @@ def add(code,name,desc,flavor,rarity,icon,rule,visibility='public',hint='',scope
  'rule':rule,'reward':reward or {'kind':'gallery_badge','value':code},'version':1})
 # 12 STORY
 add('ST01','第六声之后','开始一段伊瑟兰冒险。','一切故事都从迟到的钟声开始。','common','bell',e('run_started'))
-add('ST02','雨夜的邀请','在灰港接下第一条冒险钩子。','雨声中有人敲响了门。','common','letter',e('first_hook_taken',regionId='gray-harbor'))
+add('ST02','雨夜的邀请','在灰港接下第一条冒险钩子。','雨声中有人敲响了门。','common','letter',e('first_hook_taken',regionId='gray_harbor'))
 add('ST03','铜塔的阴影','发现商会私井的可靠证据。','某些秘密只在账本上说真话。','rare','tower',e('truth_verified',truthId='merchant_memory_well'))
 add('ST04','被世界注意','正式进入故事第二幕。','名字开始在陌生人的口中流传。','common','eye',e('act_entered',act=2))
 add('ST05','潮井之下','完成灰港核心冒险，无论结果。','那口井仍记得你。','common','waves',e('core_arc_resolved',arcId='gray_well'))
@@ -65,12 +65,12 @@ add('EX04','档案里的空白','找到一份被故意隐藏的历史档案。',
 add('EX05','四重证据','在一局内确认四种不同世界真相。','怀疑，终于有了证据。','epic','eye',count('truth_verified',4,'truthId'))
 add('EX06','没有记录的道路','发现一条此前地图没有记载的真实路线。','地图从不等于世界。','rare','compass',e('route_discovered',previouslyUnknown=True))
 add('EX07','记忆的拾荒人','在一局中验证三段不同记忆碎片。','每段碎片都曾属于谁。','rare','gem',count('memory_fragment_verified',3,'fragmentId'))
-add('EX08','空名之城','抵达空名之城。','没有名字的路也可以到达。','epic','door',e('region_visited',regionId='nameless-city'),visibility='hint',hint='跟随无名之路，直到地图停止说话。')
+add('EX08','空名之城','抵达空名之城。','没有名字的路也可以到达。','epic','door',e('region_visited',regionId='nameless_city'),visibility='hint',hint='跟随无名之路，直到地图停止说话。')
 add('EX09','修钟者','亲手完成一次机关修复交互。','那些错开的齿轮曾属于一个年代。','common','gear',e('interaction_completed',template='mechanism',outcome='completed'))
 add('EX10','不留空白的地图','在一局中发现十二个不同地点。','每个未知都从一扇门开始。','epic','pin',count('place_discovered',12,'placeId'))
 # 8 SANDBOX
 add('SB01','第一块招牌','建立自己的第一个持续性项目。','它终于不只是你的一个想法。','common','hammer',e('player_project_created'),scope='character')
-add('SB02','七灯之外','在灰港成功经营一家酒馆。','有时故事的中心是一张桌子。','rare','mug',e('business_operational',kind='tavern',regionId='gray-harbor'),scope='character')
+add('SB02','七灯之外','在灰港成功经营一家酒馆。','有时故事的中心是一张桌子。','rare','mug',e('business_operational',kind='tavern',regionId='gray_harbor'),scope='character')
 add('SB03','自食其力','让玩家自创事业实现持续盈利。','赚钱不是目的，自由才是。','rare','coins',e('business_profitable',sustained=True),scope='character')
 add('SB04','第一条商路','建立一条安全、可持续的玩家贸易路线。','道路也是一份承诺。','rare','ship',e('trade_route_established',stable=True),scope='party')
 add('SB05','为陌生人点灯','创办并运行一处民间救助机构。','无名的人也有可以回去的地方。','epic','heart',e('civic_service_operational',kind='shelter'),scope='party')
