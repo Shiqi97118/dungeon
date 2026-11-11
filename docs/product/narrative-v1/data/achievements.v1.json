@@ -461,7 +461,7 @@
       "visibility": "public",
       "hint": "",
       "scope": "party",
-      "iconKey": "heart",
+      "iconKey": "lifering",
       "icon": "assets/icons/svg/RE06.svg",
       "png": "assets/icons/png/RE06.png",
       "rule": {
@@ -832,7 +832,7 @@
       "visibility": "public",
       "hint": "",
       "scope": "run",
-      "iconKey": "map",
+      "iconKey": "pin",
       "icon": "assets/icons/svg/EX10.svg",
       "png": "assets/icons/png/EX10.png",
       "rule": {
@@ -1128,7 +1128,7 @@
       "visibility": "secret",
       "hint": "",
       "scope": "run",
-      "iconKey": "crown",
+      "iconKey": "throne",
       "icon": "assets/icons/svg/LG03.svg",
       "png": "assets/icons/png/LG03.png",
       "rule": {
@@ -1263,7 +1263,7 @@
       "visibility": "secret",
       "hint": "",
       "scope": "run",
-      "iconKey": "bell",
+      "iconKey": "bellmute",
       "icon": "assets/icons/svg/LG08.svg",
       "png": "assets/icons/png/LG08.png",
       "rule": {

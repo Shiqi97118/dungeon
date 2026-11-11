@@ -4,5 +4,5 @@
 <circle cx="64" cy="64" r="56" fill="none" stroke="url(#rim)" stroke-width="5"/>
 <circle cx="64" cy="64" r="49" fill="none" stroke="#7FB5CC" stroke-width="1.2" opacity=".55" stroke-dasharray="3 6"/>
 <path d="M64 11l4 6-4 5-4-5Z M64 106l4 6-4 5-4-5Z" fill="#7FB5CC" opacity=".8"/><circle cx="64" cy="9" r="3" fill="#C5A3E3"/>
-<g transform="translate(64 64) scale(.84) translate(-64 -64)" fill="none" stroke="#C5A3E3" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"><path d="m30 43 22-8 23 8 23-8v51l-23 8-23-8-22 8Z"/><path d="M52 35v51m23-43v51"/></g>
+<g transform="translate(64 64) scale(.84) translate(-64 -64)" fill="none" stroke="#C5A3E3" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"><path d="M64 98S40 72 40 53a24 24 0 0 1 48 0c0 19-24 45-24 45Z"/><circle cx="64" cy="53" r="8"/><path d="M30 100h68"/></g>
 </svg>

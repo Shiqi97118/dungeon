@@ -52,7 +52,7 @@ add('RE02','不愿遗忘的人','帮助一位 NPC 恢复重要名字。','记住
 add('RE03','值得信任','通过实际事件获得一名重要 NPC 的信任。','信任不会从一次赞美中生长。','common','shield',e('npc_trust_earned'),scope='character')
 add('RE04','说到做到','履行一项曾被明确记录的 NPC 承诺。','一项承诺终于走过了时间。','rare','scroll',e('npc_oath_kept'),scope='character')
 add('RE05','旧敌，新盟','促成两个原本敌对人物的和解。','多年仇恨也可能有第三条路。','epic','handshake',e('npc_reconciled',priorRelation='hostile'),scope='party')
-add('RE06','绝不丢下任何人','一局内救助至少三位不同 NPC。','每一次伸手都有重量。','rare','heart',count('npc_rescued',3,'subjectId'),scope='party')
+add('RE06','绝不丢下任何人','一局内救助至少三位不同 NPC。','每一次伸手都有重量。','rare','lifering',count('npc_rescued',3,'subjectId'),scope='party')
 add('RE07','改变了一个人','通过可信证据促成重要 NPC 信念转变。','你改变的不是他的态度，而是他的世界。','epic','eye',e('npc_belief_changed'),scope='character')
 add('RE08','意外的援手','得到原本敌视你的 NPC 主动帮助。','有时敌人最了解你。','rare','key',e('npc_help_from_former_enemy'),scope='character')
 add('RE09','最后的告别','完整兑现一场主动选择的角色告别。','至少这一次，我们记得怎么道别。','common','candle',e('personal_farewell_kept'),scope='character')
@@ -67,7 +67,7 @@ add('EX06','没有记录的道路','发现一条此前地图没有记载的真�
 add('EX07','记忆的拾荒人','在一局中验证三段不同记忆碎片。','每段碎片都曾属于谁。','rare','gem',count('memory_fragment_verified',3,'fragmentId'))
 add('EX08','空名之城','抵达空名之城。','没有名字的路也可以到达。','epic','door',e('region_visited',regionId='nameless-city'),visibility='hint',hint='跟随无名之路，直到地图停止说话。')
 add('EX09','修钟者','亲手完成一次机关修复交互。','那些错开的齿轮曾属于一个年代。','common','gear',e('interaction_completed',template='mechanism',outcome='completed'))
-add('EX10','不留空白的地图','在一局中发现十二个不同地点。','每个未知都从一扇门开始。','epic','map',count('place_discovered',12,'placeId'))
+add('EX10','不留空白的地图','在一局中发现十二个不同地点。','每个未知都从一扇门开始。','epic','pin',count('place_discovered',12,'placeId'))
 # 8 SANDBOX
 add('SB01','第一块招牌','建立自己的第一个持续性项目。','它终于不只是你的一个想法。','common','hammer',e('player_project_created'),scope='character')
 add('SB02','七灯之外','在灰港成功经营一家酒馆。','有时故事的中心是一张桌子。','rare','mug',e('business_operational',kind='tavern',regionId='gray-harbor'),scope='character')
@@ -80,12 +80,12 @@ add('SB08','有一个可以回去的地方','建立长期安全的玩家居所�
 # 10 LEGEND
 add('LG01','万名安息','真正促成空名者合唱的安息。','最后一个名字被轻轻说出。','legendary','sun',e('ending_committed',directionId='D19'),visibility='secret')
 add('LG02','第七声的命名者','在满足全部前提时重命名世界。','世界记住了它新的名字。','legendary','crown',e('ending_committed',directionId='D17'),visibility='secret')
-add('LG03','皇帝的归来','亲历阿斯特里昂真正复生的结局。','钟声不一定是庆典。','legendary','crown',e('ending_committed',directionId='D12'),visibility='secret')
+add('LG03','皇帝的归来','亲历阿斯特里昂真正复生的结局。','钟声不一定是庆典。','legendary','throne',e('ending_committed',directionId='D12'),visibility='secret')
 add('LG04','无冠的守护者','使玩家建立的组织得到正式世界传说认可。','没有王冠，也有人被世界铭记。','epic','shield',e('legend_recognized',legendId='uncrowned_guardian'),visibility='secret')
 add('LG05','不敲响的钟','通过非暴力方式平息一次高危世界事件。','最难的胜利有时没有声音。','epic','bell',e('nonviolent_crisis_resolved',severity='high'),visibility='secret')
 add('LG06','第八种回答','在世界法则内创造出被正式认可的全新世界级解决方案。','真正的答案从来不止两种。','legendary','star',e('custom_resolution_verified',importance='world'),visibility='secret')
 add('LG07','真相无价','揭露商会对拾名人的秘密资助关系。','钱流向哪里，名字就流向哪里。','rare','coins',e('truth_verified',truthId='merchant_funds_namekeepers'),visibility='secret')
-add('LG08','让钟保持沉默','通过玩家行动阻止一次即将发生的不可逆钟鸣。','沉默也是世界的语言。','epic','bell',e('bell_ring_prevented',irreversible=True),visibility='secret')
+add('LG08','让钟保持沉默','通过玩家行动阻止一次即将发生的不可逆钟鸣。','沉默也是世界的语言。','epic','bellmute',e('bell_ring_prevented',irreversible=True),visibility='secret')
 add('LG09','七钟的见证者','在同一次冒险中对七枚钟心都形成可验证的归属记录。','世界的每颗心都有自己的去处。','epic','gem',count('bell_heart_disposition_verified',7,'bellHeartId'),visibility='secret')
 add('LG10','改写伪史','公开证实并纠正一项持续四百年的重大历史谎言。','那一页，终于重新写过。','epic','book',e('historical_falsehood_corrected',historicalPeriod='broken_bell_night'),visibility='secret')
 assert len(rows)==50, len(rows)
@@ -133,6 +133,10 @@ paths={
 'home':'<path d="m30 60 34-30 34 30v36H30V60Z"/><path d="M51 96V69h26v27"/>',
 'sun':'<circle cx="64" cy="64" r="20"/><path d="M64 28v12m0 48v12M28 64h12m48 0h12M39 39l9 9m32 32 9 9m0-50-9 9M48 80l-9 9"/>',
 'crown':'<path d="m30 48 17 14 17-28 17 28 17-14-7 41H37l-7-41Z"/><path d="M38 79h52"/>',
+'pin':'<path d="M64 98S40 72 40 53a24 24 0 0 1 48 0c0 19-24 45-24 45Z"/><circle cx="64" cy="53" r="8"/><path d="M30 100h68"/>',
+'throne':'<path d="M46 66V38l18-14 18 14v28"/><path d="M36 66h56v12H36ZM36 66V52h10M92 66V52H82M42 78v20M86 78v20"/><circle cx="64" cy="44" r="5"/>',
+'bellmute':'<path d="M64 29c-12 0-20 9-20 22v12c0 7-4 11-7 17h54c-3-6-7-10-7-17V51c0-13-8-22-20-22Z"/><path d="M58 87c1 9 11 9 12 0"/><path d="M33 33l62 62"/>',
+'lifering':'<circle cx="64" cy="64" r="32"/><circle cx="64" cy="64" r="14"/><path d="M41 41l13 13m20 20 13 13m0-46L74 54M54 74 41 87"/>',
 'star':'<path d="m64 27 11 25 27 3-21 18 6 27-23-14-23 14 6-27-21-18 27-3Z"/>'}
 
 def svg_icon(ach):
