@@ -15,14 +15,15 @@ coverage: "PARTIAL"
 
 ### 停止位置 / Stopped at
 
-2026-11-11 15:35（北京时间），Cursor 已完成三张卡，都等 Codex 审核：
+2026-11-11 16:30（北京时间），Cursor 已完成四张卡，都等 Codex 审核：
 - ENG-01：PR #7（cursor/eng-01-data-config-034a → feat/iselan-v1），生成类型与配置。
 - CNT-01：PR #8（基于 #7 分支），灰港两种玩家事业的 22 条文本。
-- ENG-02：PR #10（基于 #7 分支），src/iselan/events/（事件外壳、校验、只追加账本、归约快照）与 src/iselan/save.ts（存档版本 5、版本 4 提示）；事件词表新增 round_started、location_changed、ambience_changed（共 72 种）。lint、test（83 通过）、build、check-texts 全部通过。
+- ENG-02：PR #10（基于 #7 分支），事件账本、快照归约、存档版本 5。
+- ENG-03：PR #11（GitHub 叠在 #10 上），src/iselan/rules/ 全部规则与 40 条测试；事件 73 种。lint、test（123 通过）、build、check-texts 全部通过。
 
 ### 建议下一步 / Recommended next action
 
-下一张 Cursor 卡是 ENG-03（规则）或 ENG-04（文本选择器），两者都只依赖 ENG-02，从 cursor/eng-02-event-ledger-034a 切分支。ENG-03 须补：NPC 初始态度与势力初始关系（快照默认 0）；事业阶段变化时同时提交 aid_station / party_tavern 的 object_state_changed（归约器不做映射）。#7 合并后把 #8、#10 的目标改为 feat/iselan-v1 并变基。
+下一张 Cursor 卡是 ENG-04（文本选择器），从 cursor/eng-03-rules-034a 切分支：必 / 禁止 / 需知直接用 src/iselan/rules/conditions.ts 的 evalCond，软标签打分、复用冷却（快照 texts）、同分按 rngFor(seed, …)。之后 ENG-07（档案，只依赖 ENG-02）、ENG-05。#7 合并后把 #8、#10 的目标改为 feat/iselan-v1 并依次变基 #10、#11。
 
 ### 完成标准 / Completion criteria
 
@@ -66,12 +67,13 @@ coverage: "PARTIAL"
 
 ### 未决问题 / Open questions
 
-- PR #7、#8、#10 待 Codex 审核（用户回家后）。
+- PR #7、#8、#10、#11 待 Codex 审核（用户回家后）。
+- 全面危机文本节奏（第 2 轮 12B，第 4 轮起每 2 轮 X1–X6）等细节待试玩校准，见修改日志“Cursor · ENG-03”。
 
 ### 已知缺失 / Known omissions
 
-- 规则、选择器、AI 协议、界面尚未开始；未试玩。
+- 文本选择器、AI 协议、费用守卫、档案、界面尚未开始；未试玩。
 
 ### 需要重新验证 / Revalidate
 
-- PR #7、#8、#10 是否已合并；feat/iselan-v1 的最新提交和打开的 [卡号] 草稿 PR。
+- PR #7、#8、#10、#11 是否已合并；feat/iselan-v1 的最新提交和打开的 [卡号] 草稿 PR。
