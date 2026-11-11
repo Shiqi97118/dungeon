@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { cpSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { cpSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -48,6 +48,35 @@ describe('build-data', () => {
   it('rejects an unknown payload field type', () => {
     const bad = { ...events, events: [...events.events, { type: 'x', group: 'run', payload: { a: 'mystery' } }] }
     expect(() => generateVocab(vocab, bad)).toThrow(/unknown payload field type "mystery"/)
+  })
+})
+
+// A Windows checkout (core.autocrlf=true) hands the compiler CRLF; the data must not change.
+describe('CRLF text files', () => {
+  const crlfCopy = () => {
+    const dir = mkdtempSync(join(tmp, 'crlf-'))
+    cpSync(join(STORY, 'text'), dir, { recursive: true })
+    for (const f of readdirSync(dir)) writeFileSync(join(dir, f), read(join(dir, f)).replace(/\r?\n/g, '\r\n'))
+    return dir
+  }
+
+  it('compiles the same data from a CRLF checkout as from LF', () => {
+    const lf = join(tmp, 'lf.json'), crlf = join(tmp, 'crlf.json')
+    expect(node('check-texts.mjs', ['--json', lf]).status).toBe(0)
+    expect(node('check-texts.mjs', ['--text-dir', crlfCopy(), '--json', crlf]).status).toBe(0)
+    const entries = json(crlf).entries
+    // Guards against both sides compiling to nothing and comparing equal.
+    expect(entries.length).toBeGreaterThan(100)
+    expect(entries).toEqual(json(lf).entries)
+  })
+
+  it('still rejects a broken condition in a CRLF file', () => {
+    const dir = crlfCopy()
+    const file = join(dir, '01-灰港.md')
+    writeFileSync(file, read(file).replace('- 触发：必：', '- 触发：必：不存在的条件，'))
+    const run = node('check-texts.mjs', ['--text-dir', dir])
+    expect(run.status).toBe(1)
+    expect(run.stdout).toContain('不存在的条件')
   })
 })
 
