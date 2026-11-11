@@ -23,6 +23,9 @@ dist-ssr
 *.sln
 *.sw?
 
+# Story data compiled by `npm run texts`
+src/iselan/data/*.generated.ts
+
 # wrangler local secrets
 .dev.vars*
 .wrangler
