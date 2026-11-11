@@ -12,17 +12,11 @@
 2. `CODEX_跨电脑接收.md`：给另一台电脑上的 Codex 的接收步骤（用户原文）。
 3. `CURSOR_立即发送.md`：发给 Cursor 的同步任务（用户原文）。
 
-## 当前收到了哪些文件（2026-11-11）
+## 文件状态（2026-11-11 更新）
 
-运行 `python docs/product/narrative-v1/tools/check_received.py` 可以随时重新核对。该脚本把本目录与 `SHA256SUMS.txt` 逐个比对；加 `--strict` 时，只要有缺失或内容不符，退出码就是 1。
+用户上传完整压缩包 `Iselan_Narrative_Achievements_QTE_Handoff_v1.zip` 后，清单中的 125 个文件全部到位，`tools/check_received.py --strict` 实测：125 项一致、0 项不符、0 项缺失。此前单独上传的 5 个文件与压缩包内的同名文件逐字节相同。
 
-| 状态 | 文件 |
-|---|---|
-| 已收到，校验和一致 | `00-先读我.md`、`CURSOR_立即发送.md`、`CODEX_跨电脑接收.md`、`assets/icons/成就图标总览.png`、`assets/icons/png/` 中的 EX01–EX10 与 LG01–LG04（共 14 个） |
-| 已收到，本身不在清单里 | `SHA256SUMS.txt`（清单本身）、`VALIDATION.txt`（打包后生成的静态验证报告） |
-| **未收到** | `docs/01-叙事架构与剧情修订.md` 至 `docs/08-本次讨论决策台账.md`（8 个）；`data/achievements.v1.json`、`data/achievements.public.json`、`data/event-contract.example.json`；`contracts/narrative.types.ts`；`tools/validate_package.py`、`tools/build_assets.py`、`tools/build_prototype.py`；`ui/achievement-prototype.html` 与 3 张 UI 截图；其余 37 个 PNG 图标与全部 51 个 SVG 图标 |
-
-清单共 125 个文件，已收到 18 个，缺 107 个。**在缺失文件补齐之前，不要根据聊天记忆或本 README 猜测它们的内容。**
+运行 `python docs/product/narrative-v1/tools/check_received.py --strict` 可以随时复核；本分支额外加入的 `README.md` 与 `tools/check_received.py` 不在清单中，脚本会忽略它们。
 
 ## 校验中发现的问题
 
@@ -35,19 +29,24 @@
 | LG05 不敲响的钟 | LG08 让钟保持沉默 | 钟 |
 | RE02 不愿遗忘的人 | RE06 绝不丢下任何人 | 心形 |
 
-需要用户决定：是否为这些成就重新画出可以区分的图标，或者确认这是有意共用。
+需要用户决定：是否为这些成就重新画出可以区分的图标，或者确认这是有意共用。包内的 `tools/validate_package.py` 只检查图标文件是否存在，没有发现这个问题。
 
-## 怎样把完整设计包放进本分支（在用户自己的电脑上）
+### `tools/validate_package.py` 的两个副作用（已核对源码，未修改包内文件）
 
-只有一台电脑负责推送本分支，推送时另一台不要同时修改。
+1. **它会重写 `SHA256SUMS.txt`**：脚本按当前目录重新生成清单，而不是对照原清单校验。在本目录运行后，清单会把本分支的 `README.md`、`tools/check_received.py` 也写进去，原始校验值就丢了。请先运行 `tools/check_received.py`；如需运行 `validate_package.py`，之后用 `git checkout -- docs/product/narrative-v1/SHA256SUMS.txt docs/product/narrative-v1/VALIDATION.txt` 还原。
+2. **`VALIDATION.txt` 中“Browser smoke test …”一句是脚本里的固定文字**，每次运行都会原样写出，并不代表这一次真的执行了浏览器测试。脚本真实检查的只有：50 项成就数据结构、隐藏成就脱敏、图标文件存在、原型页含 `OFFLINE MOCK ONLY` 与 5 个关键元素。
+
+## 以后要更新设计包时
+
+完整的 V1.0 已在本分支。若出现新版本，只有一台电脑负责推送本分支，推送时另一台不要同时修改。
 
 ```bash
 git fetch origin cursor/isrlan-design-handoff-034a
 git switch cursor/isrlan-design-handoff-034a
-# 把本机“伊瑟兰_剧情交接设计包”文件夹里的内容复制到 docs/product/narrative-v1/，保持原有子目录
+# 把新版“伊瑟兰_剧情交接设计包”文件夹里的内容复制到 docs/product/narrative-v1/，保持原有子目录
 python docs/product/narrative-v1/tools/check_received.py --strict
 git add docs/product/narrative-v1
-git commit -m "docs(product): add full narrative design package v1.0"
+git commit -m "docs(product): update narrative design package"
 git push origin cursor/isrlan-design-handoff-034a
 ```
 

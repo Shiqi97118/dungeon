@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="雾海的龙骨">
+<title>雾海的龙骨</title><defs><radialGradient id="bg"><stop stop-color="#30374a"/><stop offset="1" stop-color="#111826"/></radialGradient><linearGradient id="rim" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#eed1a3"/><stop offset=".5" stop-color="#C4A16B"/><stop offset="1" stop-color="#6e5837"/></linearGradient></defs>
+<circle cx="64" cy="64" r="62" fill="url(#bg)" stroke="#080c13" stroke-width="4"/>
+<circle cx="64" cy="64" r="56" fill="none" stroke="url(#rim)" stroke-width="5"/>
+<circle cx="64" cy="64" r="49" fill="none" stroke="#C4A16B" stroke-width="1.2" opacity=".55" stroke-dasharray="3 6"/>
+<path d="M64 11l4 6-4 5-4-5Z M64 106l4 6-4 5-4-5Z" fill="#C4A16B" opacity=".8"/>
+<g transform="translate(64 64) scale(.84) translate(-64 -64)" fill="none" stroke="#C9CFD2" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"><path d="M34 71h60l-10 21H45L34 71ZM64 32v39M64 33l-22 28h22M69 37l21 26H69"/><path d="M30 97q12 9 24 0 12 9 24 0 12 9 24 0"/></g>
+</svg>

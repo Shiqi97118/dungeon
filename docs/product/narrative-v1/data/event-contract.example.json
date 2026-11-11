@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "status": "EXAMPLE_ONLY_NOT_REAL_GAMEPLAY",
+  "events": [
+    {
+      "schemaVersion": 1,
+      "eventId": "run-demo-001:0042",
+      "runId": "run-demo-001",
+      "seq": 42,
+      "type": "truth_verified",
+      "actorIds": ["actor-example-1"],
+      "accountIds": ["account-example-1"],
+      "partyId": "party-demo-1",
+      "regionId": "gray-harbor",
+      "subjectId": "merchant_memory_well",
+      "payload": {"truthId": "merchant_memory_well", "evidenceCount": 2},
+      "sourceIntentId": "intent-demo-0042",
+      "committedAt": "2026-11-11T00:00:00Z",
+      "visibility": "party"
+    },
+    {
+      "schemaVersion": 1,
+      "eventId": "run-demo-001:0043",
+      "runId": "run-demo-001",
+      "seq": 43,
+      "type": "custom_resolution_verified",
+      "actorIds": ["actor-example-1", "actor-example-2"],
+      "accountIds": ["account-example-1", "account-example-2"],
+      "partyId": "party-demo-1",
+      "regionId": "gray-harbor",
+      "subjectId": "gray_well_clinic_takeover",
+      "payload": {"importance": "major", "verified": true, "method": "independent_clinic_transition"},
+      "sourceIntentId": "intent-demo-0043",
+      "committedAt": "2026-11-11T00:01:00Z",
+      "visibility": "party"
+    }
+  ],
+  "unlockExample": {
+    "id": "unlock-demo-1",
+    "achievementId": "ST03",
+    "accountId": "account-example-1",
+    "runId": "run-demo-001",
+    "actorId": "actor-example-1",
+    "sourceEventIds": ["run-demo-001:0042"],
+    "unlockedAt": "2026-11-11T00:00:01Z",
+    "verified": true,
+    "notificationState": "new"
+  }
+}

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="真相无价">
+<title>真相无价</title><defs><radialGradient id="bg"><stop stop-color="#30374a"/><stop offset="1" stop-color="#111826"/></radialGradient><linearGradient id="rim" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#eed1a3"/><stop offset=".5" stop-color="#BC9CEA"/><stop offset="1" stop-color="#6e5837"/></linearGradient></defs>
+<circle cx="64" cy="64" r="62" fill="url(#bg)" stroke="#080c13" stroke-width="4"/>
+<circle cx="64" cy="64" r="56" fill="none" stroke="url(#rim)" stroke-width="5"/>
+<circle cx="64" cy="64" r="49" fill="none" stroke="#BC9CEA" stroke-width="1.2" opacity=".55" stroke-dasharray="3 6"/>
+<path d="M64 11l4 6-4 5-4-5Z M64 106l4 6-4 5-4-5Z" fill="#BC9CEA" opacity=".8"/>
+<g transform="translate(64 64) scale(.84) translate(-64 -64)" fill="none" stroke="#C9CFD2" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"><ellipse cx="64" cy="43" rx="28" ry="11"/><path d="M36 43v32q0 11 28 11t28-11V43M36 57q0 12 28 12t28-12M36 72q0 12 28 12t28-12"/></g>
+</svg>
