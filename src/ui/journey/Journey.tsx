@@ -55,6 +55,12 @@ export interface TableSeat {
   readonly playerOf?: (seatId: string) => string | undefined
 }
 
+function aiDownText(gap: string): string {
+  const m = gap.match(/^AI 不可用（(\d+)）：(.*)$/)
+  const why = m?.[2]?.trim() || '连不上'
+  return `AI 主持人暂时用不了（${why}），这一段由离线主持接手${m?.[1] === '429' ? '；北京时间零点后恢复' : ''}。`
+}
+
 /**
  * One Grayport run on the new engine: reader, the next choices, and the world beside it. The
  * table comes from outside (the browser's own for solo, the room's for online); every change
@@ -82,6 +88,16 @@ export function JourneyTable({ table, send, seat, aiLabel, hasAi, record, notice
   const [summary, setSummary] = useState(() => !!snapshotOf(table).ending)
   const s = snapshotOf(table)
   const seen = useRef(table.screens.length)
+  const [aiDown, setAiDown] = useState<string | null>(null)
+  const logged = useRef({ gaps: table.gaps.length, responses: table.responses.length })
+
+  // 12 A10: when the built-in host is out (cost cap, daily count), say so until it answers again.
+  useEffect(() => {
+    const down = table.gaps.slice(logged.current.gaps).findLast((g) => g.startsWith('AI 不可用'))
+    if (down) setAiDown(aiDownText(down))
+    else if (table.responses.length > logged.current.responses) setAiDown(null)
+    logged.current = { gaps: table.gaps.length, responses: table.responses.length }
+  }, [table.gaps, table.responses])
 
   // A new batch starts where the last one ended; a rewind cuts back and adds one note.
   useEffect(() => {
@@ -251,7 +267,7 @@ export function JourneyTable({ table, send, seat, aiLabel, hasAi, record, notice
           <button className="btn ghost small" onClick={onQuit}>标题</button>
         </div>
       </header>
-      {(err || notice) && <div className="jy-error" role="alert">{err ?? notice}{err && <button className="link" onClick={() => setErr(null)}>知道了</button>}</div>}
+      {(err || notice || aiDown) && <div className="jy-error" role="alert">{err ?? notice ?? aiDown}{err && <button className="link" onClick={() => setErr(null)}>知道了</button>}</div>}
       {ended && summary ? (
         <main className="jy-ending-main">
           <EndingSummary table={table} record={record} onReread={() => setSummary(false)} onRewind={() => setShowRewind(true)} onQuit={onQuit} />

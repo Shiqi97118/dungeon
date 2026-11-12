@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { sound } from '../../audio/sound'
 import { InteractionRejected } from '../../iselan/interaction'
-import { PREGENS, SKILL_OF_STAT, STAT_ORDER, unpackTable, type Table } from '../../iselan/play'
+import { CONFIG } from '../../iselan/config'
+import { PREGENS, SKILL_OF_STAT, STAT_ORDER, snapshotOf, unpackTable, type Table } from '../../iselan/play'
 import { ApiError, api, type RoomView, type Seat } from '../../net/api'
 import { profileApi } from '../../net/profile'
 import { isOnline, type RoomConn } from '../../net/useRoom'
@@ -11,6 +12,8 @@ import type { RunRecordView } from './EndingSummary'
 import { HOOKS } from './view'
 
 const sign = (n: number) => (n > 0 ? `+${n}` : String(n))
+/** Matches the server's limit in server/rooms.ts. */
+const MAX_SEATS = 4
 
 /** Before the story: share the code, each player picks a character, the host picks the hook and starts. */
 export function RoomLobby({ room, seat, conn, busy, error, op, onLeave }: {
@@ -115,6 +118,44 @@ export function RoomLobby({ room, seat, conn, busy, error, op, onLeave }: {
   )
 }
 
+/** R1a: a watcher brings a free pre-made character into the running story. */
+function JoinPanel({ table, onPick, onClose }: { table: Table; onPick: (id: string) => Promise<void>; onClose: () => void }) {
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const free = PREGENS.filter((g) => !table.party.some((m) => m.actorId === g.id))
+  const pick = async (id: string) => {
+    setBusy(true)
+    setError(null)
+    try {
+      await onPick(id)
+      onClose()
+    } catch (e) {
+      setError((e as Error).message)
+    }
+    setBusy(false)
+  }
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-kicker">加入这一局</div>
+        <h3>带一名角色走进故事</h3>
+        <p className="dim small">新加入的角色从在座者里最少的选择数算起，要亲手做满 {CONFIG.minOwnChoicesAfterJoin} 件事，大家才能一起收束故事。之前的回退点会清空。</p>
+        <div className="jy-cards">
+          {free.map((g) => (
+            <button key={g.id} className="jy-card" disabled={busy} onClick={() => { sound.click(); void pick(g.id) }}>
+              <b>{g.name}</b><small>{g.title}</small>
+              <span className="dim small">{g.motive}</span>
+              <span className="small">{STAT_ORDER.map((k) => `${SKILL_OF_STAT[k]} ${sign(g.stats[k])}`).join(' ')}</span>
+            </button>
+          ))}
+        </div>
+        {error && <div className="error">{error}</div>}
+        <div className="row end"><button className="btn ghost" onClick={onClose}>继续旁观</button></div>
+      </div>
+    </div>
+  )
+}
+
 /** The shared table: everyone reads the same story; each acts for their own seat. */
 export function RoomJourney({ room, seat, conn, onLeave, onQuit }: {
   room: RoomView
@@ -124,6 +165,7 @@ export function RoomJourney({ room, seat, conn, onLeave, onQuit }: {
   onQuit: () => void
 }) {
   const [table, setTable] = useState<Table | null | 'bad'>(null)
+  const [joining, setJoining] = useState(false)
   useEffect(() => {
     let live = true
     if (room.table) unpackTable(room.table).then((r) => { if (live) setTable(r.status === 'ok' ? r.table : 'bad') }, () => live && setTable('bad'))
@@ -142,9 +184,11 @@ export function RoomJourney({ room, seat, conn, onLeave, onQuit }: {
     playerOf: (seatId) => ownerOf(seatId)?.name,
   }), [me?.seat, ownerOf, seat.pid, conn.presence, conn.skew])
 
+  const at = table && table !== 'bad' ? table.events.length : undefined
   const send = useCallback<Send>(async (op, seatId) => {
     try {
-      const r = await api.play(seat, seatId, op)
+      // An interaction step is idempotent by its request id, so its retries must not be dropped as stale.
+      const r = await api.play(seat, seatId, op, op.t === 'interact' ? undefined : at)
       return r.result
     } catch (e) {
       if (e instanceof ApiError && e.status === 422) throw new InteractionRejected(e.message)
@@ -152,7 +196,7 @@ export function RoomJourney({ room, seat, conn, onLeave, onQuit }: {
     } finally {
       conn.refresh()
     }
-  }, [seat, conn.refresh])
+  }, [seat, conn.refresh, at])
 
   const earned = room.judged[seat.pid]
   const record = useCallback(async (): Promise<RunRecordView> => {
@@ -171,9 +215,12 @@ export function RoomJourney({ room, seat, conn, onLeave, onQuit }: {
     )
   }
 
+  const seated = table.party.filter((m) => snapshotOf(table).seats[m.seatId]?.controller !== 'empty').length
+  const canJoin = !me?.seat && !snapshotOf(table).ending && seated < MAX_SEATS && table.pending?.kind !== 'rewind'
   const side = (
     <>
       <span className="dim small">房间 {room.code}{me?.seat ? '' : ' · 旁观'}</span>
+      {canJoin && <button className="btn small" onClick={() => setJoining(true)}>加入这一局</button>}
       <button className="btn ghost small" onClick={onLeave}>离开房间</button>
     </>
   )
@@ -191,6 +238,7 @@ export function RoomJourney({ room, seat, conn, onLeave, onQuit }: {
         onQuit={onQuit}
       />
       <ChatDock chat={room.chat} meId={seat.pid} onSend={async (t) => { await api.chat(seat, t); conn.refresh() }} />
+      {joining && <JoinPanel table={table} onPick={async (id) => { await api.pick(seat, id); conn.refresh() }} onClose={() => setJoining(false)} />}
     </>
   )
 }

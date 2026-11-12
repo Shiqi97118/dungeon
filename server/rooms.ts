@@ -11,7 +11,7 @@ import { estimateTokens } from '../src/iselan/ai/tokens.js'
 import { ModelUnavailable, type AiResponse } from '../src/iselan/ai/turn.js'
 import { InteractionRejected } from '../src/iselan/interaction/index.js'
 import {
-  applyOp, leaveSeat, openTable, packTable, parseOp, PREGENS, seatsFor, snapshotOf, soloMember, unpackTable, type Models, type Table,
+  applyOp, joinTable, leaveSeat, openTable, packTable, parseOp, PREGENS, seatsFor, snapshotOf, soloMember, unpackTable, type Models, type Table,
 } from '../src/iselan/play/index.js'
 
 const MAX_PLAYERS = 6
@@ -150,6 +150,35 @@ function roomModels(store: Store, v: Viewer, code: string, t: Table, d: RoomData
   return { turn: call('turn'), ending: call('ending') }
 }
 
+/** R1a: a watcher takes a free pre-made character into the running story, up to the table's limit. */
+async function joinMidRun(store: Store, stage: string, code: string, request: Request, pick: string) {
+  const gen = PREGENS.find((x) => x.id === pick)
+  if (!gen) throw new HttpError(400, '没有这个角色')
+  for (let i = 0; i < 4; i++) {
+    const row = await getRoom(store, stage, code)
+    const me = authPlayer(row, request)
+    const d = row.data
+    if (me.seat) throw new HttpError(409, '你已经在桌上了')
+    const t = await unpack(d.table!)
+    if (t.party.filter((m) => snapshotOf(t).seats[m.seatId]?.controller !== 'empty').length >= MAX_SEATS) throw new HttpError(409, `一桌最多 ${MAX_SEATS} 名角色，其余的人可以旁观`)
+    if (t.party.some((m) => m.actorId === pick)) throw new HttpError(409, '这个角色已经在故事里了')
+    const seatId = `s${t.party.length + 1}`
+    let joined: Table
+    try {
+      joined = joinTable(t, { ...soloMember(gen), seatId }, {})
+    } catch (e) {
+      throw new HttpError(409, (e as Error).message)
+    }
+    me.pick = pick
+    me.seat = seatId
+    d.table = await pack(joined)
+    d.chatSeq += 1
+    d.chat = [...d.chat, { id: d.chatSeq, pid: '', name: '', text: `${me.name} 带着${gen.name}加入了这一局`, t: Date.now() }].slice(-60)
+    if (await store.update(stage, code, row.version, d)) return { ok: true, version: row.version + 1 }
+  }
+  throw new HttpError(409, '房间正忙，请重试')
+}
+
 /** 12 §10.3: an ended online run is judged here on the room's own log, once per player at the table. */
 async function judge(stage: string, d: RoomData, t: Table) {
   const store = platform().profiles?.()
@@ -237,6 +266,11 @@ export async function handleRoom(request: Request): Promise<Response> {
       throw new HttpError(409, '房间正忙，请重试')
     }
 
+    if (op === 'pick' && typeof body.pick === 'string') {
+      const row0 = await getRoom(store, stage, code)
+      if (row0.data.status === 'play') return json(await joinMidRun(store, stage, code, request, body.pick))
+    }
+
     if (op === 'pick' || op === 'unpick') {
       const pick = typeof body.pick === 'string' ? body.pick : ''
       const r = await mutate(store, stage, code, request, (d, me) => {
@@ -311,6 +345,8 @@ export async function handleRoom(request: Request): Promise<Response> {
       if (d.status !== 'play' || !d.table) throw new HttpError(409, '冒险还没有开始')
       const before = d.table
       const t = await unpack(before)
+      // A resent request (lost response, double tap) was made against an older table: drop it.
+      if (typeof body.at === 'number' && body.at !== t.events.length) throw new HttpError(409, '这一步已经有了结果，已为你刷新')
       // Watchers follow along; only players with a character at the table act.
       if (!me.seat) throw new HttpError(403, '你在旁观这一局')
       const allowed = seatsFor(t, action)

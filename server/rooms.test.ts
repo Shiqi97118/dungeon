@@ -190,4 +190,34 @@ describe('room api on the new engine', () => {
       expect((await post(host, { op: 'play', seatId: 's1', action })).status).toBe(400)
     }
   })
+
+  it('a watcher joins the running story with a free character (R1a), up to four seats', async () => {
+    const [host, guest, late] = await open(['阿岚', '小周', '老王'])
+    await post(host, { op: 'pick', pick: 'helan' })
+    await post(guest, { op: 'pick', pick: 'qilan' })
+    await post(host, { op: 'start' })
+    await post(host, { op: 'play', seatId: 's1', action: { t: 'act', text: '四处看看' } })
+    expect((await post(late, { op: 'pick', pick: 'helan' })).status).toBe(409)
+    expect((await post(late, { op: 'pick', pick: 'fuhe' })).status).toBe(200)
+    expect((await post(late, { op: 'pick', pick: 'dawei' })).status).toBe(409)
+    const room = await poll(host)
+    expect(room.players.find((p) => p.id === late.pid)?.seat).toBe('s3')
+    const t = await tableOf(late)
+    expect(t.party.map((m) => m.actorId)).toEqual(['helan', 'qilan', 'fuhe'])
+    expect(snapshotOf(t).seats.s3).toMatchObject({ controller: 'human', mustOwn: true, ownChoices: 0 })
+    expect(room.chat.some((m) => m.text.includes('加入了这一局'))).toBe(true)
+  })
+
+  it('drops a resent action made against an older table (A8)', async () => {
+    const [host] = await open(['阿岚'])
+    await post(host, { op: 'pick', pick: 'helan' })
+    await post(host, { op: 'start' })
+    const at = (await tableOf(host)).events.length
+    const act = { op: 'play', seatId: 's1', at, action: { t: 'act', text: '四处看看墙上的寻人启事' } }
+    expect((await post(host, act)).status).toBe(200)
+    const after = (await tableOf(host)).events.length
+    expect((await post(host, act)).status).toBe(409)
+    expect((await tableOf(host)).events.length).toBe(after)
+  })
 })
+

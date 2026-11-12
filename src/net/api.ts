@@ -83,8 +83,9 @@ export const api = {
   start: (seat: Seat) => post<{ version: number }>('api/room', { op: 'start', code: seat.code }, seat.token),
   chat: (seat: Seat, text: string) => post<{ version: number }>('api/room', { op: 'chat', code: seat.code, text }, seat.token),
   leave: (seat: Seat) => post<{ version: number }>('api/room', { op: 'leave', code: seat.code }, seat.token),
-  play: (seat: Seat, seatId: string, action: TableOp) =>
-    post<{ version: number; result: InteractionResult | null }>('api/room', { op: 'play', code: seat.code, seatId, action }, seat.token),
+  /** `at` is the table length the action was chosen on; the server drops it if the table has moved since. */
+  play: (seat: Seat, seatId: string, action: TableOp, at?: number) =>
+    post<{ version: number; result: InteractionResult | null }>('api/room', { op: 'play', code: seat.code, seatId, action, ...(at === undefined ? {} : { at }) }, seat.token),
 }
 
 const SEAT_KEY = 'echo-well-seat'

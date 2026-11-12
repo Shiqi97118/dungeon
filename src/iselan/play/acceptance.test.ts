@@ -4,14 +4,18 @@ import { CONFIG } from '../config'
 import { attitudeOf } from '../rules/conditions'
 import { summarizeRun } from './ending'
 import { fakeModel } from '../ai/fake'
-import type { ModelCall } from '../ai/turn'
+import { ModelUnavailable, type ModelCall } from '../ai/turn'
 import { commitIntent, draft } from '../events'
 import { availableDirections, endingCandidates, tierOpen } from '../rules/directions'
 import { seatsReach } from '../rules/choices'
-import { act, adjudicate, interact, move, openTable, resolveArc, roll, snapshotOf, wrapUp, type Member, type Table } from './table'
+import { act, adjudicate, canWrapUp, currentMember, interact, joinTable, move, openTable, resolveArc, roll, snapshotOf, wrapUp, type Member, type Table } from './table'
 import { npcName, presentAt } from './world'
 
-/** 12 §12 acceptance scripts walked on the table itself; A1 lives in table.test.ts. */
+/**
+ * 12 §12 acceptance scripts walked on the table itself. Elsewhere: A1 in table.test.ts; A7–A8
+ * for rooms, and A9 (binding, export and import) in server/; A10's cap and Beijing midnight in
+ * server/budget.test.ts; A11 in src/ui/reading/pages.test.ts; A12 in the browser scripts.
+ */
 
 const HELAN: Member = { seatId: 's1', actorId: 'helan', name: '哈兰', stats: { str: 2, dex: 0, ins: 1, soc: -1 }, controller: 'human' }
 const o = { now: () => '2026-11-12T00:00:00.000Z', rng: () => 0.5 }
@@ -167,5 +171,72 @@ describe('12 §12 acceptance', () => {
     const beat = t.screens.find((x) => x.textId === 'GH-BEAT-07')
     expect(beat).toBeDefined()
     expect(beat!.paragraphs.join('')).not.toContain('卢多')
+  })
+
+  it('A6: left alone, the clock reaches 12; the world crisis starts without forcing the end, worsens every 2 rounds, and D02 opens', async () => {
+    const model = fakeModel({ seed: 'a6', strayRate: 0 })
+    let t = openTable({ runId: 'run-a6', seed: 'a6', party: [HELAN], openingHook: 'memento' }, o)
+    for (let i = 0; i < 600 && !snapshotOf(t).clock.crisis; i++) {
+      const here = snapshotOf(t).location?.placeId
+      t = i % 4 === 3 ? move(t, PLACES.find((p) => p !== here)!, o) : await aiStep(t, `在灰港闲逛，不去碰潮井（${i}）`, model)
+    }
+    const s = snapshotOf(t)
+    expect(s.clock).toMatchObject({ value: 12, crisis: true })
+    expect(s.arcs.gray_well?.outcomes ?? null).toBeNull()
+    expect(s.act).toBeLessThan(4)
+    expect(s.ending).toBeNull()
+    const crisisRounds = () => snapshotOf(t).round - snapshotOf(t).clock.crisisStartedRound!
+    for (let i = 0; crisisRounds() < CONFIG.crisisEscalateEvery; i++) t = await aiStep(t, `在危机里找口饭吃（${i}）`, model)
+    expect(t.screens.map((x) => x.textId)).toContain('GEN-CLK-12B')
+    for (let n = 1; n <= 2; n++) {
+      for (let i = 0; crisisRounds() < CONFIG.crisisEscalateEvery * (n + 1); i++) t = await aiStep(t, `在危机里撑下去（${n}-${i}）`, model)
+      expect(snapshotOf(t).clock.crisisStep).toBe(n)
+    }
+    expect(snapshotOf(t).ending).toBeNull()
+    t = await untilR1(t)
+    expect(availableDirections(snapshotOf(t))).toContain('D02')
+  })
+
+  it('A7: a third player joining at round 20 counts from the lowest seat', async () => {
+    const FUHE: Member = { seatId: 's2', actorId: 'fuhe', name: '芙蕾雅', stats: { str: 0, dex: 1, ins: 2, soc: -1 }, controller: 'human' }
+    const QILAN: Member = { seatId: 's3', actorId: 'qilan', name: '基兰', stats: { str: -1, dex: 1, ins: 2, soc: 0 }, controller: 'human' }
+    let t = openTable({ runId: 'run-a7', seed: 'a7', party: [HELAN, FUHE], openingHook: 'memento' }, o)
+    for (let i = 0; snapshotOf(t).round < 20 && i < 200; i++) {
+      const s = snapshotOf(t)
+      const npc = presentAt(s, s.location!.placeId)[i % 2]
+      t = i % 6 === 5 ? move(t, PLACES[(i / 6 | 0) % PLACES.length] === s.location?.placeId ? PLACES[((i / 6 | 0) + 1) % PLACES.length] : PLACES[(i / 6 | 0) % PLACES.length], o) : await doing(t, `${SOCIAL[i % SOCIAL.length].replace('{}', npc ? npcName(npc) : '路人')}（${i}）`)
+    }
+    const before = snapshotOf(t)
+    const low = Math.min(before.seats.s1.choices, before.seats.s2.choices)
+    expect(t.checkpoints.length).toBeGreaterThan(0)
+    t = joinTable(t, QILAN, o)
+    expect(snapshotOf(t).seats.s3).toMatchObject({ choices: low, ownChoices: 0, mustOwn: true })
+    expect(t.checkpoints).toEqual([])
+    expect(() => joinTable(t, { ...QILAN, seatId: 's4' }, o)).toThrow()
+    expect(t.party.map((m) => m.seatId)).toEqual(['s1', 's2', 's3'])
+  })
+
+  it('A7: with the counts already met, the late seat still blocks the end until its own 6', async () => {
+    const QILAN: Member = { seatId: 's2', actorId: 'qilan', name: '基兰', stats: { str: -1, dex: 1, ins: 2, soc: 0 }, controller: 'human' }
+    let t = await untilR1(openTable({ runId: 'run-a7b', seed: 'a7b', party: [HELAN], openingHook: 'memento' }, o))
+    t = joinTable(t, QILAN, o)
+    expect(snapshotOf(t).seats.s2.choices).toBe(snapshotOf(t).seats.s1.choices)
+    expect(canWrapUp(t)).toBe(false)
+    for (let i = 0; snapshotOf(t).seats.s2.ownChoices < CONFIG.minOwnChoicesAfterJoin && i < 60; i++) {
+      const s = snapshotOf(t)
+      if (currentMember(t).seatId === 's1') { t = await doing(t, `等一等新来的同伴（${i}）`); continue }
+      expect(canWrapUp(t)).toBe(false)
+      const npc = presentAt(s, s.location!.placeId)[0]
+      t = i % 5 === 4 ? move(t, PLACES.find((p) => p !== s.location?.placeId)!, o) : await doing(t, `${SOCIAL[i % SOCIAL.length].replace('{}', npc ? npcName(npc) : '路人')}（新人 ${i}）`)
+    }
+    expect(canWrapUp(t)).toBe(true)
+  })
+
+  it('A10: with the host out of budget the turn is hosted offline and the reason is kept for the notice', async () => {
+    const spent: ModelCall = async () => { throw new ModelUnavailable(429, '今天的 AI 费用已到上限') }
+    const t = await act(openTable({ runId: 'run-a10', seed: 'a10', party: [HELAN], openingHook: 'memento' }, o), '四处打听消息', spent, o)
+    expect(t.gaps).toContain('AI 不可用（429）：今天的 AI 费用已到上限')
+    expect(t.responses).toEqual([])
+    expect(t.screens.at(-1)?.paragraphs.length).toBeGreaterThan(0)
   })
 })

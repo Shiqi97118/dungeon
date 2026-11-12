@@ -8,7 +8,7 @@ import { TEXTS, VOCAB } from '../data'
 import { commitIntent, draft, reduceEvents, type AnyDraft, type AnyEvent, type Snapshot } from '../events'
 import { BANQUET, interactionInstanceId, LEDGER, settleInteraction, type InteractionDef, type InteractionRequest, type InteractionResult } from '../interaction'
 import { allHold, evalCond, type SceneContext } from '../rules/conditions'
-import { choiceDraft, r1Met, setControllerDraft, type ActionInput } from '../rules/choices'
+import { choiceDraft, joinSeatDraft, r1Met, setControllerDraft, type ActionInput } from '../rules/choices'
 import { d01Variant, endingCandidates } from '../rules/directions'
 import { openingDrafts } from '../rules/initial'
 import { wrapUpDrafts } from '../rules/progress'
@@ -319,6 +319,22 @@ export function leaveSeat(t0: Table, seatId: string, o: TableOptions = {}): Tabl
     return { ...out, pending: { ...p, agreed } }
   }
   return !out.pending && out.party[out.turn]?.seatId === seatId ? advance(out, o) : out
+}
+
+/**
+ * R1a: a player joins mid-run with a new character in a new seat, counting from the lowest
+ * seat in play and needing their own choices before the story can close. Rewind points from
+ * before the join are dropped: going back past it would leave the new seat without a character.
+ */
+export function joinTable(t0: Table, member: Member, o: TableOptions = {}): Table {
+  const s = snapshotOf(t0)
+  if (s.ending) throw new Error('这一局已经结束')
+  if (t0.pending?.kind === 'rewind') throw new Error('正在表决回退，稍后再加入')
+  if (s.seats[member.seatId] || t0.party.some((m) => m.actorId === member.actorId)) throw new Error('这个角色已经在桌上了')
+  const { id, t } = nextId(t0, 'join')
+  const joined = commit(t, id, [joinSeatDraft(s, member.seatId, member.actorId, 'human')], o)
+  const note: Screen = { id: `${id}#1`, kind: 'note', paragraphs: [`${member.name}推开门，加入了你们。`, `${member.name}要先亲手做满 ${CONFIG.minOwnChoicesAfterJoin} 件事，大家才能一起收束故事。`] }
+  return { ...joined, party: [...joined.party, member], screens: [...joined.screens, note], checkpoints: [] }
 }
 
 export interface OpenInput {
