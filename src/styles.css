@@ -851,6 +851,15 @@ details summary { cursor: pointer; color: var(--echo); margin: 8px 0; }
 .ix-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .ix-result h3 { margin: 0 0 8px; font-family: var(--serif); color: var(--hit); outline: none; }
 .ix-status { min-height: 1.7em; margin: 10px 0 0; color: var(--partial); outline: none; }
+.ix-seats { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.ix-seat { border: 1px solid var(--line2); border-radius: 8px; padding: 10px 12px; background: rgba(208, 147, 86, .04); }
+.ix-seat.empty { border-style: dashed; opacity: .7; }
+.ix-seat-name { margin: 0 0 2px; font-family: var(--serif); font-size: 15px; color: var(--copper2); }
+.ix-seat p { margin: 0 0 8px; }
+.ix-gestures { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.ix-gesture { border: 1px solid var(--line2); color: var(--text); text-align: center; }
+.ix-gesture.seen { color: var(--copper2); border-color: var(--copper); background: rgba(208, 147, 86, .12); }
+.ix-reaction { min-height: 1.7em; margin: 8px 0 0; color: var(--text); }
 @container (max-width: 600px) {
   .ix-grid { grid-template-columns: minmax(0, 1fr); }
   .ix-actions .btn { flex: 1 1 100%; }

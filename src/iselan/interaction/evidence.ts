@@ -12,14 +12,20 @@ export interface Hotspot {
   readonly needsZoom: boolean
 }
 
+/** Skipping settles as an ordinary check (`12` §6 交互). */
+export interface SkipCheck {
+  readonly skill: string
+  readonly difficulty: number
+  readonly reason: string
+}
+
 export interface EvidenceDef {
   readonly template: Extract<InteractionId, 'evidence'>
   readonly textId: string
   readonly title: string
   readonly publicPrompt: string
   readonly hotspots: readonly Hotspot[]
-  /** Skip settles as an ordinary check (`12` §6 交互). */
-  readonly skipCheck: { readonly skill: string; readonly difficulty: number; readonly reason: string }
+  readonly skipCheck: SkipCheck
 }
 
 /** GH-BEAT-04: every finding restates the BEAT's own lines, so inspecting never reveals more than the text. */

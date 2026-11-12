@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState, type Dispatch, type ReactNode } from 'react'
+import { useState, type Dispatch, type ReactNode } from 'react'
 import { missingKeys, type EvidenceDef, type Hotspot, type Session, type SessionMsg } from '../../iselan/interaction'
+import Settlement from './Settlement'
 
 const SMUDGED = ['', '', '']
 
@@ -14,18 +15,10 @@ export default function EvidencePanel({ def, s, dispatch, knownName, onClose }: 
 }) {
   const [textMode, setTextMode] = useState(false)
   const [hint, setHint] = useState('')
-  const status = useRef<HTMLParagraphElement>(null)
-  const retry = useRef<HTMLButtonElement>(null)
-  const resultHead = useRef<HTMLHeadingElement>(null)
   const locked = s.phase !== 'open'
   const missing = missingKeys(def, s.inspected)
+  const keys = def.hotspots.filter((h) => h.key).length
   const spot = (id: string) => def.hotspots.find((h) => h.id === id)!
-
-  useEffect(() => {
-    if (s.phase === 'submitting') status.current?.focus()
-    else if (s.phase === 'stalled') retry.current?.focus()
-    else if (s.phase === 'settled' && s.resultOpen) resultHead.current?.focus()
-  }, [s.phase, s.resultOpen])
 
   const inspect = (h: Hotspot, viaText: boolean) => {
     if (locked) return
@@ -49,7 +42,6 @@ export default function EvidencePanel({ def, s, dispatch, knownName, onClose }: 
     </button>
   )
 
-  const result = s.result
   return (
     <div className="ix-body">
       <p className="ix-prompt">{def.publicPrompt}</p>
@@ -93,51 +85,25 @@ export default function EvidencePanel({ def, s, dispatch, knownName, onClose }: 
         </section>
 
         <section className="ix-side" aria-label="发现">
-          {result && s.resultOpen ? (
-            <div className="ix-result">
-              <h3 ref={resultHead} tabIndex={-1}>{result.outcome === 'completed' ? '记下了' : '跳过互动'}</h3>
-              {result.outcome === 'completed' ? (
+          <Settlement
+            s={s}
+            dispatch={dispatch}
+            onClose={onClose}
+            submit={{ label: '记下发现', action: textMode ? 'alternative' : 'complete', ready: missing.length === 0 }}
+            progress={
+              <>
+                <p className="small dim">关键之处 {keys - missing.length}/{keys}</p>
                 <ul className="ix-found">
-                  {result.inspected.filter((id) => spot(id).key).map((id) => <li key={id}>{spot(id).detail}</li>)}
+                  {s.inspected.map((id) => <li key={id}>{spot(id).detail}</li>)}
                 </ul>
-              ) : (
-                <p>按普通检定结算：{result.check!.skill}，难度 {result.check!.difficulty}。跳过不改变成功率。</p>
-              )}
-              <div className="ix-actions">
-                <button className="btn" onClick={() => dispatch({ type: 'showResult', open: false })}>收起结果</button>
-                <button className="btn primary" onClick={onClose}>继续</button>
-              </div>
-            </div>
-          ) : (
-            <>
-              <p className="small dim">关键之处 {def.hotspots.filter((h) => h.key).length - missing.length}/{def.hotspots.filter((h) => h.key).length}</p>
+              </>
+            }
+            completed={(result) => (
               <ul className="ix-found">
-                {s.inspected.map((id) => <li key={id}>{spot(id).detail}</li>)}
+                {result.inspected.filter((id) => spot(id).key).map((id) => <li key={id}>{spot(id).detail}</li>)}
               </ul>
-              {result ? (
-                <div className="ix-actions">
-                  <button className="btn" onClick={() => dispatch({ type: 'showResult', open: true })}>查看结果</button>
-                </div>
-              ) : (
-                <div className="ix-actions">
-                  <button className="btn primary" onClick={() => dispatch({ type: 'submit', action: textMode ? 'alternative' : 'complete' })} disabled={locked || missing.length > 0}>
-                    记下发现
-                  </button>
-                  <button className="btn ghost" onClick={() => dispatch({ type: 'submit', action: 'skip' })} disabled={locked}>
-                    跳过，按普通检定
-                  </button>
-                  {s.phase === 'stalled' && (
-                    <button className="btn" ref={retry} onClick={() => dispatch({ type: 'retry' })}>
-                      重试
-                    </button>
-                  )}
-                </div>
-              )}
-            </>
-          )}
-          <p className="ix-status small" ref={status} tabIndex={-1} role="status" data-request={s.request?.requestId}>
-            {s.phase === 'submitting' ? `正在结算${s.attempts > 1 ? `（第 ${s.attempts} 次尝试，同一请求）` : ''}……` : (s.error ?? '')}
-          </p>
+            )}
+          />
         </section>
       </div>
     </div>

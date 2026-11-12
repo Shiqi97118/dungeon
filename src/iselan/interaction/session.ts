@@ -7,6 +7,7 @@ export interface InteractionRequest {
   readonly requestId: string
   readonly instanceId: string
   readonly action: InteractionAction
+  /** Hotspot ids for `evidence`; `guest:gesture` tokens for `dialogue-gesture`. */
   readonly params: { readonly inspected: readonly string[] }
 }
 
@@ -33,6 +34,7 @@ export interface Session {
 
 export type SessionMsg =
   | { readonly type: 'inspect'; readonly hotspotId: string }
+  | { readonly type: 'choose'; readonly guestId: string; readonly gestureId: string }
   | { readonly type: 'zoom'; readonly on: boolean }
   | { readonly type: 'submit'; readonly action: InteractionAction }
   | { readonly type: 'stall'; readonly requestId: string; readonly attempt?: number; readonly error: string }
@@ -64,6 +66,12 @@ export function reduceSession(s: Session, m: SessionMsg): Session {
     case 'inspect':
       if (s.phase !== 'open' || s.inspected.includes(m.hotspotId)) return s
       return { ...s, inspected: [...s.inspected, m.hotspotId] }
+    case 'choose': {
+      if (s.phase !== 'open') return s
+      const token = `${m.guestId}:${m.gestureId}`
+      if (s.inspected.includes(token)) return s
+      return { ...s, inspected: [...s.inspected.filter((t) => !t.startsWith(`${m.guestId}:`)), token] }
+    }
     case 'zoom':
       return s.phase === 'open' && s.zoomed !== m.on ? { ...s, zoomed: m.on } : s
     case 'submit': {

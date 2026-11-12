@@ -5,7 +5,11 @@ import App from './App.tsx'
 
 const demo = import.meta.env.DEV ? new URLSearchParams(location.search).get('demo') : null
 const Root =
-  demo === 'reading' ? lazy(() => import('./ui/reading/ReadingDemo')) : demo === 'evidence' ? lazy(() => import('./ui/interaction/EvidenceDemo')) : App
+  demo === 'reading'
+    ? lazy(() => import('./ui/reading/ReadingDemo'))
+    : demo === 'evidence' || demo === 'gesture'
+      ? lazy(() => import('./ui/interaction/InteractionDemo').then(({ default: Demo }) => ({ default: () => <Demo template={demo} /> })))
+      : App
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

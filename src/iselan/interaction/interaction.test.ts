@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { AnyEvent } from '../events'
 import { reduceEvents } from '../events'
-import { LEDGER, InteractionRejected, interactionInstanceId, openSession, recordedResult, reduceSession, settleInteraction, type Session, type SessionMsg } from '.'
+import { BANQUET, LEDGER, missingGuests, pickToken, InteractionRejected, interactionInstanceId, openSession, recordedResult, reduceSession, settleInteraction, type Session, type SessionMsg } from '.'
 
 const ctx = { runId: 'r1', committedAt: '2026-11-12T00:00:00.000Z' }
 const id = interactionInstanceId(LEDGER.textId)
@@ -90,5 +90,54 @@ describe('evidence session', () => {
     const reloaded = openSession(id, recordedResult(events, LEDGER, id))
     expect(reloaded.phase).toBe('settled')
     expect(reloaded.result).toMatchObject({ outcome: 'completed', requestId: result.requestId, inspected: ['unit', 'seven', 'margin'] })
+  })
+})
+
+describe('dialogue-gesture (GH-SCN-09)', () => {
+  const gid = interactionInstanceId(BANQUET.textId)
+  const present = ['envoy', 'grayrobe']
+  const req = (action: 'complete' | 'skip' | 'alternative', inspected: string[], n = 1) => ({ requestId: `${gid}#${n}`, instanceId: gid, action, params: { inspected } })
+
+  it('every guest who came gets one gesture; picking again replaces it', () => {
+    let s = openSession(gid)
+    s = reduceSession(s, { type: 'choose', guestId: 'envoy', gestureId: 'toast' })
+    s = reduceSession(s, { type: 'choose', guestId: 'envoy', gestureId: 'silence' })
+    expect(s.inspected).toEqual(['envoy:silence'])
+    expect(missingGuests(present, s.inspected)).toEqual(['grayrobe'])
+    s = reduceSession(s, { type: 'choose', guestId: 'grayrobe', gestureId: 'token' })
+    expect(missingGuests(present, s.inspected)).toEqual([])
+    s = reduceSession(s, { type: 'submit', action: 'complete' })
+    expect(reduceSession(s, { type: 'choose', guestId: 'envoy', gestureId: 'toast' })).toBe(s)
+  })
+
+  it('completes with one interaction_completed and changes nothing else', () => {
+    const r = settleInteraction([], BANQUET, req('complete', ['envoy:silence', 'grayrobe:token']), ctx, { present })
+    expect(r.result).toMatchObject({ outcome: 'completed', inspected: ['envoy:silence', 'grayrobe:token'], check: null })
+    expect(r.events.map((e) => e.type)).toEqual(['interaction_completed'])
+    const before = reduceEvents('r1', [])
+    const after = reduceEvents('r1', r.events)
+    expect(after.factions).toEqual(before.factions)
+    expect(after.npcs).toEqual(before.npcs)
+    expect(after.facts).toEqual(before.facts)
+  })
+
+  it('rejects a missing guest, an absent guest, a doubled guest or an unknown gesture', () => {
+    for (const bad of [['envoy:toast'], ['envoy:toast', 'grayrobe:toast', 'professor:toast'], ['envoy:toast', 'envoy:token', 'grayrobe:toast'], ['envoy:wave', 'grayrobe:toast'], ['envoy:toast:x', 'grayrobe:toast']]) {
+      expect(() => settleInteraction([], BANQUET, req('complete', bad), ctx, { present })).toThrow(InteractionRejected)
+    }
+    expect(() => settleInteraction([], BANQUET, req('complete', ['envoy:toast']), ctx, { present: ['envoy'] })).toThrow(/在座宾客/)
+  })
+
+  it('skip settles as 交涉 12 and records once; a reload opens on the result', () => {
+    const r = settleInteraction([], BANQUET, req('skip', []), ctx, { present })
+    expect(r.result).toMatchObject({ outcome: 'skipped', check: BANQUET.skipCheck })
+    const again = settleInteraction(r.events, BANQUET, req('complete', ['envoy:toast', 'grayrobe:toast'], 2), ctx, { present })
+    expect(again.events).toBe(r.events)
+    expect(recordedResult(r.events, BANQUET, gid)).toMatchObject({ outcome: 'skipped', duplicate: true })
+  })
+
+  it('every guest × gesture has a reaction', () => {
+    for (const g of BANQUET.guests) for (const x of BANQUET.gestures) expect(BANQUET.reactions[pickToken(g.id, x.id)]).toBeTruthy()
+    expect(Object.keys(BANQUET.reactions)).toHaveLength(BANQUET.guests.length * BANQUET.gestures.length)
   })
 })
