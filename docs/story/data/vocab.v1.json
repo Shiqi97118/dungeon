@@ -239,7 +239,8 @@
     { "id": "whitestone_well", "name": "白砾回声井", "states": { "未封": "open", "已封": "sealed", "已毁": "destroyed" }, "initial": "open" },
     { "id": "crown_bell_engine", "name": "冠钟", "states": { "未启用": "idle", "已启用": "active", "已毁": "destroyed" }, "initial": "idle" },
     { "id": "aid_station", "name": "互助站", "about": "首版玩家事业（12 第 6.3 节）：player_project_* 的阶段，kind=sanctuary，运转时发 civic_service_operational", "states": { "未设立": "none", "构想": "idea", "已创办": "founded", "运转": "operational", "稳定": "stable", "已关闭": "closed" }, "initial": "none" },
-    { "id": "party_tavern", "name": "自家酒馆", "aliases": ["队伍的酒馆"], "about": "首版玩家事业（12 第 6.3 节）：player_project_* 的阶段，kind=tavern，运转时发 business_operational", "states": { "未设立": "none", "构想": "idea", "已创办": "founded", "运转": "operational", "稳定": "stable", "已关闭": "closed" }, "initial": "none" }
+    { "id": "party_tavern", "name": "自家酒馆", "aliases": ["队伍的酒馆"], "about": "首版玩家事业（12 第 6.3 节）：player_project_* 的阶段，kind=tavern，运转时发 business_operational", "states": { "未设立": "none", "构想": "idea", "已创办": "founded", "运转": "operational", "稳定": "stable", "已关闭": "closed" }, "initial": "none" },
+    {"id": "rock_bell_status", "name": "岩钟城", "states": {"未处置": "unresolved", "封井": "sealed"}, "initial": "unresolved"}
   ],
   "facts": [
     { "id": "red_cord_clasp", "name": "红绳铜扣", "kind": "knowledge", "about": "红绳病人的结都带同一种铜扣" },
@@ -275,7 +276,23 @@
     {"id": "crown_bell_heart_party", "name": "冠钟城钟心归队伍", "kind": "world"},
     {"id": "crown_bell_silent", "name": "冠钟城沉寂", "kind": "world"},
     {"id": "evelyn_gareth_reunion", "name": "伊芙琳与加雷斯重逢", "kind": "world"},
-    {"id": "astrion_unmasked_kalvis", "name": "阿斯特里昂在卡尔维斯被识破", "kind": "knowledge"}
+    {"id": "astrion_unmasked_kalvis", "name": "阿斯特里昂在卡尔维斯被识破", "kind": "knowledge"},
+    {"id": "nina_found", "name": "妮娜已被找到", "kind": "world"},
+    {"id": "nina_translator", "name": "妮娜成为翻译", "kind": "world"},
+    {"id": "nina_rescued", "name": "妮娜已被救出", "kind": "world"},
+    {"id": "nina_revisit_well", "name": "妮娜获救后再访井边", "kind": "world"},
+    {"id": "dwarf_contract_opened", "name": "契约被打开", "kind": "world"},
+    {"id": "ned_dead_voice", "name": "内德正在用亡者的声音", "kind": "world"},
+    {"id": "helan_confessed", "name": "哈兰承认往事", "kind": "world"},
+    {"id": "ludo_commission_accepted", "name": "接受过卢多的委托", "kind": "world"},
+    {"id": "silence_crystal_held", "name": "持有静音晶体", "kind": "world"},
+    {"id": "rock_heart_transferred", "name": "岩钟城钟心已交接", "kind": "world"},
+    {"id": "survey_heard", "name": "测绘队听见了", "kind": "knowledge"},
+    {"id": "joan_surname_lost", "name": "乔安失去姓氏", "kind": "knowledge"},
+    {"id": "evelyn_notebook_g", "name": "伊芙琳本子上的G", "kind": "knowledge"},
+    {"id": "lina_voice_well", "name": "莉娜的声音在井中", "kind": "knowledge"},
+    {"id": "door_reflection", "name": "门的倒影", "kind": "knowledge"},
+    {"id": "whitestone_seal_clock_reduced", "name": "白砾封井时钟已减一", "kind": "world"}
   ],
   "variables": {
     "地点": { "id": "location", "type": "place", "about": "地区，或 地区·具体地点" },
