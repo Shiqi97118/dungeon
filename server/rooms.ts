@@ -63,11 +63,29 @@ function authPlayer(row: RoomRow, request: Request): Player {
   return p
 }
 
-const pack = packTable
+/**
+ * The last tables this isolate packed or read, keyed by their packed form: the next op on the
+ * same room usually lands here and skips the gzip and parse. Tables are immutable, so sharing is safe.
+ */
+const recent = new Map<string, Table>()
+const remember = (packed: string, t: Table) => {
+  recent.delete(packed)
+  recent.set(packed, t)
+  if (recent.size > 8) recent.delete(recent.keys().next().value!)
+}
+
+async function pack(t: Table): Promise<string> {
+  const packed = await packTable(t)
+  remember(packed, t)
+  return packed
+}
 
 async function unpack(packed: string): Promise<Table> {
+  const hit = recent.get(packed)
+  if (hit) return hit
   const r = await unpackTable(packed, true)
   if (r.status !== 'ok') throw new HttpError(500, '房间里的进度读不出来')
+  remember(packed, r.table)
   return r.table
 }
 

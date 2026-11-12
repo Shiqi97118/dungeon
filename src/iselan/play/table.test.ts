@@ -2,11 +2,11 @@ import { describe, expect, it } from 'vitest'
 import { fakeModel } from '../ai/fake'
 import type { ModelCall } from '../ai/turn'
 import { CONFIG } from '../config'
-import { verifyLog } from '../events'
+import { reduceEvents, verifyLog } from '../events'
 import { r1Met } from '../rules/choices'
 import { d01Variant } from '../rules/directions'
 import { hitAt, rollCheck } from './check'
-import { loadTable, saveTable } from './persist'
+import { loadTable, packTable, saveTable, unpackTable } from './persist'
 import { chronicleOf, summarizeRun } from './ending'
 import { act, adjudicate, canWrapUp, proposeRewind, vote, interact, move, openTable, resolveArc, rewind, roll, snapshotOf, wrapUp, type EndingCall, type Member, type Table } from './table'
 
@@ -298,6 +298,26 @@ describe('save and rewind', () => {
     expect(snapshotOf(r.table)).toEqual(snapshotOf(t))
     const back = rewind(r.table, r.table.checkpoints[1].id)
     expect(snapshotOf(back).location?.placeId).toBe('gray_harbor.seven_lamps')
+  })
+
+  it('a long run packs its rewind points compactly and unpacks them unchanged', async () => {
+    const model = fakeModel({ seed: 'long' })
+    let t = open('long')
+    for (let i = 0; i < 12; i++) t = i % 4 === 3 ? move(t, i % 8 === 3 ? 'gray_harbor.docks' : 'gray_harbor.seven_lamps', o) : await act(t, `四处打听（${i}）`, model, o)
+    while (t.pending?.kind === 'check') t = await roll(t, model, o)
+    expect(t.checkpoints.length).toBeGreaterThan(8)
+    const stored = JSON.parse(saveTable(t)).table.checkpoints
+    expect(stored.filter((c: object) => 'recent' in c)).toHaveLength(1)
+    const r = loadTable(saveTable(t))
+    expect(r.status === 'ok' && r.table.checkpoints).toEqual(t.checkpoints)
+
+    const packed = await packTable(t)
+    const u = await unpackTable(packed, true)
+    expect(u.status === 'ok' && u.table.checkpoints).toEqual(t.checkpoints)
+    // The server trusts its own snapshot instead of replaying: it must be the replay's.
+    if (u.status === 'ok') expect(snapshotOf(u.table)).toEqual(reduceEvents(t.runId, t.events))
+    const c = await unpackTable(packed)
+    expect(c.status === 'ok' && c.table.checkpoints).toEqual(t.checkpoints)
   })
 
   it('a tampered rewind point is refused on load', () => {

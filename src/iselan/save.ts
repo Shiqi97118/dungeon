@@ -40,8 +40,10 @@ export function createSave(input: {
   profileId?: string
   aiResponses?: SaveFile['aiResponses']
   table?: SaveFile['table']
+  /** Already reduced from exactly these events, to skip replaying them again. */
+  snapshot?: Snapshot
 }): SaveFile {
-  const snapshot = reduceEvents(input.runId, input.events)
+  const snapshot = input.snapshot ?? reduceEvents(input.runId, input.events)
   return {
     version: SAVE_VERSION,
     runId: input.runId,

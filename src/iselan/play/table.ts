@@ -101,6 +101,11 @@ export interface TableOptions {
 export const INTERACTIONS: Readonly<Record<string, InteractionDef>> = { [LEDGER.textId]: LEDGER, [BANQUET.textId]: BANQUET }
 
 const cache = new WeakMap<readonly AnyEvent[], Snapshot>()
+/** For a log the server packed itself: its stored snapshot stands in for a replay. */
+export function adoptSnapshot(events: readonly AnyEvent[], s: Snapshot) {
+  if (s.seq === (events.at(-1)?.seq ?? 0)) cache.set(events, s)
+}
+
 export function snapshotOf(t: Pick<Table, 'runId' | 'events'>): Snapshot {
   let s = cache.get(t.events)
   if (!s) cache.set(t.events, (s = reduceEvents(t.runId, t.events)))
