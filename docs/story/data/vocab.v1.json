@@ -331,7 +331,15 @@
     {"id": "ember_crown_war", "name": "烬原与王室已开战", "kind": "world"},
     {"id": "aided_ulug_march", "name": "帮乌鲁格进军", "kind": "world"},
     {"id": "ulug_ring_entrusted", "name": "乌鲁格已托付第七骨环位置", "kind": "world"},
-    {"id": "saka_letter_intercepted", "name": "密信被截获", "kind": "world"}
+    {"id": "saka_letter_intercepted", "name": "密信被截获", "kind": "world"},
+    {"id": "counterfeit_heart_auction", "name": "假钟心拍卖", "kind": "knowledge"},
+    {"id": "nameless_sea_route_known", "name": "去空名之城的海路", "kind": "knowledge"},
+    {"id": "mist_heart_in_keel", "name": "雾钟城钟心在哑歌号龙骨", "kind": "knowledge"},
+    {"id": "names_shipped_to_nameless_city", "name": "名字被运进空名之城", "kind": "knowledge"},
+    {"id": "marcus_repulsed", "name": "马库斯被击退", "kind": "world"},
+    {"id": "mist_heart_party", "name": "雾钟城钟心归队伍", "kind": "world"},
+    {"id": "silent_sea_repulse_clock_reduced", "name": "沉默海击退时钟已减一", "kind": "world"},
+    {"id": "nameless_sea_route_open", "name": "空名之城海路已开", "kind": "world"}
   ],
   "variables": {
     "地点": { "id": "location", "type": "place", "about": "地区，或 地区·具体地点" },
@@ -370,7 +378,7 @@
     "party": ["受伤", "疲惫", "补给少", "刚战斗", "刚交易", "被追捕", "有人遗忘症状", "同伴争执", "战斗中"],
     "intent": ["调查", "交谈", "潜行", "战斗", "交易", "欺骗", "帮助", "仪式", "休息", "记录", "离开", "其他"],
     "emotion": ["谨慎", "鲁莽", "温柔", "愤怒", "悲伤", "幽默"],
-    "progress": ["全面危机", "场景结束", "时钟升格后", "旅途末段", "完成核心冒险", "未完成核心冒险", "进入第四幕", "首次见面"]
+    "progress": ["全面危机", "场景结束", "时钟升格后", "旅途末段", "完成核心冒险", "未完成核心冒险", "进入第四幕", "首次见面", "柯德里克被提起"]
   },
   "interactions": ["memory-assembly", "resonance", "mechanism", "evidence", "dialogue-gesture", "crisis-action"],
   "textKinds": ["ENV", "SCN", "BEAT", "DLG", "BRG", "TRV", "RST", "CLK", "END"],
