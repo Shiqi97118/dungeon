@@ -14,6 +14,22 @@ function events(): readonly AnyEvent[] {
 const save = () => createSave({ runId: RUN, seed: 's', createdAt: ctx.committedAt, events: events(), profileId: 'p1' })
 
 describe('save v5', () => {
+  it('rejects ids that would write to Object.prototype, without throwing', () => {
+    const s = save()
+    const last = s.events.at(-1)!
+    for (const [type, payload] of [
+      ['text_shown', { textId: '__proto__', round: 7, count: 1, rewrittenLines: [] }],
+      ['player_project_stage_changed', { projectId: '__proto__', stage: 'founded' }],
+      ['seat_changed', { seatId: '__proto__', actorId: 'pc1', controller: 'human', inheritedChoices: 0 }],
+    ] as const) {
+      const forged = { ...last, seq: last.seq + 1, eventId: `${RUN}:${last.seq + 1}`, sourceIntentId: 'x', type, payload }
+      const result = loadSave(JSON.stringify({ ...s, events: [...s.events, forged] }))
+      expect(result.status).toBe('corrupt')
+    }
+    expect(({} as Record<string, unknown>).stage).toBeUndefined()
+    expect(({} as Record<string, unknown>).lastRound).toBeUndefined()
+  })
+
   it('round-trips and rebuilds the same snapshot', () => {
     const result = loadSave(serializeSave(save()))
     expect(result.status).toBe('ok')

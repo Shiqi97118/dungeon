@@ -50,12 +50,16 @@ function checkValue(kind: string, field: string, v: unknown): string | null {
     case 'bool':
       return typeof v === 'boolean' ? null : bad('布尔值')
     case 'string':
-      return typeof v === 'string' ? null : bad('字符串')
+      // Free strings become object keys in the reducer (texts, projects, seats, beliefs); a loaded save must not reach Object.prototype.
+      if (typeof v !== 'string') return bad('字符串')
+      return RESERVED_KEYS.has(v) ? `${field} 不能是 ${JSON.stringify(v)}` : null
   }
   const set = ID_SETS[kind]
   if (!set) return `${field} 的类型 ${kind} 没有对应的词表`
   return typeof v === 'string' && set.has(v) ? null : bad(`${kind} 编号`)
 }
+
+const RESERVED_KEYS = new Set(['__proto__', 'constructor', 'prototype'])
 
 /** Field-level and cross-field checks for one event; returns problems in Chinese, empty when valid. */
 export function validateEvent(type: string, payload: unknown, regionId?: unknown): string[] {
