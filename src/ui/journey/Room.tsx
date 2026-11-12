@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { sound } from '../../audio/sound'
 import { InteractionRejected } from '../../iselan/interaction'
 import { CONFIG } from '../../iselan/config'
-import { PREGENS, SKILL_OF_STAT, STAT_ORDER, snapshotOf, unpackTable, type Table } from '../../iselan/play'
+import { PREGENS, SKILL_OF_STAT, STAT_ORDER, snapshotOf, unpackTable, voting, type Table } from '../../iselan/play'
 import { ApiError, api, type RoomView, type Seat } from '../../net/api'
 import { profileApi } from '../../net/profile'
 import { isOnline, type RoomConn } from '../../net/useRoom'
@@ -216,7 +216,7 @@ export function RoomJourney({ room, seat, conn, onLeave, onQuit }: {
   }
 
   const seated = table.party.filter((m) => snapshotOf(table).seats[m.seatId]?.controller !== 'empty').length
-  const canJoin = !me?.seat && !snapshotOf(table).ending && seated < MAX_SEATS && table.pending?.kind !== 'rewind'
+  const canJoin = !me?.seat && !snapshotOf(table).ending && seated < MAX_SEATS && !voting(table)
   const side = (
     <>
       <span className="dim small">房间 {room.code}{me?.seat ? '' : ' · 旁观'}</span>

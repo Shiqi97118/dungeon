@@ -23,15 +23,30 @@ const isControl = (el: EventTarget) => el instanceof HTMLElement && ['BUTTON', '
  * Pages through one batch of narration (09 §3.3a). Nothing advances on its own: only 继续,
  * Enter, Space or → turns the page; ← goes back within the batch. `end` (e.g. the next
  * choices) appears once the last screen is reached. Each player's client keeps its own page.
+ * With `batchKey` the page starts over only when the key changes, so screens added to the
+ * batch being read wait after the current page; `onAtEnd` reports whether the last is reached.
  */
-export default function Reader({ screens, fallbackImage, end }: { screens: readonly Screen[]; fallbackImage?: string; end?: ReactNode }) {
-  const [batch, setBatch] = useState(screens)
+export default function Reader({ screens, fallbackImage, end, batchKey, onAtEnd }: {
+  screens: readonly Screen[]
+  fallbackImage?: string
+  end?: ReactNode
+  batchKey?: string | number
+  onAtEnd?: (atEnd: boolean) => void
+}) {
+  const key = batchKey ?? screens
+  const [batch, setBatch] = useState(() => key)
   const [page, setPage] = useState(0)
-  if (batch !== screens) {
-    setBatch(screens)
+  if (batch !== key) {
+    setBatch(key)
     setPage(0)
   }
   const view = readerView(screens, page)
+
+  // Reported on page turns and new batches only: screens joining the batch must not count as
+  // unread before the parent decides whether they start a batch of their own.
+  const atEnd = useRef(view.atEnd)
+  atEnd.current = view.atEnd
+  useEffect(() => { onAtEnd?.(atEnd.current) }, [onAtEnd, view.page, batch])
   const endRef = useRef<HTMLDivElement>(null)
   const screenRef = useRef<HTMLDivElement>(null)
   const sectionRef = useRef<HTMLElement>(null)

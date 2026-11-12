@@ -56,6 +56,8 @@ export type Pending =
   | { readonly kind: 'ending'; readonly candidates: readonly DirectionId[] }
   /** A rewind waiting on every player at the table; `resume` is what was pending before it. */
   | { readonly kind: 'rewind'; readonly checkpointId: string; readonly by: string; readonly agreed: readonly string[]; readonly resume: Pending | null }
+  /** R4 online: closing the story waits on every player at the table. */
+  | { readonly kind: 'wrap'; readonly by: string; readonly agreed: readonly string[] }
 
 export interface Table {
   readonly runId: string
@@ -318,6 +320,14 @@ export function leaveSeat(t0: Table, seatId: string, o: TableOptions = {}): Tabl
     if (rewindVoters(out).every((x) => agreed.includes(x))) return applyRewind({ ...out, pending: p.resume }, p.checkpointId)
     return { ...out, pending: { ...p, agreed } }
   }
+  if (out.pending?.kind === 'wrap') {
+    const p = out.pending
+    const agreed = p.agreed.filter((x) => x !== seatId)
+    const free = { ...out, pending: null }
+    if (p.by === seatId || !agreed.length) return free.party[free.turn]?.seatId === seatId ? advance(free, o) : free
+    if (rewindVoters(out).every((x) => agreed.includes(x))) return wrapUp(free, o)
+    return { ...out, pending: { ...p, agreed } }
+  }
   return !out.pending && out.party[out.turn]?.seatId === seatId ? advance(out, o) : out
 }
 
@@ -329,7 +339,7 @@ export function leaveSeat(t0: Table, seatId: string, o: TableOptions = {}): Tabl
 export function joinTable(t0: Table, member: Member, o: TableOptions = {}): Table {
   const s = snapshotOf(t0)
   if (s.ending) throw new Error('这一局已经结束')
-  if (t0.pending?.kind === 'rewind') throw new Error('正在表决回退，稍后再加入')
+  if (voting(t0)) throw new Error('正在表决，稍后再加入')
   if (s.seats[member.seatId] || t0.party.some((m) => m.actorId === member.actorId)) throw new Error('这个角色已经在桌上了')
   const { id, t } = nextId(t0, 'join')
   const joined = commit(t, id, [joinSeatDraft(s, member.seatId, member.actorId, 'human')], o)
@@ -342,13 +352,15 @@ export interface OpenInput {
   readonly seed: string
   readonly party: readonly Member[]
   readonly openingHook: OpeningHookId
+  /** Rooms are online even with one player at the start: others may join later (R1a). */
+  readonly mode?: 'solo' | 'online'
 }
 
 /** GEN-BEAT opening at the Seven Lamps on a rainy dusk, then the arrival in Grayport. */
 export function openTable(input: OpenInput, o: TableOptions = {}): Table {
   const t0: Table = { runId: input.runId, events: [], party: input.party, turn: 0, pending: null, screens: [], suggestions: [], gaps: [], responses: [], recent: [], n: 0, checkpoints: [] }
   const seats = input.party.map((m) => ({ seatId: m.seatId, actorId: m.actorId, controller: m.controller }))
-  const opening = openingDrafts({ mode: input.party.length > 1 ? 'online' : 'solo', seed: input.seed, openingHook: input.openingHook, seats })
+  const opening = openingDrafts({ mode: input.mode ?? (input.party.length > 1 ? 'online' : 'solo'), seed: input.seed, openingHook: input.openingHook, seats })
   let s = preview(snapshotOf(t0), opening)
   const round = startRound(s, 1)
   s = preview(s, round.drafts)
@@ -524,6 +536,10 @@ export function resolveArc(t0: Table, outcomes: readonly OutcomeId[], o: TableOp
 /** R4: every human seat agrees to close the story; R1 must already hold. */
 export const canWrapUp = (t: Table) => r1Met(snapshotOf(t)) && snapshotOf(t).act !== 4
 
+/** A table waiting on a rewind or wrap-up vote; nothing else moves until it is answered. */
+export const voting = (t: Table) => t.pending?.kind === 'rewind' || t.pending?.kind === 'wrap'
+
+/** Closes the story now; with more than one player at the table this needs `proposeWrap`. */
 export function wrapUp(t0: Table, o: TableOptions = {}): Table {
   assertFree(t0)
   const drafts = wrapUpDrafts(snapshotOf(t0), rewindVoters(t0))
@@ -697,7 +713,7 @@ export function rewind(t: Table, checkpointId: string): Table {
 
 /** A player asks to go back; play pauses until every other player at the table answers. */
 export function proposeRewind(t: Table, checkpointId: string, seatId: string): Table {
-  if (t.pending?.kind === 'rewind') throw new Error('已经有一个回退提议在等待表决')
+  if (voting(t)) throw new Error('已经有一个提议在等待表决')
   if (!rewindVoters(t).includes(seatId)) throw new Error('只有在座的玩家可以提议回退')
   const { cp } = checkpointOf(t, checkpointId)
   const by = t.party.find((m) => m.seatId === seatId)?.name ?? seatId
@@ -706,17 +722,31 @@ export function proposeRewind(t: Table, checkpointId: string, seatId: string): T
   return { ...t, n: t.n + 1, pending: proposal, screens: [...t.screens, note] }
 }
 
-/** One player's answer. The last yes rewinds; any no drops the proposal and play goes on where it was. */
-export function voteRewind(t: Table, seatId: string, agree: boolean): Table {
+/** R4 online: a player asks to close the story; it closes once every player at the table agrees. */
+export function proposeWrap(t: Table, seatId: string): Table {
+  assertFree(t)
+  if (!rewindVoters(t).includes(seatId)) throw new Error('只有在座的玩家可以提议收束')
+  if (!canWrapUp(t) || !wrapUpDrafts(snapshotOf(t), rewindVoters(t))) throw new Error('还不能收束：每位玩家都要先做满足够的选择')
+  const by = t.party.find((m) => m.seatId === seatId)?.name ?? seatId
+  const note: Screen = { id: `vote:${t.n + 1}`, kind: 'note', paragraphs: [`${by}提议收束故事，就此写下这支队伍的结局。`, '所有在座的玩家都同意才会收束；有人反对就照常继续。'] }
+  return { ...t, n: t.n + 1, pending: { kind: 'wrap', by: seatId, agreed: [seatId] }, screens: [...t.screens, note] }
+}
+
+/**
+ * One player's answer to a rewind or wrap-up proposal. The last yes carries it out; any no drops
+ * it and play goes on where it was.
+ */
+export function vote(t: Table, seatId: string, agree: boolean, o: TableOptions = {}): Table {
   const p = t.pending
-  if (p?.kind !== 'rewind') throw new Error('没有待表决的回退')
+  if (p?.kind !== 'rewind' && p?.kind !== 'wrap') throw new Error('没有待表决的提议')
   if (!rewindVoters(t).includes(seatId)) throw new Error('只有在座的玩家可以表决')
   const name = t.party.find((m) => m.seatId === seatId)?.name ?? seatId
+  const resume = p.kind === 'rewind' ? p.resume : null
   if (!agree) {
-    const note: Screen = { id: `vote:${t.n + 1}`, kind: 'note', paragraphs: [`${name}不同意回退。`, '故事照常继续。'] }
-    return { ...t, n: t.n + 1, pending: p.resume, screens: [...t.screens, note] }
+    const note: Screen = { id: `vote:${t.n + 1}`, kind: 'note', paragraphs: [`${name}不同意${p.kind === 'rewind' ? '回退' : '收束'}。`, '故事照常继续。'] }
+    return { ...t, n: t.n + 1, pending: resume, screens: [...t.screens, note] }
   }
   const agreed = [...new Set([...p.agreed, seatId])]
-  if (rewindVoters(t).every((id) => agreed.includes(id))) return applyRewind({ ...t, pending: p.resume }, p.checkpointId)
-  return { ...t, pending: { ...p, agreed } }
+  if (!rewindVoters(t).every((id) => agreed.includes(id))) return { ...t, pending: { ...p, agreed } }
+  return p.kind === 'rewind' ? applyRewind({ ...t, pending: resume }, p.checkpointId) : wrapUp({ ...t, pending: null }, o)
 }

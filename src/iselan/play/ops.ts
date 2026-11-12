@@ -3,7 +3,7 @@ import { VOCAB } from '../data'
 import type { ModelCall } from '../ai'
 import { interactionInstanceId, recordedResult, type InteractionRequest, type InteractionResult } from '../interaction'
 import {
-  act, adjudicate, ARC_OUTCOMES, currentMember, INTERACTIONS, interact, move, proposeRewind, resolveArc, rewind, rewindVoters, roll, voteRewind, wrapUp,
+  act, adjudicate, ARC_OUTCOMES, currentMember, INTERACTIONS, interact, move, proposeRewind, proposeWrap, resolveArc, rewind, rewindNeedsVote, rewindVoters, roll, vote, voting, wrapUp,
   type EndingCall, type Table, type TableOptions,
 } from './table'
 
@@ -74,6 +74,9 @@ export function parseOp(raw: unknown): TableOp | null {
   }
 }
 
+/** Ops a player sends only as their own seat, never on behalf of a seat they also control. */
+export const byOwnSeat = (t: Table, op: TableOp) => op.t === 'propose' || op.t === 'vote' || (op.t === 'wrap' && rewindNeedsVote(t))
+
 /** The seats that may send `op` now; 'any' when every seat at the table may. */
 export function seatsFor(t: Table, op: TableOp): readonly string[] | 'any' {
   const p = t.pending
@@ -88,6 +91,8 @@ export function seatsFor(t: Table, op: TableOp): readonly string[] | 'any' {
     case 'propose':
     case 'vote':
       return rewindVoters(t)
+    case 'wrap':
+      return rewindNeedsVote(t) ? rewindVoters(t) : [currentMember(t).seatId]
     default:
       return [currentMember(t).seatId]
   }
@@ -96,20 +101,20 @@ export function seatsFor(t: Table, op: TableOp): readonly string[] | 'any' {
 /** Applies one op for `seatId`; throws with a reason the player can read when it is not allowed. */
 export async function applyOp(t: Table, op: TableOp, seatId: string, models: Models, o: TableOptions = {}): Promise<OpResult> {
   const allowed = seatsFor(t, op)
-  if (allowed !== 'any' && !allowed.includes(seatId)) throw new Error(op.t === 'propose' || op.t === 'vote' ? '只有在座的玩家可以表决回退' : '现在不是这个角色行动')
-  if (t.pending?.kind === 'rewind' && op.t !== 'vote') throw new Error('正在表决回退，等所有人回答')
+  if (allowed !== 'any' && !allowed.includes(seatId)) throw new Error(byOwnSeat(t, op) ? '只有在座的玩家可以表决' : '现在不是这个角色行动')
+  if (voting(t) && op.t !== 'vote') throw new Error('正在表决，等所有人回答')
   switch (op.t) {
     case 'act': return { table: await act(t, op.text, models.turn, o) }
     case 'roll': return { table: await roll(t, models.turn, o) }
     case 'move': return { table: move(t, op.placeId, o) }
     case 'resolve': return { table: resolveArc(t, op.outcomes, o) }
-    case 'wrap': return { table: wrapUp(t, o) }
+    case 'wrap': return { table: rewindNeedsVote(t) ? proposeWrap(t, seatId) : wrapUp(t, o) }
     case 'adjudicate':
       if (t.pending?.kind !== 'ending') throw new Error('还没到写结局的时候')
       return { table: await adjudicate(t, models.ending, o) }
     case 'rewind': return { table: rewind(t, op.checkpointId) }
     case 'propose': return { table: proposeRewind(t, op.checkpointId, seatId) }
-    case 'vote': return { table: voteRewind(t, seatId, op.agree) }
+    case 'vote': return { table: vote(t, seatId, op.agree, o) }
     case 'interact': {
       const base = (id: string) => interactionInstanceId(id)
       const def = Object.values(INTERACTIONS).find((d) => op.req.instanceId === base(d.textId) || op.req.instanceId.startsWith(`${base(d.textId)}@`))

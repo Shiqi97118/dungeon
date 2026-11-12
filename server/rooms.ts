@@ -11,7 +11,7 @@ import { estimateTokens } from '../src/iselan/ai/tokens.js'
 import { ModelUnavailable, type AiResponse } from '../src/iselan/ai/turn.js'
 import { InteractionRejected } from '../src/iselan/interaction/index.js'
 import {
-  applyOp, joinTable, leaveSeat, openTable, packTable, parseOp, PREGENS, seatsFor, snapshotOf, soloMember, unpackTable, type Models, type Table,
+  applyOp, byOwnSeat, joinTable, leaveSeat, openTable, packTable, parseOp, PREGENS, seatsFor, snapshotOf, soloMember, unpackTable, type Models, type Table,
 } from '../src/iselan/play/index.js'
 
 const MAX_PLAYERS = 6
@@ -304,7 +304,7 @@ export async function handleRoom(request: Request): Promise<Response> {
       const party = seated.map((x, i) => ({ ...soloMember(PREGENS.find((g) => g.id === x.pick)!), seatId: `s${i + 1}` }))
       seated.forEach((x, i) => { x.seat = `s${i + 1}` })
       const runId = randomUUID()
-      d.table = await pack(openTable({ runId, seed: runId.slice(0, 8), party, openingHook: d.hook as OpeningHookId }))
+      d.table = await pack(openTable({ runId, seed: runId.slice(0, 8), party, openingHook: d.hook as OpeningHookId, mode: 'online' }))
       d.status = 'play'
       if (!(await store.update(stage, code, row.version, d))) throw new HttpError(409, '房间正忙，请重试')
       return json({ ok: true, version: row.version + 1 })
@@ -350,7 +350,7 @@ export async function handleRoom(request: Request): Promise<Response> {
       // Watchers follow along; only players with a character at the table act.
       if (!me.seat) throw new HttpError(403, '你在旁观这一局')
       const allowed = seatsFor(t, action)
-      const own = action.t === 'propose' || action.t === 'vote' || allowed === 'any' ? seatId === me.seat : mayPlay(row, me, seatId)
+      const own = byOwnSeat(t, action) || allowed === 'any' ? seatId === me.seat : mayPlay(row, me, seatId)
       if (!own || (allowed !== 'any' && !allowed.includes(seatId))) throw new HttpError(403, '现在不是你的回合')
       const spent = { n: 0 }
       let out

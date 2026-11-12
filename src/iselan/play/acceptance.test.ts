@@ -8,7 +8,8 @@ import { ModelUnavailable, type ModelCall } from '../ai/turn'
 import { commitIntent, draft } from '../events'
 import { availableDirections, endingCandidates, tierOpen } from '../rules/directions'
 import { seatsReach } from '../rules/choices'
-import { act, adjudicate, canWrapUp, currentMember, interact, joinTable, move, openTable, resolveArc, roll, snapshotOf, wrapUp, type Member, type Table } from './table'
+import { act, adjudicate, canWrapUp, currentMember, interact, joinTable, leaveSeat, move, openTable, resolveArc, roll, snapshotOf, vote, wrapUp, type Member, type Table } from './table'
+import { applyOp } from './ops'
 import { npcName, presentAt } from './world'
 
 /**
@@ -230,6 +231,41 @@ describe('12 §12 acceptance', () => {
       t = i % 5 === 4 ? move(t, PLACES.find((p) => p !== s.location?.placeId)!, o) : await doing(t, `${SOCIAL[i % SOCIAL.length].replace('{}', npc ? npcName(npc) : '路人')}（新人 ${i}）`)
     }
     expect(canWrapUp(t)).toBe(true)
+  })
+
+  it('R4 online: closing the story waits for every player at the table; one no keeps it going', async () => {
+    const QILAN: Member = { seatId: 's2', actorId: 'qilan', name: '基兰', stats: { str: -1, dex: 1, ins: 2, soc: 0 }, controller: 'human' }
+    const models = { turn: null, ending: null }
+    let t = await untilR1(openTable({ runId: 'run-r4', seed: 'r4', party: [HELAN], openingHook: 'memento', mode: 'online' }, o))
+    t = joinTable(t, QILAN, o)
+    for (let i = 0; !canWrapUp(t) && i < 60; i++) {
+      const s = snapshotOf(t)
+      if (currentMember(t).seatId === 's1') { t = await doing(t, `等一等新来的同伴（${i}）`); continue }
+      const npc = presentAt(s, s.location!.placeId)[0]
+      t = i % 5 === 4 ? move(t, PLACES.find((p) => p !== s.location?.placeId)!, o) : await doing(t, `${SOCIAL[i % SOCIAL.length].replace('{}', npc ? npcName(npc) : '路人')}（新人 ${i}）`)
+    }
+    expect(canWrapUp(t)).toBe(true)
+    while (currentMember(t).seatId !== 's1') t = await doing(t, '再等一等')
+
+    const asked = (await applyOp(t, { t: 'wrap' }, 's1', models, o)).table
+    expect(asked.pending).toMatchObject({ kind: 'wrap', by: 's1', agreed: ['s1'] })
+    expect(snapshotOf(asked).act).toBe(snapshotOf(t).act)
+    await expect(applyOp(asked, { t: 'act', text: '趁机行动' }, 's1', models, o)).rejects.toThrow('表决')
+    expect(() => joinTable(asked, { ...QILAN, seatId: 's3', actorId: 'other' }, o)).toThrow('表决')
+
+    const refused = vote(asked, 's2', false, o)
+    expect(refused.pending).toBeNull()
+    expect(refused.events).toBe(t.events)
+    expect(refused.screens.at(-1)?.paragraphs[0]).toBe('基兰不同意收束。')
+
+    const again = (await applyOp(refused, { t: 'wrap' }, 's2', models, o)).table
+    const closed = (await applyOp(again, { t: 'vote', agree: true }, 's1', models, o)).table
+    expect(closed.pending?.kind).toBe('ending')
+    expect(snapshotOf(closed).act).toBe(4)
+    // The only one still to answer leaves: everyone left has agreed, so the story closes.
+    expect(leaveSeat(again, 's1', o).pending?.kind).toBe('ending')
+    // The one who asked leaves: the proposal goes with them.
+    expect(leaveSeat(again, 's2', o).pending).toBeNull()
   })
 
   it('A10: with the host out of budget the turn is hosted offline and the reason is kept for the notice', async () => {

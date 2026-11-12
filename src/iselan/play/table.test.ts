@@ -8,7 +8,7 @@ import { d01Variant } from '../rules/directions'
 import { hitAt, rollCheck } from './check'
 import { loadTable, saveTable } from './persist'
 import { chronicleOf, summarizeRun } from './ending'
-import { act, adjudicate, canWrapUp, proposeRewind, voteRewind, interact, move, openTable, resolveArc, rewind, roll, snapshotOf, wrapUp, type EndingCall, type Member, type Table } from './table'
+import { act, adjudicate, canWrapUp, proposeRewind, vote, interact, move, openTable, resolveArc, rewind, roll, snapshotOf, wrapUp, type EndingCall, type Member, type Table } from './table'
 
 const HELAN: Member = { seatId: 's1', actorId: 'helan', name: '哈兰', stats: { str: 2, dex: 0, ins: 1, soc: -1 }, controller: 'human' }
 const o = { now: () => '2026-11-12T00:00:00.000Z', rng: () => 0.5 }
@@ -319,11 +319,11 @@ describe('save and rewind', () => {
     const asked = proposeRewind(t, cp.id, 's1')
     expect(asked.pending).toMatchObject({ kind: 'rewind', agreed: ['s1'] })
     await expect(act(asked, '趁机行动', model, o)).rejects.toThrow()
-    const refused = voteRewind(asked, 's2', false)
+    const refused = vote(asked, 's2', false)
     expect(refused.pending).toBeNull()
     expect(refused.events).toBe(t.events)
 
-    const back = voteRewind(proposeRewind(t, cp.id, 's2'), 's1', true)
+    const back = vote(proposeRewind(t, cp.id, 's2'), 's1', true)
     expect(back.pending).toBeNull()
     expect(snapshotOf(back).location?.placeId).toBe('gray_harbor.seven_lamps')
     expect(back.turn).toBe(0)

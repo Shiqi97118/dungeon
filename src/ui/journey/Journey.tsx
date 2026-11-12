@@ -4,7 +4,7 @@ import { CONFIG } from '../../iselan/config'
 import type { OutcomeId, PlaceId } from '../../iselan/data'
 import { recordedResult, type InteractionRequest, type InteractionResult } from '../../iselan/interaction'
 import {
-  applyOp, ARC_OUTCOMES, canWrapUp, directionName, INTERACTIONS, outcomeLabel, outcomeOpen, rewindNeedsVote, rewindVoters,
+  applyOp, ARC_OUTCOMES, byOwnSeat, canWrapUp, directionName, INTERACTIONS, outcomeLabel, outcomeOpen, rewindNeedsVote, rewindVoters, voting,
   saveTable, seatsFor, SKILL_OF_STAT, snapshotOf, tableSaveFile, type EndingCall, type Models, type Table, type TableOp,
 } from '../../iselan/play'
 import type { ModelCall } from '../../iselan/ai'
@@ -99,11 +99,15 @@ export function JourneyTable({ table, send, seat, aiLabel, hasAi, record, notice
     logged.current = { gaps: table.gaps.length, responses: table.responses.length }
   }, [table.gaps, table.responses])
 
-  // A new batch starts where the last one ended; a rewind cuts back and adds one note.
+  // A new batch starts where the last one ended, once this player has read to its end; until
+  // then what others did joins the batch being read. A rewind cuts back and adds one note.
+  const readAll = useRef(true)
+  const onAtEnd = useCallback((atEnd: boolean) => { readAll.current = atEnd }, [])
   useEffect(() => {
     const before = seen.current
     const now = table.screens.length
-    if (now !== before && !ix) setMark(now > before ? before : Math.max(0, now - 1))
+    if (now > before && !ix && readAll.current) setMark(before)
+    if (now < before && !ix) setMark(Math.max(0, now - 1))
     if (now < before) setSummary(false)
     if (!ix) seen.current = now
   }, [table.screens, ix])
@@ -113,7 +117,7 @@ export function JourneyTable({ table, send, seat, aiLabel, hasAi, record, notice
   /** The seat to send `op` as: the viewer's own when any seat may, otherwise the one the op belongs to. */
   const seatFor = (op: TableOp): string | null => {
     const allowed = seatsFor(table, op)
-    if (allowed === 'any' || op.t === 'propose' || op.t === 'vote') return seat.mine && (allowed === 'any' || allowed.includes(seat.mine)) ? seat.mine : null
+    if (allowed === 'any' || byOwnSeat(table, op)) return seat.mine && (allowed === 'any' || allowed.includes(seat.mine)) ? seat.mine : null
     return allowed.find((x) => seat.canPlay(x)) ?? null
   }
   const can = (op: TableOp) => !busy && !!seatFor(op)
@@ -187,7 +191,7 @@ export function JourneyTable({ table, send, seat, aiLabel, hasAi, record, notice
       )}
       <div className="jy-wrap small dim">
         有效选择 {s.seats[me.seatId]?.choices ?? 0} / {CONFIG.minChoicesPerSeat}
-        {canWrapUp(table) && <button className="btn small" disabled={busy} onClick={() => void run({ t: 'wrap' })}>收束故事</button>}
+        {canWrapUp(table) && <button className="btn small" disabled={busy} onClick={() => void run({ t: 'wrap' })}>{rewindNeedsVote(table) ? '提议收束' : '收束故事'}</button>}
       </div>
     </div>
   ) : me && waiting(me.seatId, '行动'))
@@ -224,17 +228,17 @@ export function JourneyTable({ table, send, seat, aiLabel, hasAi, record, notice
             : <p className="small dim">等待在座的玩家写下结局……</p>}
         </div>
       )}
-      {p?.kind === 'rewind' && (() => {
-        const cp = table.checkpoints.find((c) => c.id === p.checkpointId)
+      {(p?.kind === 'rewind' || p?.kind === 'wrap') && (() => {
         const by = table.party.find((m) => m.seatId === p.by)?.name ?? ''
         const voting = !!seat.mine && rewindVoters(table).includes(seat.mine) && !p.agreed.includes(seat.mine)
+        const what = p.kind === 'rewind' ? '回退' : '收束'
         return (
           <div className="jy-check">
-            <p>回退表决：{by}提议回到第 {cp?.round} 轮</p>
+            <p>{p.kind === 'rewind' ? `回退表决：${by}提议回到第 ${table.checkpoints.find((c) => c.id === p.checkpointId)?.round} 轮` : `收束表决：${by}提议就此写下结局`}</p>
             <p className="small dim">已同意：{p.agreed.map((id) => table.party.find((m) => m.seatId === id)?.name).join('、')}</p>
             {voting ? (
               <div className="row">
-                <button className="btn primary" disabled={busy} onClick={() => void run({ t: 'vote', agree: true })}>同意回退</button>
+                <button className="btn primary" disabled={busy} onClick={() => void run({ t: 'vote', agree: true })}>同意{what}</button>
                 <button className="btn ghost" disabled={busy} onClick={() => void run({ t: 'vote', agree: false })}>不同意</button>
               </div>
             ) : <p className="small dim">等待其他人表决……</p>}
@@ -263,7 +267,7 @@ export function JourneyTable({ table, send, seat, aiLabel, hasAi, record, notice
         <div className="row">
           <span className="dim small jy-ai">{aiLabel}</span>
           {side}
-          <button className="btn ghost small" onClick={() => setShowRewind(true)} disabled={busy || !table.checkpoints.length || !seat.mine || p?.kind === 'rewind'}>回退</button>
+          <button className="btn ghost small" onClick={() => setShowRewind(true)} disabled={busy || !table.checkpoints.length || !seat.mine || voting(table)}>回退</button>
           <button className="btn ghost small" onClick={onQuit}>标题</button>
         </div>
       </header>
@@ -274,7 +278,7 @@ export function JourneyTable({ table, send, seat, aiLabel, hasAi, record, notice
         </main>
       ) : (
         <main className="rd-layout">
-          <Reader screens={batch} fallbackImage="GH-01" end={end} />
+          <Reader screens={batch} batchKey={mark} onAtEnd={onAtEnd} fallbackImage="GH-01" end={end} />
           <WorldPanels s={s} />
         </main>
       )}
