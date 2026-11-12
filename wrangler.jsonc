@@ -24,6 +24,15 @@
     "GM_MODEL": "deepseek-flash",
     "GM_DAILY_LIMIT": "1000"
   },
+  // Branch builds run `npx wrangler preview`, which requires this block. Previews get no D1 binding,
+  // so they never touch the production database; rooms and profiles answer 503 there.
+  "previews": {
+    "vars": {
+      "GM_BASE_URL": "https://api.deepseek.com",
+      "GM_MODEL": "deepseek-flash",
+      "GM_DAILY_LIMIT": "20"
+    }
+  },
   "observability": {
     "enabled": true,
     "traces": { "enabled": true }
