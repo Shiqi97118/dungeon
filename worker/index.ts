@@ -5,13 +5,14 @@ import { handleGm } from '../server/gmProxy.js'
 import { json } from '../server/http.js'
 
 let store: D1Store | null = null
-let db: D1Database | null = null
+let db: D1Database | null | undefined = null
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     if (db !== env.DB) {
       db = env.DB
-      store = new D1Store(env.DB)
+      // Previews have no D1 binding (wrangler.jsonc `previews`).
+      store = env.DB ? new D1Store(env.DB) : null
     }
     setPlatform({ viewer: async (r) => anonymousViewer(r), store: () => store })
     const { pathname } = new URL(request.url)
