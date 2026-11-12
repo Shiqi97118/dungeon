@@ -45,6 +45,8 @@ export type Pending =
   | { readonly kind: 'check'; readonly seatId: string; readonly text: string; readonly request: CheckRequest; readonly stat: Stat; readonly intents: readonly IntentTag[]; readonly interaction?: string }
   | { readonly kind: 'interaction'; readonly seatId: string; readonly textId: string; readonly instanceId: string }
   | { readonly kind: 'ending'; readonly candidates: readonly DirectionId[] }
+  /** A rewind waiting on every player at the table; `resume` is what was pending before it. */
+  | { readonly kind: 'rewind'; readonly checkpointId: string; readonly by: string; readonly agreed: readonly string[]; readonly resume: Pending | null }
 
 export interface Table {
   readonly runId: string
@@ -63,7 +65,7 @@ export interface Table {
   readonly recent: readonly string[]
   /** Local intent counter for intents that are not AI responses. */
   readonly n: number
-  /** Decisions the solo player may go back to, oldest first. */
+  /** Decisions the table may go back to, oldest first. */
   readonly checkpoints: readonly Checkpoint[]
 }
 
@@ -492,11 +494,14 @@ export function chooseEnding(t: Table, directionId: DirectionId, secondary: Dire
   return commit(tt, id, drafts, o)
 }
 
-/** Rewinding is solo only: in a shared run the others would lose their turns too. */
-export const canRewind = (t: Table) => t.party.filter((m) => m.controller === 'human').length === 1
+/** Seats whose players must agree to a rewind: humans still at the table (02 R1c leavers drop out). */
+export const rewindVoters = (t: Table): string[] =>
+  Object.entries(snapshotOf(t).seats).filter(([, seat]) => seat.controller === 'human').map(([id]) => id)
+
+/** Alone at the table, a rewind needs no vote. */
+export const rewindNeedsVote = (t: Table) => rewindVoters(t).length > 1
 
 function checkpoint(t: Table, label: string): Table {
-  if (!canRewind(t)) return t
   const cp: Checkpoint = {
     id: `cp:${t.events.length}`, round: snapshotOf(t).round, label, events: t.events.length, screens: t.screens.length,
     turn: t.turn, pending: t.pending, suggestions: t.suggestions, recent: t.recent,
@@ -504,22 +509,57 @@ function checkpoint(t: Table, label: string): Table {
   return { ...t, checkpoints: [...t.checkpoints, cp] }
 }
 
-/**
- * Back to just before a decision, so the player can choose again. Everything after it leaves
- * the log; AI responses stay in `responses` because their receipts already exist on the server,
- * and achievements already unlocked stay unlocked (they belong to the profile, not the run).
- */
-export function rewind(t: Table, checkpointId: string): Table {
-  if (!canRewind(t)) throw new Error('联机局不能回退')
+function checkpointOf(t: Table, checkpointId: string) {
   const i = t.checkpoints.findIndex((c) => c.id === checkpointId)
   if (i < 0) throw new Error('没有这个回退点')
-  const cp = t.checkpoints[i]
+  return { i, cp: t.checkpoints[i] }
+}
+
+function applyRewind(t: Table, checkpointId: string): Table {
+  const { i, cp } = checkpointOf(t, checkpointId)
   const screens = t.screens.slice(0, cp.screens)
   return {
     ...t,
     events: t.events.slice(0, cp.events),
-    screens: [...screens, { id: `rewind:${t.n + 1}`, kind: 'note', paragraphs: [`回到了第 ${cp.round} 轮，“${cp.label}”之前。`, '之后发生的事都没有发生过，你可以重新选择。'] }],
+    screens: [...screens, { id: `rewind:${t.n + 1}`, kind: 'note', paragraphs: [`回到了第 ${cp.round} 轮，“${cp.label}”之前。`, '之后发生的事都没有发生过，可以重新选择。'] }],
     turn: cp.turn, pending: cp.pending, suggestions: cp.suggestions, recent: cp.recent,
     checkpoints: t.checkpoints.slice(0, i), n: t.n + 1,
   }
+}
+
+/**
+ * Back to just before a decision, so the player can choose again. Everything after it leaves
+ * the log; AI responses stay in `responses` because their receipts already exist on the server,
+ * and achievements already unlocked stay unlocked (they belong to the profile, not the run).
+ * With more than one player at the table this needs everyone's agreement: use `proposeRewind`.
+ */
+export function rewind(t: Table, checkpointId: string): Table {
+  if (rewindNeedsVote(t)) throw new Error('联机局回退需要全员同意')
+  return applyRewind(t, checkpointId)
+}
+
+/** A player asks to go back; play pauses until every other player at the table answers. */
+export function proposeRewind(t: Table, checkpointId: string, seatId: string): Table {
+  if (t.pending?.kind === 'rewind') throw new Error('已经有一个回退提议在等待表决')
+  if (!rewindVoters(t).includes(seatId)) throw new Error('只有在座的玩家可以提议回退')
+  const { cp } = checkpointOf(t, checkpointId)
+  const by = t.party.find((m) => m.seatId === seatId)?.name ?? seatId
+  const proposal: Pending = { kind: 'rewind', checkpointId, by: seatId, agreed: [seatId], resume: t.pending }
+  const note: Screen = { id: `vote:${t.n + 1}`, kind: 'note', paragraphs: [`${by}提议回到第 ${cp.round} 轮，“${cp.label}”之前。`, '所有在座的玩家都同意才会回退；有人反对就照常继续。'] }
+  return { ...t, n: t.n + 1, pending: proposal, screens: [...t.screens, note] }
+}
+
+/** One player's answer. The last yes rewinds; any no drops the proposal and play goes on where it was. */
+export function voteRewind(t: Table, seatId: string, agree: boolean): Table {
+  const p = t.pending
+  if (p?.kind !== 'rewind') throw new Error('没有待表决的回退')
+  if (!rewindVoters(t).includes(seatId)) throw new Error('只有在座的玩家可以表决')
+  const name = t.party.find((m) => m.seatId === seatId)?.name ?? seatId
+  if (!agree) {
+    const note: Screen = { id: `vote:${t.n + 1}`, kind: 'note', paragraphs: [`${name}不同意回退。`, '故事照常继续。'] }
+    return { ...t, n: t.n + 1, pending: p.resume, screens: [...t.screens, note] }
+  }
+  const agreed = [...new Set([...p.agreed, seatId])]
+  if (rewindVoters(t).every((id) => agreed.includes(id))) return applyRewind({ ...t, pending: p.resume }, p.checkpointId)
+  return { ...t, pending: { ...p, agreed } }
 }

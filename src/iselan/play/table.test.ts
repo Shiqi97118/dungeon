@@ -7,7 +7,7 @@ import { r1Met } from '../rules/choices'
 import { d01Variant } from '../rules/directions'
 import { hitAt, rollCheck } from './check'
 import { loadTable, saveTable } from './persist'
-import { act, canRewind, canWrapUp, chooseEnding, interact, move, openTable, resolveArc, rewind, roll, snapshotOf, wrapUp, type Member, type Table } from './table'
+import { act, canWrapUp, proposeRewind, voteRewind, chooseEnding, interact, move, openTable, resolveArc, rewind, roll, snapshotOf, wrapUp, type Member, type Table } from './table'
 
 const HELAN: Member = { seatId: 's1', actorId: 'helan', name: '哈兰', stats: { str: 2, dex: 0, ins: 1, soc: -1 }, controller: 'human' }
 const o = { now: () => '2026-11-12T00:00:00.000Z', rng: () => 0.5 }
@@ -245,10 +245,27 @@ describe('save and rewind', () => {
     expect(loadTable(JSON.stringify(save))).toMatchObject({ status: 'corrupt' })
   })
 
-  it('shared runs keep no rewind points', async () => {
-    const t = openTable({ runId: 'run-two', seed: 'two', party: [HELAN, { ...HELAN, seatId: 's2', actorId: 'fuhe', name: '芙蕾雅' }], openingHook: 'memento' }, o)
-    const after = move(t, 'gray_harbor.docks', o)
-    expect(canRewind(after)).toBe(false)
-    expect(after.checkpoints).toEqual([])
+  it('a shared run rewinds only when every player at the table agrees', async () => {
+    const FUHE: Member = { ...HELAN, seatId: 's2', actorId: 'fuhe', name: '芙蕾雅' }
+    const model = fakeModel({ seed: 'two', strayRate: 0 })
+    let t = openTable({ runId: 'run-two', seed: 'two', party: [HELAN, FUHE], openingHook: 'memento' }, o)
+    t = move(t, 'gray_harbor.docks', o)
+    t = await act(t, '芙蕾雅帮卢多搬货', model, o)
+    const cp = t.checkpoints[0]
+    expect(cp.label).toBe('前往码头')
+    expect(() => rewind(t, cp.id)).toThrow('全员同意')
+
+    const asked = proposeRewind(t, cp.id, 's1')
+    expect(asked.pending).toMatchObject({ kind: 'rewind', agreed: ['s1'] })
+    await expect(act(asked, '趁机行动', model, o)).rejects.toThrow()
+    const refused = voteRewind(asked, 's2', false)
+    expect(refused.pending).toBeNull()
+    expect(refused.events).toBe(t.events)
+
+    const back = voteRewind(proposeRewind(t, cp.id, 's2'), 's1', true)
+    expect(back.pending).toBeNull()
+    expect(snapshotOf(back).location?.placeId).toBe('gray_harbor.seven_lamps')
+    expect(back.turn).toBe(0)
+    expect(back.checkpoints).toEqual([])
   })
 })
