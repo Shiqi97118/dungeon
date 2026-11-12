@@ -162,7 +162,7 @@
     { "id": "dl3", "name": "暗线三", "title": "守钟人的代价", "truthId": "bellkeeper_price", "evidence": { "罗兰藏起的档案原件": "roland_originals", "汉娜的证词": "hannah_testimony", "塞拉芬的密约": "seraphine_pact", "托马斯的静音晶体": "thomas_crystal" } },
     { "id": "dl4", "name": "暗线四", "title": "伊芙琳与加雷斯", "truthId": "evelyn_and_gareth", "evidence": { "加雷斯的旧纸条": "gareth_note", "伊芙琳本子上的字母G": "evelyn_letter_g", "赛勒斯的承认": "cyrus_admits" } },
     { "id": "dl5", "name": "暗线五", "title": "银叶之誓", "truthId": "silverleaf_oath", "evidence": { "叶钟城树根中的记忆": "leaf_bell_root_memory", "艾尔文偷出的长老会卷轴": "elwin_scroll", "赛勒斯的承认": "cyrus_admits" } },
-    { "id": "dl6", "name": "暗线六", "title": "烬原史诗", "truthId": "ember_epic", "evidence": { "乌鲁格的完整史诗": "ulug_epic", "冠钟城的铸钟记录": "crown_bell_casting_record", "格里姆船长的回忆": "grim_memory" } },
+    {"id": "dl6", "name": "暗线六", "title": "烬原史诗", "truthId": "ember_epic", "evidence": {"乌鲁格的完整史诗": "ulug_epic", "冠钟城的铸钟记录": "crown_bell_casting_record", "格里姆船长的回忆": "grim_memory", "黑钟刻痕中的遗言": "ember_bell_last_words"}},
     { "id": "dl7", "name": "暗线七", "title": "空名者的分裂", "truthId": "nameless_split", "evidence": { "薇娅瑟认出声音": "vyaser_recognizes", "妮娜转述的合唱": "nina_chorus", "卡珊卓梦中的宫廷语": "cassandra_dream", "冠钟城画像": "crown_bell_portrait" } },
     { "id": "dl8", "name": "暗线八", "title": "拾名人的资金", "truthId": "merchant_funds_namekeepers", "evidence": { "中间人的汇票": "broker_draft", "提姆的调查": "tim_investigation", "菲利克斯的账本": "felix_ledger" } },
     { "id": "dl9", "name": "暗线九", "title": "学院实验", "truthId": "academy_experiment", "evidence": { "实验记录": "experiment_records", "卡珊卓的伤痕": "cassandra_scars", "莫德歌里的笔记": "maud_song_notes", "伊娃修过的钟": "eva_bell" } }
@@ -265,7 +265,16 @@
     { "id": "project_brawl", "name": "事业里发生斗殴", "kind": "world", "about": "事业风险事件：店里打起来了" },
     { "id": "patient_influx", "name": "病人涌入互助站", "kind": "world", "about": "事业风险事件：遗忘病人一夜之间挤满互助站" },
     { "id": "project_risk_weathered", "name": "事业经受过风险", "kind": "world", "about": "一次风险事件已结算且事业没有关闭；稳定阶段的前提之一" },
-    { "id": "astrion_sealed", "name": "阿斯特里昂已封印", "kind": "world", "about": "阿斯特里昂已被封印、撕碎或从合唱中永久分离（06 D12 的否定）" }
+    { "id": "astrion_sealed", "name": "阿斯特里昂已封印", "kind": "world", "about": "阿斯特里昂已被封印、撕碎或从合唱中永久分离（06 D12 的否定）" },
+    {"id": "ulug_crosses_tomorrow", "name": "乌鲁格明日越过白石线", "kind": "knowledge"},
+    {"id": "aetherlyn_alive", "name": "艾瑟琳存活", "kind": "world"},
+    {"id": "astrion_unmasked_ember", "name": "阿斯特里昂在烬原被识破", "kind": "knowledge"},
+    {"id": "ember_crown_peace", "name": "烬原与王室已和谈", "kind": "world"},
+    {"id": "ember_peace_clock_reduced", "name": "烬原和谈时钟已减一", "kind": "world"},
+    {"id": "ember_crown_war", "name": "烬原与王室已开战", "kind": "world"},
+    {"id": "aided_ulug_march", "name": "帮乌鲁格进军", "kind": "world"},
+    {"id": "ulug_ring_entrusted", "name": "乌鲁格已托付第七骨环位置", "kind": "world"},
+    {"id": "saka_letter_intercepted", "name": "密信被截获", "kind": "world"}
   ],
   "variables": {
     "地点": { "id": "location", "type": "place", "about": "地区，或 地区·具体地点" },
