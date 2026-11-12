@@ -244,7 +244,8 @@
     { "id": "crown_bell_engine", "name": "冠钟", "states": { "未启用": "idle", "已启用": "active", "已毁": "destroyed" }, "initial": "idle" },
     { "id": "aid_station", "name": "互助站", "about": "首版玩家事业（12 第 6.3 节）：player_project_* 的阶段，kind=sanctuary，运转时发 civic_service_operational", "states": { "未设立": "none", "构想": "idea", "已创办": "founded", "运转": "operational", "稳定": "stable", "已关闭": "closed" }, "initial": "none" },
     { "id": "party_tavern", "name": "自家酒馆", "aliases": ["队伍的酒馆"], "about": "首版玩家事业（12 第 6.3 节）：player_project_* 的阶段，kind=tavern，运转时发 business_operational", "states": { "未设立": "none", "构想": "idea", "已创办": "founded", "运转": "operational", "稳定": "stable", "已关闭": "closed" }, "initial": "none" },
-    {"id": "rock_bell_status", "name": "岩钟城", "states": {"未处置": "unresolved", "封井": "sealed"}, "initial": "unresolved"}
+    {"id": "rock_bell_status", "name": "岩钟城", "states": {"未处置": "unresolved", "封井": "sealed"}, "initial": "unresolved"},
+    {"id": "seventh_sound", "name": "第七声", "states": {"已响起": "rung", "未响起": "held", "永不再响": "destroyed", "未知": "unknown"}, "initial": "unknown"}
   ],
   "facts": [
     { "id": "red_cord_clasp", "name": "红绳铜扣", "kind": "knowledge", "about": "红绳病人的结都带同一种铜扣" },
@@ -339,7 +340,14 @@
     {"id": "marcus_repulsed", "name": "马库斯被击退", "kind": "world"},
     {"id": "mist_heart_party", "name": "雾钟城钟心归队伍", "kind": "world"},
     {"id": "silent_sea_repulse_clock_reduced", "name": "沉默海击退时钟已减一", "kind": "world"},
-    {"id": "nameless_sea_route_open", "name": "空名之城海路已开", "kind": "world"}
+    {"id": "nameless_sea_route_open", "name": "空名之城海路已开", "kind": "world"},
+    {"id": "square_name_restores_person", "name": "广场名字唤回个体", "kind": "knowledge"},
+    {"id": "astrion_offer", "name": "阿斯特里昂的交易", "kind": "knowledge"},
+    {"id": "cyrus_grave_found", "name": "赛勒斯的墓碑已找到", "kind": "world"},
+    {"id": "cyrus_reclaimed_name", "name": "赛勒斯已取回真名", "kind": "world"},
+    {"id": "cyrus_true_name_known", "name": "赛勒斯真名已知", "kind": "knowledge"},
+    {"id": "evelyn_remembers_gareth", "name": "伊芙琳记起加雷斯", "kind": "world"},
+    {"id": "astrion_disguised", "name": "阿斯特里昂伪装中", "kind": "world"}
   ],
   "variables": {
     "地点": { "id": "location", "type": "place", "about": "地区，或 地区·具体地点" },
@@ -378,7 +386,8 @@
     "party": ["受伤", "疲惫", "补给少", "刚战斗", "刚交易", "被追捕", "有人遗忘症状", "同伴争执", "战斗中"],
     "intent": ["调查", "交谈", "潜行", "战斗", "交易", "欺骗", "帮助", "仪式", "休息", "记录", "离开", "其他"],
     "emotion": ["谨慎", "鲁莽", "温柔", "愤怒", "悲伤", "幽默"],
-    "progress": ["全面危机", "场景结束", "时钟升格后", "旅途末段", "完成核心冒险", "未完成核心冒险", "进入第四幕", "首次见面", "柯德里克被提起"]
+    "progress": ["全面危机", "场景结束", "时钟升格后", "旅途末段", "完成核心冒险", "未完成核心冒险", "进入第四幕", "首次见面", "柯德里克被提起"],
+    "progress": ["全面危机", "场景结束", "时钟升格后", "旅途末段", "完成核心冒险", "未完成核心冒险", "进入第四幕", "首次见面", "说出一个具体的名字", "R6 最后一轮开始", "结局生成前", "D15 候选", "D19 候选"]
   },
   "interactions": ["memory-assembly", "resonance", "mechanism", "evidence", "dialogue-gesture", "crisis-action"],
   "textKinds": ["ENV", "SCN", "BEAT", "DLG", "BRG", "TRV", "RST", "CLK", "END"],
