@@ -77,7 +77,8 @@
     { "id": "seventh_door", "name": "第七道门", "region": "nameless_city", "kind": "finale" },
     { "id": "gh_black_market", "name": "登记令下的黑市", "region": "gray_harbor", "kind": "side" },
     { "id": "gh_name_list", "name": "低潮街的名单", "region": "gray_harbor", "kind": "side" },
-    { "id": "gh_tower_banquet", "name": "铜塔的晚宴", "region": "gray_harbor", "kind": "side" }
+    { "id": "gh_tower_banquet", "name": "铜塔的晚宴", "region": "gray_harbor", "kind": "side" },
+    {"id": "kv_tournament", "name": "比武场支线", "region": "kalvis", "kind": "side"}
   ],
   "npcs": [
     { "id": "nameless_chorus", "name": "空名者（合唱）", "aliases": ["合唱"], "tier": "S", "faction": "the_nameless" },
@@ -98,7 +99,7 @@
     { "id": "roland", "name": "罗兰·凯斯", "aliases": ["罗兰"], "tier": "B", "region": "bell_valley" },
     { "id": "borin", "name": "博林·铁砧", "aliases": ["博林"], "tier": "B", "region": "whitestone" },
     { "id": "cassandra", "name": "卡珊卓", "aliases": [], "tier": "B", "faction": "star_academy", "region": "bell_valley" },
-    { "id": "saka", "name": "萨卡·赤牙", "aliases": ["萨卡"], "tier": "B", "faction": "ember_tribes", "region": "ember_plains" },
+    {"id": "saka", "name": "萨卡·赤牙", "aliases": ["萨卡", "萨卡·赤牙（在王国）"], "tier": "B", "faction": "ember_tribes", "region": "ember_plains"},
     { "id": "felix", "name": "菲利克斯“银舌”", "aliases": ["菲利克斯", "菲利克斯·银舌"], "tier": "B", "faction": "copper_guild", "region": "gray_harbor" },
     { "id": "oswald", "name": "奥斯瓦尔德四世", "aliases": ["奥斯瓦尔德", "国王", "老国王"], "tier": "B", "faction": "kalvis_crown", "region": "kalvis" },
     { "id": "marcus", "name": "马库斯·霜钟", "aliases": ["马库斯"], "tier": "B", "faction": "bellkeepers" },
@@ -148,7 +149,8 @@
     { "id": "silverleaf_council", "name": "银叶长老会", "aliases": ["长老会"], "leader": "vyaser" },
     { "id": "ember_tribes", "name": "烬原部族", "aliases": [], "leader": "ulug" },
     { "id": "mistsail", "name": "雾帆船团", "aliases": ["雾帆"], "leader": "lys" },
-    { "id": "the_nameless", "name": "空名者", "aliases": [], "leader": "nameless_chorus" }
+    { "id": "the_nameless", "name": "空名者", "aliases": [], "leader": "nameless_chorus" },
+    {"id": "kalvis_church", "name": "王国教会", "aliases": []}
   ],
   "factionStates": {
     "默认": "default",
@@ -163,7 +165,7 @@
     { "id": "dl4", "name": "暗线四", "title": "伊芙琳与加雷斯", "truthId": "evelyn_and_gareth", "evidence": { "加雷斯的旧纸条": "gareth_note", "伊芙琳本子上的字母G": "evelyn_letter_g", "赛勒斯的承认": "cyrus_admits" } },
     { "id": "dl5", "name": "暗线五", "title": "银叶之誓", "truthId": "silverleaf_oath", "evidence": { "叶钟城树根中的记忆": "leaf_bell_root_memory", "艾尔文偷出的长老会卷轴": "elwin_scroll", "赛勒斯的承认": "cyrus_admits" } },
     { "id": "dl6", "name": "暗线六", "title": "烬原史诗", "truthId": "ember_epic", "evidence": { "乌鲁格的完整史诗": "ulug_epic", "冠钟城的铸钟记录": "crown_bell_casting_record", "格里姆船长的回忆": "grim_memory" } },
-    { "id": "dl7", "name": "暗线七", "title": "空名者的分裂", "truthId": "nameless_split", "evidence": { "薇娅瑟认出声音": "vyaser_recognizes", "妮娜转述的合唱": "nina_chorus", "卡珊卓梦中的宫廷语": "cassandra_dream", "冠钟城画像": "crown_bell_portrait" } },
+    {"id": "dl7", "name": "暗线七", "title": "空名者的分裂", "truthId": "nameless_split", "evidence": {"薇娅瑟认出声音": "vyaser_recognizes", "妮娜转述的合唱": "nina_chorus", "卡珊卓梦中的宫廷语": "cassandra_dream", "冠钟城画像": "crown_bell_portrait", "老国王的钟下回忆": "oswald_bell_memory"}},
     { "id": "dl8", "name": "暗线八", "title": "拾名人的资金", "truthId": "merchant_funds_namekeepers", "evidence": { "中间人的汇票": "broker_draft", "提姆的调查": "tim_investigation", "菲利克斯的账本": "felix_ledger" } },
     { "id": "dl9", "name": "暗线九", "title": "学院实验", "truthId": "academy_experiment", "evidence": { "实验记录": "experiment_records", "卡珊卓的伤痕": "cassandra_scars", "莫德歌里的笔记": "maud_song_notes", "伊娃修过的钟": "eva_bell" } }
   ],
@@ -265,7 +267,15 @@
     { "id": "project_brawl", "name": "事业里发生斗殴", "kind": "world", "about": "事业风险事件：店里打起来了" },
     { "id": "patient_influx", "name": "病人涌入互助站", "kind": "world", "about": "事业风险事件：遗忘病人一夜之间挤满互助站" },
     { "id": "project_risk_weathered", "name": "事业经受过风险", "kind": "world", "about": "一次风险事件已结算且事业没有关闭；稳定阶段的前提之一" },
-    { "id": "astrion_sealed", "name": "阿斯特里昂已封印", "kind": "world", "about": "阿斯特里昂已被封印、撕碎或从合唱中永久分离（06 D12 的否定）" }
+    { "id": "astrion_sealed", "name": "阿斯特里昂已封印", "kind": "world", "about": "阿斯特里昂已被封印、撕碎或从合唱中永久分离（06 D12 的否定）" },
+    {"id": "princess_ribbon", "name": "公主的丝带", "kind": "knowledge"},
+    {"id": "cathedral_side_door", "name": "教堂侧门", "kind": "knowledge"},
+    {"id": "crown_bell_voice", "name": "钟下的声音", "kind": "knowledge"},
+    {"id": "princess_diary", "name": "公主日记", "kind": "knowledge"},
+    {"id": "crown_bell_heart_party", "name": "冠钟城钟心归队伍", "kind": "world"},
+    {"id": "crown_bell_silent", "name": "冠钟城沉寂", "kind": "world"},
+    {"id": "evelyn_gareth_reunion", "name": "伊芙琳与加雷斯重逢", "kind": "world"},
+    {"id": "astrion_unmasked_kalvis", "name": "阿斯特里昂在卡尔维斯被识破", "kind": "knowledge"}
   ],
   "variables": {
     "地点": { "id": "location", "type": "place", "about": "地区，或 地区·具体地点" },
