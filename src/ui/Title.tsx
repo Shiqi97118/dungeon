@@ -21,17 +21,17 @@ export default function Title({ hasSave, onNew, onResume, onSettings, muted, onM
   }
   return (
     <div className="title-screen">
-      <div className="title-bg" style={{ backgroundImage: 'url(art/gate.jpg)' }} />
+      <div className="title-bg" style={{ backgroundImage: 'url(art/story/GH-01.jpg)' }} />
       <div className="title-vignette" />
       <Atmosphere mode="rain" />
       <div className="title-content">
-        <div className="title-kicker">一场原创的地下城跑团 · AI 主持</div>
-        <h1 className="title-main" onClick={ring} data-echo="回声井">回声井</h1>
-        <div className="title-sub">第 七 道 门</div>
+        <div className="title-kicker">一场原创的文字跑团 · AI 主持</div>
+        <h1 className="title-main" onClick={ring} data-echo="伊瑟兰">伊瑟兰</h1>
+        <div className="title-sub">灰 港</div>
         <p className="title-tag">
-          测绘队进入白砾矿场已经四天。昨夜，矿井深处传来队长自己的声音：
+          第六声之后，全大陆都在等第七声。
           <br />
-          <em>“不要沿着我们留下的路回来。”</em>
+          <em>今夜的灰港下着暴雨。七灯酒馆里，七盏灯只亮了六盏。</em>
         </p>
         <div className="title-buttons">
           <button className="btn primary big" onClick={() => { sound.init(); sound.bell(293.66, 0.25); onNew() }}>单人冒险</button>
@@ -44,7 +44,7 @@ export default function Title({ hasSave, onNew, onResume, onSettings, muted, onM
           <span>·</span>
           <button className="link" onClick={onMute}>声音：{muted ? '关' : '开'}</button>
         </div>
-        <div className="title-foot">2d6 轻量规则 · 1–4 名角色 · 单人或 2–6 人联机 · 回合制 · 多结局</div>
+        <div className="title-foot">2d6 轻量规则 · 1–4 名角色 · 单人或联机 · 可回退 · 世界随你倾斜</div>
       </div>
     </div>
   )

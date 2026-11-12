@@ -43,7 +43,7 @@ export default function InteractionDemo({ template }: { template: 'evidence' | '
   return (
     <div className="rd-demo ix-demo">
       <header className="topbar">
-        <div className="brand">回声井<small>互动演示</small></div>
+        <div className="brand">伊瑟兰<small>互动演示</small></div>
         <span className="dim small">{def.textId} · {def.template}</span>
       </header>
       <main className="ix-demo-main">

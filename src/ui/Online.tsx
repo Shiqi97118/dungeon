@@ -23,7 +23,7 @@ export function OnlineEntry({ info, initialCode, busy, error, onCreate, onJoin, 
 
   return (
     <div className="setup-screen">
-      <div className="title-bg dim" style={{ backgroundImage: 'url(art/camp.jpg)' }} />
+      <div className="title-bg dim" style={{ backgroundImage: 'url(art/story/GH-01.jpg)' }} />
       <Atmosphere mode="rain" />
       <div className="setup-wrap narrow">
         <div className="panel setup-panel fade-in online-panel">

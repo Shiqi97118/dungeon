@@ -12,7 +12,7 @@ export default function ReadingDemo() {
   return (
     <div className="rd-demo">
       <header className="topbar">
-        <div className="brand">回声井<small>阅读演示</small></div>
+        <div className="brand">伊瑟兰<small>阅读演示</small></div>
         <span className="dim small">{b.title}</span>
       </header>
       <main className="rd-layout">

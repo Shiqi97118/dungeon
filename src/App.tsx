@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
 import { sound } from './audio/sound'
-import { aiReady, loadAiConfig, saveAiConfig, type AiConfig } from './game/ai'
 import { api, loadSeat, saveSeat, serverInfo, type Seat, type ServerInfo } from './net/api'
 import { useRoom } from './net/useRoom'
 import Title from './ui/Title'
@@ -11,7 +10,7 @@ import JourneySetup from './ui/journey/JourneySetup'
 import { RoomJourney, RoomLobby } from './ui/journey/Room'
 import { loadTable, openTable, soloMember, type Table } from './iselan/play'
 import { proxyModels } from './net/iselanGm'
-import { customModels } from './net/customAi'
+import { aiReady, customModels, loadAiConfig, saveAiConfig, type AiConfig } from './net/customAi'
 import { OUTDATED_SAVE_ACTION } from './iselan/save'
 
 /** Saves from the earlier chapter; only their presence matters now (A12). */

@@ -5,10 +5,6 @@ import { handleGm } from './gmProxy.js'
 import { HttpError } from './http.js'
 import { NANO_YUAN, costNano, estimateNano } from './iselanCost.js'
 import { iselanModel, iselanModelId, setIselanModel, usageOf, type IselanModel } from './iselanTurn.js'
-import { meteredGm, serverGm } from './gm.js'
-import { newGame } from '../src/game/engine.js'
-import { PREGENS, makeCharacter } from '../src/game/data/characters.js'
-import { promptTokens } from '../src/game/ai.js'
 import { anonymousViewer, setPlatform } from './platform.js'
 import { MemoryProfileStore } from './profileStore.js'
 import { sqliteD1 } from './sqliteD1.js'
@@ -204,35 +200,6 @@ describe('供应商回包', () => {
         await expect(guarded(b, input(), async () => { await model({ system: 's', content: 'c', maxTokens: 10 }); return r })).rejects.toThrow(String(status))
       }
       expect(await b.total(bucket)).toBe(estimateNano('deepseek-flash', 'turn', new Date(PEAK)))
-    } finally {
-      globalThis.fetch = realFetch
-      process.env = saved
-    }
-  })
-})
-
-describe('旧版主持人', () => {
-  it('goes through the ledger, sized from the real prompt, and refuses an oversized save', async () => {
-    const saved = { ...process.env }
-    const realFetch = globalThis.fetch
-    process.env.OPENAI_API_KEY = 'sk-test-not-a-real-key'
-    process.env.GM_BASE_URL = 'https://api.deepseek.com'
-    let calls = 0
-    globalThis.fetch = (async () => {
-      calls++
-      return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ narration: '好。', roll: null }) } }] }), { status: 200 })
-    }) as typeof fetch
-    const b = new MemoryBudgetStore()
-    try {
-      const gm = meteredGm(serverGm()!, b, 'production')
-      const s = newGame(PREGENS.slice(0, 2).map(makeCharacter), { softMemory: false, softTrapped: false })
-      await gm.propose(s, '看看')
-      expect(calls).toBe(1)
-      const spent = await b.total(bucketOf('production', Date.now()))
-      expect(spent).toBe(estimateNano('deepseek-flash', 'turn', new Date(), promptTokens(s, '看看')))
-      const huge = { ...s, party: s.party.map((c) => ({ ...c, motive: '长'.repeat(20_000) })) }
-      await expect(gm.propose(huge, '看看')).rejects.toMatchObject({ status: 413 })
-      expect(calls).toBe(1)
     } finally {
       globalThis.fetch = realFetch
       process.env = saved

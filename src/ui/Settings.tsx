@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { AI_PRESETS, aiTest, type AiConfig } from '../game/ai'
+import { AI_PRESETS, aiTest, type AiConfig } from '../net/customAi'
 
 interface Props {
   config: AiConfig

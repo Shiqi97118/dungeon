@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { gmEndpoint } from './gm.js'
+import { gmEndpoint } from './provider.js'
 
 const DEEPSEEK = 'https://api.deepseek.com'
 

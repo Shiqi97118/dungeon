@@ -6,6 +6,7 @@ export type Stat = 'str' | 'dex' | 'ins' | 'soc'
 
 export const STAT_OF_SKILL: Readonly<Record<string, Stat>> = { 强韧: 'str', 灵巧: 'dex', 洞察: 'ins', 交涉: 'soc' }
 export const SKILL_OF_STAT: Readonly<Record<Stat, string>> = { str: '强韧', dex: '灵巧', ins: '洞察', soc: '交涉' }
+export const STAT_ORDER: readonly Stat[] = ['str', 'dex', 'ins', 'soc']
 
 const STAT_OF_INTENT: Readonly<Partial<Record<IntentTag, Stat>>> = {
   战斗: 'str', 潜行: 'dex', 交谈: 'soc', 交易: 'soc', 欺骗: 'soc', 帮助: 'soc', 调查: 'ins', 记录: 'ins', 仪式: 'ins',

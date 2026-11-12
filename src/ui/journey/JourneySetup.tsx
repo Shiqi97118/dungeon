@@ -1,8 +1,7 @@
 import { useState } from 'react'
 import type { OpeningHookId } from '../../iselan/data'
-import { PREGENS, type Pregen } from '../../iselan/play'
+import { PREGENS, SKILL_OF_STAT, STAT_ORDER, type Pregen } from '../../iselan/play'
 import { sound } from '../../audio/sound'
-import { STAT_NAMES, STAT_ORDER } from '../../game/types'
 import { HOOKS } from './view'
 
 const sign = (n: number) => (n > 0 ? `+${n}` : String(n))
@@ -38,7 +37,7 @@ export default function JourneySetup({ onStart, onBack }: { onStart: (p: Pregen,
             <p><b>{chosen.name}</b> · {chosen.title}</p>
             <p className="small">{chosen.hook}</p>
             <p className="small dim">随身带着：{chosen.memento}</p>
-            <p className="small">{STAT_ORDER.map((k) => `${STAT_NAMES[k]} ${sign(chosen.stats[k])}`).join('　')}</p>
+            <p className="small">{STAT_ORDER.map((k) => `${SKILL_OF_STAT[k]} ${sign(chosen.stats[k])}`).join('　')}</p>
           </div>
 
           <h3>是什么把你带到这里</h3>

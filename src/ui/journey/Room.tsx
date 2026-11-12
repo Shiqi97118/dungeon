@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { sound } from '../../audio/sound'
-import { STAT_NAMES, STAT_ORDER } from '../../game/types'
 import { InteractionRejected } from '../../iselan/interaction'
-import { PREGENS, unpackTable, type Table } from '../../iselan/play'
+import { PREGENS, SKILL_OF_STAT, STAT_ORDER, unpackTable, type Table } from '../../iselan/play'
 import { ApiError, api, type RoomView, type Seat } from '../../net/api'
 import { profileApi } from '../../net/profile'
 import { isOnline, type RoomConn } from '../../net/useRoom'
@@ -78,7 +77,7 @@ export function RoomLobby({ room, seat, conn, busy, error, op, onLeave }: {
                 >
                   <b>{g.name}</b><small>{g.title}</small>
                   <span className="dim small">{g.motive}</span>
-                  <span className="small">{STAT_ORDER.map((k) => `${STAT_NAMES[k]} ${sign(g.stats[k])}`).join(' ')}</span>
+                  <span className="small">{STAT_ORDER.map((k) => `${SKILL_OF_STAT[k]} ${sign(g.stats[k])}`).join(' ')}</span>
                   <span className="small dim">{owner ? (mine ? '你扮演这名角色 · 点击放弃' : `${owner.name} 已选`) : '点击选择'}</span>
                 </button>
               )
