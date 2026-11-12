@@ -5,6 +5,7 @@ import { attitudeOf, relationOf } from './conditions'
 import { directionDraft } from './directions'
 import { hungerDraft } from './hunger'
 import { preview } from './settle'
+import { stagedDrafts } from './staged'
 
 const RANGE = 3
 const clamp = (n: number) => Math.max(-RANGE, Math.min(RANGE, n))
@@ -30,6 +31,7 @@ export function outcomeDrafts(s: Snapshot, arcId: ArcId, outcomes: readonly Outc
     if (t.kind !== 'BEAT' || !t.requires) continue
     if (!varEq(t.requires, 'arc').includes(arcId)) continue
     if (!varEq(t.requires, 'outcome').some((o) => outcomes.includes(o as OutcomeId))) continue
+    for (const d of stagedDrafts(cur, t.effects ?? [], t.id)) push(d)
     for (const e of t.effects ?? []) {
       if (e.phase !== 'before' || !('delta' in e)) continue
       if ('direction' in e) push(directionDraft(cur, e.direction, e.delta))

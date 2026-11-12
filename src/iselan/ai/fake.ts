@@ -9,6 +9,8 @@ export interface FakeModelOptions {
   readonly script?: readonly string[]
   /** Probability per turn of one proposal with an id outside the allowlist, to exercise clipping. */
   readonly strayRate?: number
+  /** Probability per first call that the reply asks only for a check. */
+  readonly checkRate?: number
   /** Called with every response, as the server would write its receipt. */
   readonly onResponse?: (r: AiResponse) => void | Promise<void>
 }
@@ -21,6 +23,15 @@ function generate(seq: number, content: string, allow: Allowlist, o: FakeModelOp
   const actor = content.match(/【当前行动者】\n(.*?)（/)?.[1] ?? '你'
   const any = <T,>(xs: readonly T[]) => xs[Math.floor(rng() * xs.length)]
   const proposals: Record<string, unknown>[] = []
+  if (!content.includes('【检定结果】') && rng() < (o.checkRate ?? 0)) {
+    return JSON.stringify({
+      narration: `${actor}准备动手：${intent.slice(0, 40)}。成败还悬在半空，周围的人屏住了呼吸，雨声里只听得见自己的心跳。这一步走出去，就再难收回。`,
+      intents: guessIntents(intent),
+      emotion: any(EMOTIONS),
+      suggestions: ['先看清局势再说', '找人帮一把', '换一种出人意料的做法'],
+      proposals: [{ kind: 'check', skill: any(['强韧', '灵巧', '洞察', '交涉']), difficulty: 12, reason: '结果不确定' }],
+    })
+  }
   if (allow.npcs.length) {
     const npc = any(allow.npcs)
     proposals.push({ kind: 'attitude', npcId: npc, delta: rng() < 0.2 ? 5 : rng() < 0.6 ? 1 : -1, reason: '对这次行动的反应' })

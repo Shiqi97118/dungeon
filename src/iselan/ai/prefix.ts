@@ -49,8 +49,8 @@ export const FIXED_PREFIX = `你是原创奇幻世界《伊瑟兰》的 AI 主�
     { "kind": "project", "projectId": "事业编号", "stage": "idea|founded|closed", "projectKind": "tavern|guild|caravan|sanctuary|home|custom", "contactId": "人物编号" },
     { "kind": "direction", "directionId": "方向编号", "delta": 1, "reason": "……" },
     { "kind": "place", "name": "地点名", "regionId": "地区编号" },
-    { "kind": "check", "skill": "检定的能力", "difficulty": 12, "reason": "为什么结果不确定" },
+    { "kind": "check", "skill": "强韧|灵巧|洞察|交涉", "difficulty": 12, "reason": "为什么结果不确定" },
     { "kind": "consent", "actorId": "角色编号", "consequence": "death|memory_loss|stay_behind|other", "detail": "可能的永久后果" }
   ]
 }
-态度与关系的变化每次通常为 ±1，重大事件可到 ±2（attitude 加 "major": true）；方向倾向每次 ±1 或 ±2。需要检定时只提出 check，结果由程序掷骰后再叙述，此时叙述只写行动的准备和局势。`
+态度与关系的变化每次通常为 ±1，重大事件可到 ±2（attitude 加 "major": true）；方向倾向每次 ±1 或 ±2。需要检定时只提出 check，结果由程序掷骰后再叙述，此时叙述只写准备和局势；收到【检定结果】后按结果叙述，不再提 check。`

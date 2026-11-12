@@ -34,7 +34,25 @@ export interface TurnInput {
   readonly storyLines?: readonly string[]
   /** Narrows or widens the default allowlist. */
   readonly allow?: Partial<Allowlist>
+  /** Set on the second call of a checked action: the roll the narration must follow. */
+  readonly check?: CheckOutcome
 }
+
+export interface CheckOutcome {
+  readonly skill: string
+  readonly difficulty: number
+  readonly reason: string
+  readonly dice: readonly [number, number]
+  readonly total: number
+  readonly tier: 'hit' | 'partial' | 'miss'
+}
+
+const TIER_TEXT: Readonly<Record<CheckOutcome['tier'], string>> = { hit: '成功', partial: '成功但有代价', miss: '失利，局势变糟' }
+
+const checkLines = (c: CheckOutcome) => [
+  `${c.skill}，难度 ${c.difficulty}（${c.reason}）：掷出 ${c.dice[0]}+${c.dice[1]}，合计 ${c.total}，${TIER_TEXT[c.tier]}`,
+  '按这个结果叙述行动的结局并提出相应变化，不要再提出 check',
+]
 
 export interface TurnContext {
   readonly content: string
@@ -150,6 +168,7 @@ export function buildTurnContext(s: Snapshot, input: TurnInput): TurnContext {
     { title: '允许的编号（清单外一律无效）', priority: 95, required: true, dropFrom: 'end', lines: allowLines(allow) },
     { title: '当前行动者', priority: 100, required: true, dropFrom: 'end', lines: [`${input.actorName}（${input.actorId}）`] },
     { title: '玩家意图原文', priority: 100, required: true, dropFrom: 'end', lines: [input.text.slice(0, 200)] },
+    { title: '检定结果', priority: 100, required: true, dropFrom: 'end', lines: input.check ? checkLines(input.check) : [] },
   ]
 
   const render = () => sections.filter((x) => x.lines.length).map((x) => `【${x.title}】\n${x.lines.join('\n')}`).join('\n')
