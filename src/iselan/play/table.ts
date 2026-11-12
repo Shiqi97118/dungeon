@@ -39,6 +39,8 @@ export interface Screen {
   readonly title?: string
   readonly images?: readonly string[]
   readonly actorId?: string
+  /** 09 §3.3a: which part of a scene change this screen is. */
+  readonly part?: 'closing' | 'transition' | 'arrival'
 }
 
 export type Pending =
@@ -117,11 +119,13 @@ class Builder {
   readonly base: Snapshot
   readonly prefix: string
   readonly actorName: string
+  readonly memento: string | undefined
 
-  constructor(base: Snapshot, prefix: string, actorName: string) {
+  constructor(base: Snapshot, prefix: string, actorName: string, memento?: string) {
     this.base = base
     this.prefix = prefix
     this.actorName = actorName
+    this.memento = memento
     this.cur = base
   }
 
@@ -137,8 +141,8 @@ class Builder {
   }
 
   /** Puts a pick on screen and writes what showing it settles. */
-  show(pick: TextPick, ctx: SceneContext) {
-    const values = placeholderValues(this.cur, { 角色: this.actorName })
+  show(pick: TextPick, ctx: SceneContext, part?: Screen['part']) {
+    const values = placeholderValues(this.cur, { 角色: this.actorName, 纪念物: this.memento })
     const paragraphs = pick.paragraphs.map((p) => {
       const f = fillPlaceholders(p, values)
       if (f.missing.length) this.gaps.push(`${pick.unit.id}：占位符没有值 ${f.missing.join('、')}`)
@@ -150,7 +154,7 @@ class Builder {
     const extra = beat && !this.cur.arcs[beat.arc]?.beats.includes(beat.beat) && !r.drafts.some((d) => d.type === 'arc_beat_reached')
       ? [draft('arc_beat_reached', { arcId: beat.arc, beat: beat.beat })] : []
     this.add([...r.drafts, ...extra])
-    this.screen('text', paragraphs, { textId: pick.unit.id, title: pick.unit.entry.title, images: pick.images })
+    this.screen('text', paragraphs, { textId: pick.unit.id, title: pick.unit.entry.title, images: pick.images, ...(part ? { part } : {}) })
   }
 
   pick(sel: { pick: TextPick | null; gap: { reason: string; kinds: readonly string[] } | null }, ctx: SceneContext): TextPick | null {
@@ -258,7 +262,7 @@ function finishIntent(t: Table, b: Builder, intentId: string, o: TableOptions, e
   const next = commit(t, intentId, settled.drafts, o)
   const before = b.base
   const after = preview(before, settled.drafts)
-  const tail = new Builder(after, `${intentId}+`, b.actorName)
+  const tail = new Builder(after, `${intentId}+`, b.actorName, b.memento)
   ruleTexts(tail, settled.texts)
   actBridge(tail, before)
   let out: Table = { ...next, ...extra, screens: [...t.screens, ...b.screens], gaps: [...t.gaps, ...b.gaps, ...(extra.gaps ?? [])] }
@@ -295,7 +299,7 @@ export function openTable(input: OpenInput, o: TableOptions = {}): Table {
   let s = preview(snapshotOf(t0), opening)
   const round = startRound(s, 1)
   s = preview(s, round.drafts)
-  const b = new Builder(s, 'open', input.party[0]?.name ?? '')
+  const b = new Builder(s, 'open', input.party[0]?.name ?? '', input.party[0]?.memento)
   b.add([
     draft('first_hook_taken', { regionId: 'gray_harbor', hookId: input.openingHook }),
     draft('region_visited', { regionId: 'gray_harbor', isOutsideStart: false, visitIndex: 1 }),
@@ -346,7 +350,7 @@ async function settleTurn(t: Table, m: Member, r: TurnResult, ctx: SceneContext,
   let tt = t
   let intentId = r.intentId
   if (!intentId) ({ id: intentId, t: tt } = nextId(t, 'act'))
-  const b = new Builder(s, intentId, m.name)
+  const b = new Builder(s, intentId, m.name, m.memento)
   b.screens.push(...before)
   b.screen('narration', narrationScreen(r), { actorId: m.actorId })
   b.add(r.drafts)
@@ -409,14 +413,14 @@ export function move(t0: Table, placeId: PlaceId, o: TableOptions = {}): Table {
   const s = snapshotOf(t)
   const from = s.location?.placeId
   const { id, t: tt } = nextId(t, 'move')
-  const b = new Builder(s, id, m.name)
+  const b = new Builder(s, id, m.name, m.memento)
   const moved = [draft('location_changed', { regionId: 'gray_harbor', placeId })]
   b.add(moved)
   const arrival = sceneContext(b.cur)
   const change = sceneChange(b.cur, { closing: [`${m.name}离开了${from ? placeName(from) : '原处'}，身后的声音一点点落远。`], travel: false, arrival })
-  b.screen('narration', change.closing)
-  if (change.transition) b.show(change.transition, arrival)
-  if (change.arrival) b.show(change.arrival, arrival)
+  b.screen('narration', change.closing, { part: 'closing' })
+  if (change.transition) b.show(change.transition, arrival, 'transition')
+  if (change.arrival) b.show(change.arrival, arrival, 'arrival')
   b.gaps.push(...change.problems.filter((x) => x !== '缺少收尾').map((x) => `换场：${x}`))
   meetings(b, arrival)
   const pending = storyBeats(b, arrival, m.seatId)
@@ -456,7 +460,7 @@ export function resolveArc(t0: Table, outcomes: readonly OutcomeId[], o: TableOp
   const m = currentMember(t)
   const { id, t: tt } = nextId(t, 'resolve')
   const resolved = withConsequences(s, [draft('core_arc_resolved', { arcId: 'gray_well', outcomes: [...outcomes] })])
-  const b = new Builder(s, id, m.name)
+  const b = new Builder(s, id, m.name, m.memento)
   b.add(resolved.drafts)
   const ctx = sceneContext(b.cur, { vars: { outcome: outcomes[0] } })
   b.pick(selectFor(b.cur, 'beat', { ctx }), ctx)
@@ -498,8 +502,8 @@ export function chooseEnding(t: Table, directionId: DirectionId, secondary: Dire
 export const rewindVoters = (t: Table): string[] =>
   Object.entries(snapshotOf(t).seats).filter(([, seat]) => seat.controller === 'human').map(([id]) => id)
 
-/** Alone at the table, a rewind needs no vote. */
-export const rewindNeedsVote = (t: Table) => rewindVoters(t).length > 1
+/** A solo run, or one player left at the table, rewinds without a vote. */
+export const rewindNeedsVote = (t: Table) => snapshotOf(t).mode !== 'solo' && rewindVoters(t).length > 1
 
 function checkpoint(t: Table, label: string): Table {
   const cp: Checkpoint = {

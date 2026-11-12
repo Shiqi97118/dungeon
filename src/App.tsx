@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Character, GameState } from './game/types'
-import { SAVE_VERSION, newGame } from './game/engine'
 import { configGm, runIntent, type Intent } from './game/session'
 import { sound } from './audio/sound'
 import { aiReady, loadAiConfig, saveAiConfig, type AiConfig } from './game/ai'
@@ -13,22 +12,17 @@ import Game, { type Control } from './ui/Game'
 import Ending from './ui/Ending'
 import Settings from './ui/Settings'
 import { Lobby, OnlineEntry } from './ui/Online'
+import Journey, { JOURNEY_KEY } from './ui/journey/Journey'
+import JourneySetup from './ui/journey/JourneySetup'
+import { loadTable, openTable, soloMember, type Table } from './iselan/play'
+import { proxyModel } from './net/iselanGm'
+import { OUTDATED_SAVE_ACTION } from './iselan/save'
 
 const SAVE_KEY = 'echo-well-save'
 const BUILTIN_KEY = 'echo-well-builtin-ai'
 
-function loadSave(): GameState | null {
-  try {
-    const raw = localStorage.getItem(SAVE_KEY)
-    if (!raw) return null
-    const s = JSON.parse(raw) as GameState
-    return s.version === SAVE_VERSION ? s : null
-  } catch {
-    return null
-  }
-}
 
-type Screen = 'title' | 'setup' | 'game' | 'online' | 'osetup' | 'room'
+type Screen = 'title' | 'setup' | 'game' | 'online' | 'osetup' | 'room' | 'journey' | 'notice'
 
 function soloControl(s: GameState | null): Control {
   const auto = new Set(s?.auto ?? [])
@@ -48,7 +42,9 @@ export default function App() {
   const [screen, setScreen] = useState<Screen>(inviteCode ? 'online' : 'title')
   const [solo, setSolo] = useState<GameState | null>(null)
   const soloRef = useRef<GameState | null>(null)
-  const [saved, setSaved] = useState<GameState | null>(() => loadSave())
+  const [journey, setJourney] = useState<Table | null>(null)
+  const [hasJourney, setHasJourney] = useState(() => !!localStorage.getItem(JOURNEY_KEY) || !!localStorage.getItem(SAVE_KEY))
+  const [notice, setNotice] = useState<string | null>(null)
   const [muted, setMuted] = useState(() => localStorage.getItem('echo-well-muted') === '1')
   const [ai, setAi] = useState<AiConfig>(() => loadAiConfig())
   const [builtin, setBuiltin] = useState(() => localStorage.getItem(BUILTIN_KEY) !== '0')
@@ -100,21 +96,48 @@ export default function App() {
     if (res.error) setErr(res.error)
   }, [ai, info, builtin])
 
-  const startSolo = (party: Character[], safety: GameState['safety'], turns: boolean, mine: string | null) => {
-    const g = newGame(party, safety, { turns })
-    setSoloState(mine ? { ...g, auto: party.filter((c) => c.id !== mine).map((c) => c.id) } : g)
+  const journeyModel = useMemo(
+    () => (journey && info?.gm && builtin ? proxyModel(journey.runId, journey.responses) : null),
+    // A new model per run (and per load) so response numbers continue from the save.
+    [journey?.runId, info?.gm, builtin],
+  )
+  const journeyLabel = info?.gm && builtin ? 'AI 主持人 · 内置' : '离线主持'
+
+  const startJourney = (pc: Parameters<typeof soloMember>[0], hook: Parameters<typeof openTable>[0]['openingHook']) => {
+    localStorage.removeItem(SAVE_KEY)
+    const runId = crypto.randomUUID()
+    setJourney(openTable({ runId, seed: runId.slice(0, 8), party: [soloMember(pc)], openingHook: hook }))
     setErr(null)
-    setScreen('game')
+    setScreen('journey')
   }
 
-  const resume = () => {
-    if (!saved) return
-    setSoloState(saved)
-    setScreen('game')
+  const resumeJourney = () => {
+    const raw = localStorage.getItem(JOURNEY_KEY)
+    if (!raw) {
+      setNotice('世界已更新，旧存档无法继续')
+      setScreen('notice')
+      return
+    }
+    const r = loadTable(raw)
+    if (r.status === 'ok') {
+      setJourney(r.table)
+      setScreen('journey')
+    } else {
+      setNotice(r.status === 'outdated' ? r.message : `存档读不出来：${r.problems.join('；')}`)
+      setScreen('notice')
+    }
+  }
+
+  const freshJourney = () => {
+    localStorage.removeItem(JOURNEY_KEY)
+    localStorage.removeItem(SAVE_KEY)
+    setHasJourney(false)
+    setNotice(null)
+    setScreen('setup')
   }
 
   const toTitle = () => {
-    setSaved(loadSave())
+    setHasJourney(!!localStorage.getItem(JOURNEY_KEY) || !!localStorage.getItem(SAVE_KEY))
     setStoredSeat(loadSeat())
     setErr(null)
     setScreen('title')
@@ -122,7 +145,6 @@ export default function App() {
 
   const restart = () => {
     localStorage.removeItem(SAVE_KEY)
-    setSaved(null)
     soloRef.current = null
     setSolo(null)
     setScreen('setup')
@@ -212,9 +234,9 @@ export default function App() {
     <>
       {screen === 'title' && (
         <Title
-          hasSave={!!saved && saved.phase === 'play'}
+          hasSave={hasJourney}
           onNew={() => setScreen('setup')}
-          onResume={resume}
+          onResume={resumeJourney}
           onSettings={() => setShowSettings(true)}
           muted={muted}
           onMute={() => setMuted(!muted)}
@@ -224,7 +246,22 @@ export default function App() {
           onRejoin={() => storedSeat && enterRoom(storedSeat)}
         />
       )}
-      {screen === 'setup' && <Setup onStart={startSolo} onBack={() => setScreen('title')} />}
+      {screen === 'setup' && <JourneySetup onStart={startJourney} onBack={() => setScreen('title')} />}
+      {screen === 'journey' && journey && <Journey key={journey.runId} initial={journey} model={journeyModel} aiLabel={journeyLabel} onQuit={toTitle} />}
+      {screen === 'notice' && (
+        <div className="setup-screen">
+          <div className="setup-wrap narrow">
+            <div className="panel setup-panel">
+              <h2>{notice}</h2>
+              <p className="lead">这一份进度来自更早的版本，没法接着玩了。已经解锁的成就仍在档案里。</p>
+              <div className="row end">
+                <button className="btn ghost" onClick={toTitle}>返回</button>
+                <button className="btn primary" onClick={freshJourney}>{OUTDATED_SAVE_ACTION}</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       {screen === 'online' && (
         <OnlineEntry
           info={info}
