@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { readerView, turnPage, type Screen } from './pages'
+import StoryAudio from './StoryAudio'
+import type { scoreFor } from '../../audio/story'
 
 const PART_LABEL = { closing: '收尾', transition: '过渡', arrival: '进入' } as const
 
@@ -26,12 +28,13 @@ const isControl = (el: EventTarget) => el instanceof HTMLElement && ['BUTTON', '
  * With `batchKey` the page starts over only when the key changes, so screens added to the
  * batch being read wait after the current page; `onAtEnd` reports whether the last is reached.
  */
-export default function Reader({ screens, fallbackImage, end, batchKey, onAtEnd }: {
+export default function Reader({ screens, fallbackImage, end, batchKey, onAtEnd, performance }: {
   screens: readonly Screen[]
   fallbackImage?: string
   end?: ReactNode
   batchKey?: string | number
   onAtEnd?: (atEnd: boolean) => void
+  performance?: { theme: ReturnType<typeof scoreFor>; muted: boolean }
 }) {
   const key = batchKey ?? screens
   const [batch, setBatch] = useState(() => key)
@@ -91,8 +94,8 @@ export default function Reader({ screens, fallbackImage, end, batchKey, onAtEnd 
   if (fallbackImage) images.push(fallbackImage)
 
   return (
-    <section className="rd-reader" ref={sectionRef} aria-label="叙述" onKeyDown={onKeyDown}>
-      <Art key={view.page} ids={images} />
+    <section className={performance ? 'rd-reader rd-performance' : 'rd-reader'} ref={sectionRef} aria-label="叙述" onKeyDown={onKeyDown}>
+      <Art key={images.join(',')} ids={images} />
       <div className="rd-screen" ref={screenRef} aria-live="polite" aria-atomic="true" tabIndex={-1}>
         {sc?.paragraphs.map((p, i) => {
           const starts = p.part && sc.paragraphs[i - 1]?.part !== p.part
@@ -111,6 +114,7 @@ export default function Reader({ screens, fallbackImage, end, batchKey, onAtEnd 
         })}
       </div>
       <div className="rd-foot">
+        {performance && <StoryAudio paragraphs={sc?.paragraphs} theme={performance.theme} muted={performance.muted} batch={batchKey ?? 0} />}
         <nav className="rd-nav" aria-label="翻页">
           <button className="btn ghost small" onClick={() => go(-1)} disabled={!view.canBack} aria-keyshortcuts="ArrowLeft">上一屏</button>
           <span className="rd-count dim small">第 {view.total ? view.page + 1 : 0} / {view.total} 屏</span>

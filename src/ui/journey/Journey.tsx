@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { sound } from '../../audio/sound'
+import { scoreFor } from '../../audio/story'
 import { CONFIG } from '../../iselan/config'
 import type { OutcomeId, PlaceId } from '../../iselan/data'
 import { recordedResult, type InteractionRequest, type InteractionResult } from '../../iselan/interaction'
@@ -282,7 +283,8 @@ export function JourneyTable({ table, send, seat, aiLabel, hasAi, record, notice
         </main>
       ) : (
         <main className="rd-layout">
-          <Reader screens={batch} batchKey={mark} onAtEnd={onAtEnd} fallbackImage="GH-01" end={end} />
+          <Reader screens={batch} batchKey={mark} onAtEnd={onAtEnd} fallbackImage="GH-01" end={end}
+            performance={{ theme: scoreFor(s.location?.placeId, !!s.ending), muted: sound.muted }} />
           <WorldPanels s={s} />
         </main>
       )}
