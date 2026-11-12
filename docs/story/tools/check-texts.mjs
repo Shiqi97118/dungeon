@@ -6,27 +6,29 @@
 //   node docs/story/tools/check-texts.mjs --all        treat every file as strict
 //   node docs/story/tools/check-texts.mjs --json out.json   also write the compiled entries
 //   node docs/story/tools/check-texts.mjs --verbose    list every problem in non-strict files too
+//   node docs/story/tools/check-texts.mjs --text-dir <dir>   read texts from another directory (tests)
 //
 // Read-only unless --json is given. No dependencies beyond Node itself.
+// `npm run texts` (build-data.mjs) runs this and turns the strict entries into game data.
 
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const STORY = join(dirname(fileURLToPath(import.meta.url)), '..')
-const TEXT_DIR = join(STORY, 'text')
+const args = process.argv.slice(2)
+const TEXT_DIR = args.includes('--text-dir') ? args[args.indexOf('--text-dir') + 1] : join(STORY, 'text')
 const vocab = JSON.parse(readFileSync(join(STORY, 'data/vocab.v1.json'), 'utf8'))
 
 // Files the 灰港 vertical slice reads. Others are reported but do not fail the run
 // until they are migrated (task CNT-02 in 13-代码代理任务书.md).
 const STRICT_FILES = ['00-通用与过渡.md', '01-灰港.md', '09-结局开篇.md']
 
-const args = process.argv.slice(2)
 const allStrict = args.includes('--all')
 const verbose = args.includes('--verbose')
 const jsonOut = args.includes('--json') ? args[args.indexOf('--json') + 1] : null
 
-const PLACEHOLDERS = new Set(['角色', '同伴', '队伍', '纪念物', '钟心数', '到访之声', '钟心去向', '收束之地'])
+const PLACEHOLDERS = new Set(vocab.placeholders)
 const OPS = ['≠', '≥', '≤', '=', '>', '<']
 const OP_ID = { '=': 'eq', '≠': 'ne', '≥': 'ge', '≤': 'le', '>': 'gt', '<': 'lt' }
 const ENTRY_FIELDS = new Set(['触发', '图', '共用', '禁止', '需知', '后置', '交互', '说明', '兜底', '行需知'])
@@ -203,7 +205,11 @@ function parseEffects(raw, ctx) {
       return { phase: 'after', evidence: ev, darkLine: dl.id }
     }
     m = x.match(/^(.+?)对(.+?)态度=(.+)$/)
-    if (m && npcs.has(m[1]) && npcs.has(m[2])) return { phase: 'before', npc: npcs.get(m[1]).id, towards: npcs.get(m[2]).id, value: int(m[3]) }
+    if (m && npcs.has(m[1]) && npcs.has(m[2])) {
+      const value = int(m[3])
+      if (value === null) throw new Problem(`态度要写整数：${x}`)
+      return { phase: 'before', npc: npcs.get(m[1]).id, towards: npcs.get(m[2]).id, value }
+    }
     m = x.match(/^([^=≠≥≤<>]+?)\s*([+−-]\d+)$/)
     if (m) {
       const key = m[1].trim(), delta = int(m[2])
@@ -322,6 +328,7 @@ for (const f of files) {
   console.log(`${problems.length ? (strict ? '✗' : '·') : '✓'} ${f}  条目 ${entries.length}，可展示段 ${lineCount}，问题 ${problems.length}${strict ? '（严格）' : '（待迁移，仅报告）'}`)
   if (problems.length && (strict || verbose)) for (const p of problems) console.log(`    ${p.file}:${p.line} ${p.id}  ${p.msg}`)
   if (strict && problems.length) failed = true
+  for (const e of entries) e.strict = strict
   all.push(...entries)
 }
 // Events and the achievement catalog must agree with the vocabulary (12 §4).

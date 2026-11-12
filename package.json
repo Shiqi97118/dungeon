@@ -4,10 +4,14 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
+    "texts": "node docs/story/tools/build-data.mjs",
+    "predev": "npm run texts",
     "dev": "vite",
+    "prebuild": "npm run texts",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
+    "pretest": "npm run texts",
     "test": "vitest run"
   },
   "dependencies": {
