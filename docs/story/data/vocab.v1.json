@@ -304,7 +304,22 @@
     {"id": "silverleaf_council_split", "name": "银叶长老会已分裂", "kind": "world"},
     {"id": "silverleaf_oath_public", "name": "银叶之誓已公开", "kind": "world"},
     {"id": "leaf_heart_party", "name": "叶钟城钟心归队伍", "kind": "world"},
-    {"id": "silverleaf_tree_withering", "name": "银叶古树开始枯萎", "kind": "world"}
+    {"id": "silverleaf_tree_withering", "name": "银叶古树开始枯萎", "kind": "world"},
+    {"id": "wick_lane_residents", "name": "灯芯巷的居民", "kind": "knowledge"},
+    {"id": "synthetic_heart_trial_held", "name": "人造钟心实验已举行", "kind": "world"},
+    {"id": "synthetic_heart_invitation", "name": "人造钟心实验邀请", "kind": "knowledge"},
+    {"id": "wick_lane_43", "name": "灯芯巷居民四十三人", "kind": "knowledge"},
+    {"id": "seraphine_pact_obtained", "name": "密约已获得", "kind": "knowledge"},
+    {"id": "cassandra_crown_shadow", "name": "卡珊卓的影子冠冕", "kind": "knowledge"},
+    {"id": "seraphine_resigned", "name": "塞拉芬已辞职", "kind": "world"},
+    {"id": "bell_valley_resolved", "name": "栖钟河谷已收束", "kind": "world"},
+    {"id": "wick_lane_names_recovered", "name": "灯芯巷的名字被取回", "kind": "world"},
+    {"id": "wick_lane_remembered", "name": "灯芯巷被记起", "kind": "world"},
+    {"id": "wick_lane_clock_reduced", "name": "栖钟抢回名字时钟已减一", "kind": "world"},
+    {"id": "cassandra_left_academy", "name": "卡珊卓离开学院", "kind": "world"},
+    {"id": "cassandra_joined", "name": "卡珊卓已随队", "kind": "world"},
+    {"id": "cassandra_knows_host", "name": "卡珊卓知晓宿主真相", "kind": "world"},
+    {"id": "archive_originals_handed_over", "name": "原件被交出", "kind": "world"}
   ],
   "variables": {
     "地点": { "id": "location", "type": "place", "about": "地区，或 地区·具体地点" },
