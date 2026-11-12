@@ -15,20 +15,17 @@ coverage: "PARTIAL"
 
 ### 停止位置 / Stopped at
 
-2026-11-11 17:00（北京时间），Cursor 已完成九张卡，都等 Codex 审核：
-- ENG-01：PR #7（cursor/eng-01-data-config-034a → feat/iselan-v1），生成类型与配置。
-- CNT-01：PR #8（基于 #7 分支），灰港两种玩家事业的 22 条文本。
-- ENG-02：PR #10（基于 #7 分支），事件账本、快照归约、存档版本 5。
-- ENG-03：PR #11（GitHub 叠在 #10 上），src/iselan/rules/ 全部规则与 40 条测试；事件 73 种。
-- ENG-04：PR #13（GitHub 叠在 #11 上），src/iselan/texts/ 文本选择器与 35 条测试，灰港 100 种子无异常。
-- ENG-07：PR #14（GitHub 叠在 #13 上），api/profile 档案接口、D1 档案表、src/net/profile.ts 与 33 条测试。
-- ENG-05：PR #15（GitHub 叠在 #14 上），src/iselan/ai/ AI 协议、api/gm 的 iselan_turn 与回执、src/net/iselanGm.ts 与 27 条测试。
-- UI-01：PR #16（叠在 #15 上），阅读节奏和四个世界面板、23 条测试与截图。
-- ACH-01：叠在 #16 上，成就目录、首版 10 项服务端判定、图鉴、解锁提示、结局页进度与 43 条测试。lint、test（284 通过）、build、check-texts、wrangler 打包预演全部通过。
+2026-11-12 08:50（北京时间）。11-11 的九张卡（PR #7、#8、#10、#11、#13、#14、#15、#16、#17）仍等 Codex 审核；WorkBuddy 的 PR #18（草稿，Windows 兼容与费用纯函数）叠在 #17 上。11-12 新增：
+- UI-01 补充：PR #19（叠在 #18 上），375×667 翻页栏越屏修复。
+- OPS：PR #21（cursor/ops-cf-previews-034a → feat/iselan-v1），修复所有分支 Cloudflare 检查失败（缺 Wrangler previews 配置块），自身检查已转绿。
+- QTE-01 第一阶段：PR #22（叠在 #19 上），evidence（GH-BEAT-04）与互动外壳，按 GPT 的 7 条复核独立实现，31 项浏览器检查通过。
+- ENG-06：cursor/eng-06-cost-guard-034a（叠在 #22 上），D1 费用账与 28 元全站上限，331 条测试通过。
 
 ### 建议下一步 / Recommended next action
 
-下一张 Cursor 卡是 ENG-06（费用守卫），从 cursor/eng-05-ai-protocol-034a 切分支：server/iselanTurn.ts 的模型调用已返回用量（含缓存命中 token），在那里记 D1 费用账并按 CONFIG.cost 拦截。ENG-06 的方案：D1 费用账按北京时间分日，调用前按最坏情况预扣，超过 28 元转离线主持，调用后按实际 token 补差；次数上限也记在同一本账里（现有 useQuota 按 UTC 换日，不能直接用）；结局用 GM_ENDING_MODEL。#7 合并后把 #8、#10 的目标改为 feat/iselan-v1，并依次变基 #10、#11、#13、#14、#15、#16 与 ACH-01。
+1. Codex 审 PR #21 并合并进 feat/iselan-v1，然后自下而上变基 #7 → … → ENG-06。ENG-06 的 worker/index.ts 会与 #21 冲突，两边都保留：没有 env.DB 时 store、profiles、budget 都为 null。
+2. QTE-01 第二阶段：dialogue-gesture（GH-SCN-09 晚宴），沿用 src/iselan/interaction/session.ts 的状态机与 src/ui/interaction/Modal.tsx；ART-02 视觉稿到了再替换账本的 CSS 占位。
+3. UI-02：把 evidence 接进 GH-BEAT-04 的真实流程（结算走 settleInteraction，跳过时按普通检定），晚宴手势同理；再走 A1–A12。
 
 ### 完成标准 / Completion criteria
 
@@ -72,17 +69,20 @@ coverage: "PARTIAL"
 
 ### 未决问题 / Open questions
 
-- PR #7、#8、#10、#11、#13、#14、#15、#16 与 ACH-01 的 PR 待 Codex 审核（用户回家后）。
-- 看板待决问题 3 已解决（新增提姆两句台词待 Codex 审）；4 的判定已解决，UI-02 要按看板写的两条接入（只传在座者、文本后置与行动同一次提交）。
-- ENG-05 的取舍待审核：回执只担保 AI 原文，不担保本地规则结算；日志里每个 ai: 意图都必须有回应。
-- ENG-07 的两处取舍待审核：全程离线主持的单人局记为“未验证”；Node 托管上档案返回 503（只在 Cloudflare 与本机开发可用）。
-- ENG-04 的两处取舍待审核：没有软标签的条目只看必；用兜底条目也记缺口。见修改日志“Cursor · ENG-04”。
-- 全面危机文本节奏（第 2 轮 12B，第 4 轮起每 2 轮 X1–X6）等细节待试玩校准，见修改日志“Cursor · ENG-03”。
+- 11-11 九张卡与 11-12 的 PR #19、#21、#22、ENG-06 都待 Codex 审核。
+- 看板待决问题 5（待用户）：价格表只有两种 DeepSeek 模型，正式环境若用 xAI / OpenRouter 密钥，ENG-06 之后 AI 主持回 503。
+- 看板待决问题 6：PR #21 合并后其余分支的 Cloudflare 检查才会转绿。
+- QTE-01 的取舍待审核：requestId 即账本意图编号；结果未知时只许同请求重试，玩家不能改选；跳过给出普通检定（洞察 12），检定本身由 UI-02 接骰子流程。
+- ENG-06 的取舍待审核：只有供应商明确返回错误状态才释放预占；旧版主持不报用量，按预估入账；部署的 Node 托管没有共享账，iselan_turn 回 503。
+- 之前的 ENG-04、ENG-05、ENG-07 取舍与 03 的节奏细节，见 11-11 修改日志对应小节。
 
 ### 已知缺失 / Known omissions
 
-- 费用守卫（ENG-06）已暂停，未开工；未试玩。
+- QTE 的 dialogue-gesture 未做；evidence 只在开发演示 ?demo=evidence 里，没有接进游戏。
+- UI-02 灰港完整流程与 A1–A12 试玩未开始。
+- QTE v2 原始补丁和日志始终没拿到，QTE-01 按结论独立实现。
 
 ### 需要重新验证 / Revalidate
 
-- PR #7、#8、#10、#11、#13、#14、#15 是否已合并；feat/iselan-v1 的最新提交和打开的 [卡号] 草稿 PR。
+- PR #21 是否已合并进 feat/iselan-v1；各栈上分支变基后的 Cloudflare 检查。
+- PR #18 是否仍是草稿、head 是否仍为 9ff450f（#19 及以上都基于它）。
