@@ -16,7 +16,7 @@ coverage: "PARTIAL"
 ### Codex 最新进度（2026-11-12）
 
 - PR #44 已按保留四种开场、角色资料可展开、保留近期联机逻辑的方案重做为 PR #50。桌面和 375×667 浏览器实测及本地全量检查通过；GitHub 目前没有可见 CI 状态或审阅记录，仍待 `Workers Builds: echo-well` 检查，不能合并。
-- 灰港四项内容已从旧基线移植到最新集成基线的隔离分支 `codex/grayport-content-takeover`，PR #51 已打开：码头救援/死亡支线、卢多缺席时的码头抵达文本、议会账本第二来源、酒馆营业及连续盈利。最新基线本地 353 项测试、两套 TypeScript、构建、lint 和十份严格文本检查通过；浏览器手动验收尚未进行。GitHub 比较显示 head 比 base 多 1 个提交且无分叉，但 PR 创建响应的 `mergeable` 暂为 false；状态检查和审阅列表为空。重新核验可合并状态与 `Workers Builds: echo-well` 前不得合并。未部署。
+- 灰港四项内容已从旧基线移植到最新集成基线的隔离分支 `codex/grayport-content-takeover`，PR #51 已打开：码头救援/死亡支线、卢多缺席时的码头抵达文本、议会账本第二来源、酒馆营业及连续盈利。最新基线本地 353 项测试、两套 TypeScript、构建、lint 和十份严格文本检查通过；浏览器手动验收尚未进行。GitHub 比较显示 head 比 base 多 2 个提交、behind 0 且无分叉，其中第二个提交只更新交接与日志；PR 创建响应的 `mergeable` 暂为 false，状态检查和审阅列表为空。重新核验可合并状态与 `Workers Builds: echo-well` 前不得合并。未部署。
 - 本轮暂停后，先检查 PR #50 和内容 PR 的 CI/审阅状态，再处理联机 CPU 方案。用户未授权升级付费档，不购买服务。
 
 ### 停止位置 / Stopped at
