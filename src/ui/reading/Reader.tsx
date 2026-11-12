@@ -45,6 +45,15 @@ export default function Reader({ screens, fallbackImage, end }: { screens: reado
     else if (!sectionRef.current?.contains(document.activeElement)) continueRef.current?.focus()
   }, [view.atEnd, view.page])
 
+  // On phones the page scrolls as a whole; a new screen or batch starts from its first line, not mid-page.
+  const shown = useRef({ screens, page: view.page })
+  useEffect(() => {
+    if (shown.current.screens === screens && shown.current.page === view.page) return
+    shown.current = { screens, page: view.page }
+    const el = sectionRef.current
+    if (el && el.getBoundingClientRect().top < 0) el.scrollIntoView({ block: 'start' })
+  }, [screens, view.page])
+
   const go = (delta: 1 | -1) => {
     turned.current = true
     setPage(turnPage(screens, view.page, delta))
@@ -81,18 +90,20 @@ export default function Reader({ screens, fallbackImage, end }: { screens: reado
           )
         })}
       </div>
-      <nav className="rd-nav" aria-label="翻页">
-        <button className="btn ghost small" onClick={() => go(-1)} disabled={!view.canBack} aria-keyshortcuts="ArrowLeft">上一屏</button>
-        <span className="rd-count dim small">第 {view.total ? view.page + 1 : 0} / {view.total} 屏</span>
-        <button className="btn primary" ref={continueRef} onClick={() => go(1)} disabled={!view.canContinue} aria-keyshortcuts="Enter Space ArrowRight">
-          {view.canContinue ? '继续' : '已读完'}
-        </button>
-      </nav>
-      {view.atEnd && end && (
-        <div className="rd-end" ref={endRef} tabIndex={-1}>
-          {end}
-        </div>
-      )}
+      <div className="rd-foot">
+        <nav className="rd-nav" aria-label="翻页">
+          <button className="btn ghost small" onClick={() => go(-1)} disabled={!view.canBack} aria-keyshortcuts="ArrowLeft">上一屏</button>
+          <span className="rd-count dim small">第 {view.total ? view.page + 1 : 0} / {view.total} 屏</span>
+          <button className="btn primary" ref={continueRef} onClick={() => go(1)} disabled={!view.canContinue} aria-keyshortcuts="Enter Space ArrowRight">
+            {view.canContinue ? '继续' : '已读完'}
+          </button>
+        </nav>
+        {view.atEnd && end && (
+          <div className="rd-end" ref={endRef} tabIndex={-1}>
+            {end}
+          </div>
+        )}
+      </div>
     </section>
   )
 }
