@@ -1,11 +1,12 @@
-import type { GameState } from '../src/game/types.js'
-
 export interface Player {
   id: string
   name: string
   tokenHash: string
   user: string
-  seats: string[]
+  /** The pre-made character picked in the lobby (05 §10). */
+  pick?: string
+  /** The seat that character took when the story began. */
+  seat?: string
   joinedAt: number
 }
 
@@ -21,13 +22,15 @@ export interface RoomData {
   hostId: string
   status: 'lobby' | 'play'
   players: Player[]
-  state: GameState
+  hook: string
+  /** The shared table (gzip, base64) once the story has begun. */
+  table?: string
+  /** Achievements each player's characters earned, written when the ending is committed. */
+  judged?: Record<string, string[]>
   chat: ChatMsg[]
   chatSeq: number
   aiCalls: number
   createdAt: number
-  /** When the table last changed, so companions wait long enough for everyone to see each step. */
-  lastAt?: number
 }
 
 export interface RoomRow {

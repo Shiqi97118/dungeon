@@ -1,0 +1,8 @@
+{
+  "id": "dungeon-random-character-2026-11-10-v1",
+  "title": "完整随机车卡，支持微调与直接加入",
+  "status": "needs_rework",
+  "review": "Codex 已审查初版：属性与专长生成合法；需统一旧随机入口、传入已有姓名并补强真实重名测试、合并重复随机按钮。后续轮次见 random-character-rework.json。",
+  "allowedPaths": ["src/ui/CharacterBuilder.tsx", "src/game/characterDraft.ts", "src/game/characterDraft.test.ts", "docs/workbuddy/design/随机车卡实现记录.md"],
+  "prompt": "用户明确新增要求：车卡必须提供随机生成，让不愿定制的玩家直接开始。Codex 批准这一局部功能实现，不表示批准全部大型方案。先阅读 README、全部修改日志、协作规范及现有 CharacterBuilder.tsx、Setup.tsx、characters.ts。在现有轻量规则内实现完整随机车卡：姓名、12职业之一、8种族之一、+2/+1/0/-1合法属性数组、两项互异合法专长；装备沿用现有合法生成器。车卡表单提供一键随机和再次随机，随机结果填入现有表单，可微调，可保存并加入，不只随机姓名；若合理也可提供直接随机加入按钮。将生成逻辑放到 src/game/characterDraft.ts，与 UI 共用职业种族常量，避免重复枚举；与旧随机组队入口保持兼容，不重构引擎和联机协议，不新增未经实现的职业加成。添加有意义的测试：多次生成始终满足属性预算、专长白名单与互异、职业种族合法、基础必填字段齐全。仅允许修改 src/ui/CharacterBuilder.tsx、新增 src/game/characterDraft.ts、src/game/characterDraft.test.ts、docs/workbuddy/design/随机车卡实现记录.md。不要修改其他文件、包依赖、网关、配置、凭据或修改日志；日志由 Codex 统一补记，不 reset、不commit、不push、不部署，不覆盖已有修改。模型继续 hy4free，不能确认子agent模型和费用时不调用子agent。实际运行新测试、现有相关测试与 TypeScript/Vite 构建；当前环境 npm 可能不在PATH，可用 node node_modules/vitest/vitest.mjs run --testTimeout=30000、node node_modules/typescript/bin/tsc -b、node node_modules/vite/bin/vite.js build。文档记录真实改动、实际测试结果和未验证事项。使用本 WorkBuddy 桌面会话自己的工具执行，完成后读回自检，简报不超过300字并列实际路径。本任务通过 Windows 原生直连执行，不调用网关claim/report。"
+}

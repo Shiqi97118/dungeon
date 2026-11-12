@@ -1,0 +1,10 @@
+Static package validation: PASS
+Mode: update (manifest rewritten from current files)
+Achievements: 50
+By category: {'ST': 12, 'RE': 10, 'EX': 10, 'SB': 8, 'LG': 10}
+Secret achievements: 10
+SVG icons: 51
+PNG icons: 51
+UI prototype: offline mock, contains no backend implementation
+Browser smoke test: not run by this script; check UI behaviour separately.
+Errors: []

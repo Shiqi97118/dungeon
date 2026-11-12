@@ -1,16 +1,21 @@
-import type { Character, GameState, Stat, Tier } from '../game/types'
-import type { Gm, Intent } from '../game/session'
-import type { AiTurn } from '../game/ai'
+import type { TableOp } from '../iselan/play'
+import type { InteractionResult } from '../iselan/interaction'
 
 export interface ChatMsg { id: number; pid: string; name: string; text: string; t: number }
+
+export interface RoomPlayer { id: string; name: string; pick: string | null; seat: string | null }
 
 export interface RoomView {
   code: string
   version: number
   hostId: string
   status: 'lobby' | 'play'
-  players: { id: string; name: string; seats: string[] }[]
-  state: GameState
+  hook: string
+  players: RoomPlayer[]
+  /** The shared table, packed (`unpackTable`); null until the story begins. */
+  table: string | null
+  /** Achievement ids each player's character earned, once the ending is written. */
+  judged: Record<string, string[]>
   chat: ChatMsg[]
   aiOn: boolean
 }
@@ -39,7 +44,7 @@ function browserId() {
   return id
 }
 
-async function call<T>(path: string, init: RequestInit & { token?: string } = {}): Promise<T> {
+export async function call<T>(path: string, init: RequestInit & { token?: string } = {}): Promise<T> {
   const headers: Record<string, string> = { 'x-echo-client': '1', 'x-echo-uid': browserId() }
   if (init.body) headers['content-type'] = 'application/json'
   if (init.token) headers['x-echo-token'] = init.token
@@ -59,7 +64,7 @@ async function call<T>(path: string, init: RequestInit & { token?: string } = {}
   return data as T
 }
 
-const post = <T>(path: string, body: unknown, token?: string) => call<T>(path, { method: 'POST', body: JSON.stringify(body), token })
+export const post = <T>(path: string, body: unknown, token?: string) => call<T>(path, { method: 'POST', body: JSON.stringify(body), token })
 
 let infoCache: Promise<ServerInfo | null> | null = null
 
@@ -69,16 +74,18 @@ export function serverInfo(): Promise<ServerInfo | null> {
 }
 
 export const api = {
-  create: (name: string, party: Character[], safety: GameState['safety']) => post<Seat>('api/room', { op: 'create', name, party, safety }),
+  create: (name: string, hook: string) => post<Seat>('api/room', { op: 'create', name, hook }),
   join: (code: string, name: string) => post<Seat>('api/room', { op: 'join', code, name }),
   poll: (seat: Seat, v: number) =>
     call<{ version: number; now: number; presence: Record<string, number>; room?: RoomView }>(`api/room?code=${encodeURIComponent(seat.code)}&v=${v}`, { token: seat.token }),
-  claim: (seat: Seat, charId: string) => post<{ version: number }>('api/room', { op: 'claim', code: seat.code, charId }, seat.token),
-  release: (seat: Seat, charId: string) => post<{ version: number }>('api/room', { op: 'release', code: seat.code, charId }, seat.token),
+  pick: (seat: Seat, pick: string | null) => post<{ version: number }>('api/room', pick ? { op: 'pick', code: seat.code, pick } : { op: 'unpick', code: seat.code }, seat.token),
+  hook: (seat: Seat, hook: string) => post<{ version: number }>('api/room', { op: 'hook', code: seat.code, hook }, seat.token),
   start: (seat: Seat) => post<{ version: number }>('api/room', { op: 'start', code: seat.code }, seat.token),
   chat: (seat: Seat, text: string) => post<{ version: number }>('api/room', { op: 'chat', code: seat.code, text }, seat.token),
   leave: (seat: Seat) => post<{ version: number }>('api/room', { op: 'leave', code: seat.code }, seat.token),
-  act: (seat: Seat, intent: Intent) => post<{ version: number; error?: string }>('api/room', { op: 'act', code: seat.code, intent }, seat.token),
+  /** `at` is the table length the action was chosen on; the server drops it if the table has moved since. */
+  play: (seat: Seat, seatId: string, action: TableOp, at?: number) =>
+    post<{ version: number; result: InteractionResult | null }>('api/room', { op: 'play', code: seat.code, seatId, action, ...(at === undefined ? {} : { at }) }, seat.token),
 }
 
 const SEAT_KEY = 'echo-well-seat'
@@ -90,14 +97,4 @@ export function loadSeat(): Seat | null {
 export function saveSeat(s: Seat | null) {
   if (s) localStorage.setItem(SEAT_KEY, JSON.stringify(s))
   else localStorage.removeItem(SEAT_KEY)
-}
-
-const slim = (s: GameState) => ({ ...s, log: s.log.slice(-30) })
-
-/** The built-in AI host, reached through the app's own server so the key never leaves it. */
-export const proxyGm: Gm = {
-  propose: (s: GameState, text: string, actorName?: string) => post<AiTurn>('api/gm', { op: 'propose', state: slim(s), text, actorName }),
-  resolve: (s: GameState, text: string, r: { actorName: string; stat: Stat; dice: [number, number]; total: number; tier: Tier; risk: string }) =>
-    post<AiTurn>('api/gm', { op: 'resolve', state: slim(s), text, r }),
-  ending: async (s: GameState, plan: string, tier: Tier) => (await post<{ paragraphs: string[] }>('api/gm', { op: 'ending', state: slim(s), plan, tier })).paragraphs,
 }

@@ -1,0 +1,85 @@
+/* Achievement gallery, toast and ending summary (02 §6–§8). Category colours from 02 §2. */
+.cat-ST { --cat: #c4a16b; }
+.cat-RE { --cat: #d59aa5; }
+.cat-EX { --cat: #7fb5cc; }
+.cat-SB { --cat: #8cb89a; }
+.cat-LG { --cat: #bc9cea; }
+
+.ach-icon { display: block; flex: none; border-radius: 50%; }
+.ach-icon.locked { filter: grayscale(1) brightness(.6); }
+
+/* ---------- gallery ---------- */
+.ach-gallery { display: flex; flex-direction: column; height: 100%; max-height: 100vh; min-height: 0; background: var(--panel-solid); color: var(--text); }
+.ach-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 18px; padding: 16px 20px; border-bottom: 1px solid var(--line); }
+.ach-head h2 { margin: 0; font-family: var(--serif); font-size: 22px; }
+.ach-stats { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 0; color: var(--dim); font-size: 14px; }
+.ach-stats b { color: var(--copper2); }
+.ach-head .btn { margin-left: auto; }
+.ach-body { display: flex; flex: 1; min-height: 0; }
+.ach-filters { flex: none; width: 180px; padding: 14px; border-right: 1px solid var(--line); display: flex; flex-direction: column; gap: 16px; overflow-y: auto; }
+.ach-filters [role='group'] { display: flex; flex-direction: column; gap: 4px; }
+.ach-tab { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px; padding: 6px 10px; border: 1px solid transparent; border-radius: 8px; background: none; cursor: pointer; text-align: left; white-space: nowrap; }
+.ach-tab small { color: var(--dim); }
+.ach-tab:hover { border-color: var(--line2); }
+.ach-tab.on { border-color: var(--copper); background: rgba(208, 147, 86, .12); }
+.ach-grid { flex: 1; min-width: 0; margin: 0; padding: 14px; list-style: none; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; align-content: start; }
+.ach-card { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 8px; border: 1px solid var(--line2); border-top: 3px solid var(--cat, var(--line2)); border-radius: 12px; background: rgba(255, 255, 255, .03); cursor: pointer; text-align: center; }
+.ach-card:hover { background: rgba(255, 255, 255, .06); }
+.ach-card.s-later, .ach-card.s-locked { opacity: .82; }
+.ach-name { font-family: var(--serif); font-size: 15px; line-height: 1.35; }
+.ach-meta { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 8px; font-size: 12px; color: var(--dim); }
+.ach-rarity.r-rare { color: var(--echo); }
+.ach-rarity.r-epic { color: #bc9cea; }
+.ach-rarity.r-legendary { color: var(--copper2); }
+.ach-card.s-unlocked .ach-status { color: var(--hit); }
+.ach-empty { grid-column: 1 / -1; color: var(--dim); }
+
+:where(.ach-gallery, .ach-toasts, .ach-ending) button:focus-visible { outline: 2px solid var(--echo); outline-offset: 2px; }
+
+.ix-panel.ach-detail { width: min(520px, 100%); }
+.ach-detail-top { display: flex; gap: 16px; align-items: center; margin-bottom: 10px; }
+.ach-detail-top h3 { margin: 0; }
+.ach-detail .ach-status { margin: 0; color: var(--dim); font-size: 13px; }
+.ach-flavor { color: var(--dim); font-style: italic; }
+.ach-detail-actions { display: flex; justify-content: flex-end; }
+
+@media (max-width: 720px) {
+  .ach-body { flex-direction: column; }
+  .ach-filters { width: auto; flex-direction: column; gap: 6px; padding: 8px 12px; border-right: 0; border-bottom: 1px solid var(--line); overflow: visible; }
+  .ach-filters [role='group'] { flex-direction: row; overflow-x: auto; }
+  .ach-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 10px; }
+}
+
+/* ---------- toast ---------- */
+.ach-toasts { position: fixed; z-index: 60; top: 16px; right: 16px; display: flex; flex-direction: column; gap: 8px; width: min(340px, calc(100vw - 32px)); pointer-events: none; }
+.ach-toast { pointer-events: auto; display: flex; align-items: stretch; border: 1px solid var(--line2); border-left: 4px solid var(--cat, var(--copper)); border-radius: 12px; background: linear-gradient(170deg, #18202a, #10151c); box-shadow: 0 16px 40px -12px #000; animation: achToastIn .3s ease; }
+.ach-toast-main { flex: 1; display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 0; background: none; cursor: pointer; text-align: left; }
+.ach-toast-main > span { display: flex; flex-direction: column; line-height: 1.35; }
+.ach-toast-kicker { font-size: 11px; letter-spacing: .3em; color: var(--copper2); }
+.ach-toast-main small { color: var(--dim); }
+.ach-toast-close { flex: none; width: 44px; min-height: 44px; border: 0; background: none; color: var(--dim); font-size: 18px; cursor: pointer; }
+.ach-toast-more { padding: 10px 14px; font-size: 13px; color: var(--dim); }
+@media (max-width: 720px) {
+  .ach-toasts { top: calc(env(safe-area-inset-top, 0px) + 8px); right: 50%; transform: translateX(50%); }
+}
+@keyframes achToastIn { from { opacity: 0; transform: translateY(-8px); } }
+@media (prefers-reduced-motion: reduce) {
+  .ach-toast { animation: none; }
+}
+
+/* ---------- ending ---------- */
+.ach-ending { display: flex; flex-direction: column; gap: 12px; }
+.ach-ending h3, .ach-ending h4 { margin: 0; font-family: var(--serif); }
+.ach-ending h4 { font-size: 14px; color: var(--dim); }
+.ach-ending-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin: 0; }
+.ach-ending-stats div { padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; }
+.ach-ending-stats dt { font-size: 12px; color: var(--dim); }
+.ach-ending-stats dd { margin: 0; font-size: 18px; color: var(--copper2); }
+.ach-progress { width: 100%; height: 8px; accent-color: var(--copper); }
+.ach-rows { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.ach-row { display: flex; align-items: center; gap: 12px; }
+.ach-row > span { display: flex; flex-direction: column; line-height: 1.4; }
+.ach-row small { color: var(--dim); }
+.ach-rows.minor .ach-icon { width: 40px; height: 40px; }
+.ach-cats { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 0; padding: 0; list-style: none; font-size: 13px; color: var(--dim); }
+.ach-ending .btn { align-self: flex-start; }

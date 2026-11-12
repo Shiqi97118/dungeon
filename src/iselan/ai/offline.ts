@@ -1,0 +1,136 @@
+import { CONFIG } from '../config'
+import type { IntentTag, NpcId } from '../data'
+import { VOCAB } from '../data'
+import type { Snapshot } from '../events'
+import { attitudeOf, npcStateOf } from '../rules/conditions'
+import { situationOf, type TurnInput } from './context'
+import type { RawProposal, Reply } from './reply'
+
+/** Keywords for guessing the intent of a free action when no AI is available. */
+const KEYWORDS: readonly (readonly [IntentTag, RegExp])[] = [
+  ['战斗', /打|攻击|砍|刺|拔剑|开枪|格斗|战/],
+  ['潜行', /潜|偷偷|溜|躲|藏|跟踪|尾随/],
+  ['交谈', /问|说|聊|谈|告诉|打听|劝|求/],
+  ['交易', /买|卖|换|付|钱|价|交易|讨价/],
+  ['欺骗', /骗|撒谎|假装|冒充|伪造/],
+  ['帮助', /帮|救|扶|照顾|治疗|包扎/],
+  ['调查', /查|看|找|搜|检查|观察|翻|读|研究/],
+  ['仪式', /祈|祷|仪式|钟|唱|召名|安名/],
+  ['休息', /睡|休息|歇|扎营|吃|喝/],
+  ['记录', /记|写|画|抄|登记/],
+  ['离开', /离开|走|出发|告辞|回去/],
+]
+
+export function guessIntents(text: string): IntentTag[] {
+  const hits = KEYWORDS.filter(([, re]) => re.test(text)).map(([tag]) => tag)
+  return hits.length ? hits.slice(0, 2) : ['其他']
+}
+
+const RESULT: Readonly<Record<IntentTag, string>> = {
+  调查: '你仔细看过每一处可疑的地方，有些细节对得上，有些却说不通——足够让人记下来，留待以后再想。',
+  交谈: '对方听完你的话，沉默了一会儿才开口。回答不算坦白，但语气里透出的东西，比字面上的意思多。',
+  潜行: '你压低脚步，贴着阴影前进。没有人回头，可你也说不准，是不是真的没人看见。',
+  战斗: '冲突来得又快又乱。等尘埃落定，谁占了上风还不好说，但这里的人都会记住刚才那一幕。',
+  交易: '一番讨价还价之后，双方各退一步。东西换了手，账也记下了，至于谁占了便宜，要过些日子才见分晓。',
+  欺骗: '你的说辞听上去天衣无缝，对方点了点头。只是那一瞬间的犹豫，让你不敢确定他真的信了。',
+  帮助: '你伸出手，对方愣了一下才接住。这份人情不大，却会在某个时候被想起来。',
+  仪式: '你按记忆里的样子完成了每一个步骤。周围安静得出奇，好像有什么东西在远处听着。',
+  休息: '你们找了个能遮风的地方，轮流合眼。疲惫退去一些，心里的事却一件也没少。',
+  记录: '你把所见所闻一条条记下。字迹潦草，但这些纸页也许比记忆更可靠。',
+  离开: '你们收拾好东西，离开了这里。身后的声音渐渐远了，前面的路还看不清。',
+  其他: '你照自己的想法做了。事情有了一点变化，虽然还说不清是好是坏。',
+}
+
+const SUGGESTIONS: readonly string[] = ['回头去找刚才提到的人，把话问清楚', '去一个还没去过的地方看看', '做一件谁也想不到的事']
+
+/** Actions towards a person that the offline host settles with a check; `risky` ones sour the person on a miss. */
+const SOCIAL: Partial<Record<IntentTag, { readonly skill: string; readonly risky: boolean }>> = {
+  交谈: { skill: '交涉', risky: false },
+  帮助: { skill: '交涉', risky: false },
+  交易: { skill: '交涉', risky: false },
+  欺骗: { skill: '交涉', risky: true },
+  战斗: { skill: '强韧', risky: true },
+}
+
+const TIER_RESULT: Readonly<Record<'hit' | 'partial' | 'miss', string>> = {
+  hit: '这一次，对方是真的听进去了。',
+  partial: '对方点了头，却也留了个心眼。',
+  miss: '话说岔了，对方的脸色冷了下来。',
+}
+
+/** Grayport v1 projects (12 §6.3): the words that name them and the words that start one. */
+const PROJECT_WORDS: readonly (readonly ['tavern' | 'sanctuary', RegExp])[] = [
+  ['tavern', /酒馆|酒肆|小馆/],
+  ['sanctuary', /互助站|救济站|收容所|施粥/],
+]
+const START = /开|办|建|筹|盘下|张罗/
+
+type NpcEntry = { readonly id: string; readonly name: string; readonly aliases?: readonly string[] }
+
+/** The person the action is aimed at: someone present named in the words, otherwise the first present. */
+function targetOf(s: Snapshot, input: TurnInput): NpcEntry | null {
+  const present = (input.ctx.present ?? [])
+    .map((id) => (VOCAB.npcs as readonly NpcEntry[]).find((n) => n.id === id))
+    .filter((n): n is NpcEntry => !!n && !['dead', 'erased', 'captive', 'missing'].includes(npcStateOf(s, n.id as keyof Snapshot['npcs'])))
+  const named = present.find((n) => [n.name, n.name.split(/[·“]/)[0], ...(n.aliases ?? [])].some((x) => x && input.text.includes(x)))
+  return named ?? present[0] ?? null
+}
+
+/**
+ * 12 §8.3 step 1: the offline host's reply. Only one rule of its own: an action towards someone
+ * present is checked, and the roll moves that person's attitude by one; everything else the rules settle.
+ */
+function projectReply(s: Snapshot, input: TurnInput): { proposals: RawProposal[]; result: string } | null {
+  const kind = PROJECT_WORDS.find(([, re]) => re.test(input.text))?.[0]
+  if (!kind) return null
+  const region = s.location?.regionId
+  const id = Object.entries(s.projects).find(([, p]) => p.kind === kind && p.regionId === region && p.stage !== 'closed')?.[0]
+  const p = id ? s.projects[id] : undefined
+  if (!p) {
+    if (!START.test(input.text)) return null
+    return { proposals: [{ kind: 'project', projectId: kind, stage: 'idea', projectKind: kind }], result: '这个念头一说出口，就再也放不下了。地方、本钱、肯替你们担保的人，一样都还没有。' }
+  }
+  if (p.stage === 'idea') {
+    const contact = (input.ctx.present ?? []).find((n): n is NpcId => VOCAB.npcs.some((x) => x.id === n) && attitudeOf(s, n as NpcId) >= 1)
+    if (!contact) return { proposals: [], result: '要把事情办起来，还缺一位肯替你们担保的本地人。' }
+    return { proposals: [{ kind: 'project', projectId: id, stage: 'founded', contactId: contact }], result: input.check?.tier === 'miss' ? '凑来的本钱还差一截，招牌只好先收起来。' : '本钱和货凑齐了，招牌挂了上去。' }
+  }
+  const risk = p.stage === 'operational' && !p.risks.some((r) => r.weathered)
+  return {
+    proposals: [{ kind: 'project', projectId: id, stage: 'invest' }, ...(risk ? [{ kind: 'project', projectId: id, stage: 'risk', risk: kind === 'tavern' ? 'brawl' : 'patients' }] : [])],
+    result: risk ? (kind === 'tavern' ? '一伙喝醉的水手在店里闹了起来。' : '一夜之间，涌进来的病人比床位还多。') : '你们又忙了一阵，事情一点点有了样子。',
+  }
+}
+
+export function offlineReply(s: Snapshot, input: TurnInput): Reply {
+  const project = projectReply(s, input)
+  if (project) {
+    return {
+      narration: `${input.actorName}：${project.result}（${situationOf(s)}。）`,
+      intents: ['帮助'],
+      emotion: null,
+      suggestions: SUGGESTIONS,
+      proposals: project.proposals,
+    }
+  }
+  const intents = guessIntents(input.text)
+  const social = SOCIAL[intents[0]]
+  const target = social ? targetOf(s, input) : null
+  const proposals: RawProposal[] = []
+  let result = RESULT[intents[0]]
+  if (social && target && !input.check) {
+    proposals.push({ kind: 'check', skill: social.skill, difficulty: CONFIG.ai.offlineCheckDifficulty, reason: `${target.name}的反应` })
+    result = `${input.actorName}看着${target.name}，掂量着该怎么开口。`
+  } else if (social && target && input.check) {
+    const delta = input.check.tier === 'miss' ? (social.risky ? -1 : 0) : intents[0] === '战斗' ? 0 : 1
+    if (delta) proposals.push({ kind: 'attitude', npcId: target.id, delta, reason: `离线主持：${input.check.tier}` })
+    result = `${RESULT[intents[0]]}${TIER_RESULT[input.check.tier]}`
+  }
+  return {
+    narration: proposals.some((p) => p.kind === 'check') ? `${result}（${situationOf(s)}。）` : `${input.actorName}：${result}（${situationOf(s)}。）`,
+    intents,
+    emotion: null,
+    suggestions: SUGGESTIONS,
+    proposals,
+  }
+}

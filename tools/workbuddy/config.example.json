@@ -1,0 +1,9 @@
+{
+  "workspace": ".",
+  "gatewayDir": ".local/workbuddy-gateway",
+  "stateDir": ".local/workbuddy",
+  "executable": "C:/Program Files/WorkBuddy/WorkBuddy.exe",
+  "port": 18491,
+  "model": "hy4free",
+  "allowedModels": ["hy4free"]
+}

@@ -2,8 +2,15 @@ import { requireIdentity } from '../cursor/identity.js'
 import { anonymousViewer, setPlatform } from './platform.js'
 import { MemoryStore, type Store } from './store.js'
 import { PgStore } from './pgStore.js'
+import { MemoryProfileStore, type ProfileStore } from './profileStore.js'
+import { MemoryBudgetStore, type BudgetStore } from './budget.js'
+import { configureProfileRules } from './profile.js'
+import { judgeAchievements } from '../src/iselan/achievements/index.js'
+import { summarizeRun } from '../src/iselan/play/ending.js'
 
-const g = globalThis as unknown as { __echoStore?: Store | null }
+configureProfileRules({ judge: judgeAchievements, summarize: summarizeRun })
+
+const g = globalThis as unknown as { __echoStore?: Store | null; __echoProfiles?: ProfileStore | null; __echoBudget?: BudgetStore | null }
 
 const isDeployed = () => !!(process.env.VERCEL || process.env.CURSOR_APP_ID)
 const isPublic = () => process.env.ECHO_PUBLIC === '1'
@@ -27,5 +34,15 @@ setPlatform({
     const url = process.env.DATABASE_URL
     g.__echoStore = url ? new PgStore(url) : isDeployed() ? null : new MemoryStore()
     return g.__echoStore
+  },
+  // Profiles live in D1 on the Cloudflare deployment; Node hosts only get them for local development.
+  profiles() {
+    if (g.__echoProfiles === undefined) g.__echoProfiles = isDeployed() ? null : new MemoryProfileStore()
+    return g.__echoProfiles
+  },
+  // Serverless Node instances share no memory, so a deployed Node host has no ledger that could hold the 28 元 cap.
+  budget() {
+    if (g.__echoBudget === undefined) g.__echoBudget = isDeployed() ? null : new MemoryBudgetStore()
+    return g.__echoBudget
   },
 })

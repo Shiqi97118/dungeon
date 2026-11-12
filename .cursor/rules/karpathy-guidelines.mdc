@@ -1,0 +1,8 @@
+---
+description: 项目最高优先级编程与审核原则，适用于所有任务与 WorkBuddy 协作
+alwaysApply: true
+---
+
+先阅读并遵从 `docs/编程与审核原则.md` 与根目录 `AGENTS.md`。
+所有项目规则必须符合该文档的全部 12 条准则（Karpathy 4 条 + Mnilax 8 条），不得只检查原有 4 条。
+WorkBuddy 派工及返工必须携带原则；审核逐项记录依据，关键项未验证或需返工不得验收。
