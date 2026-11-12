@@ -39,7 +39,7 @@ function browserId() {
   return id
 }
 
-async function call<T>(path: string, init: RequestInit & { token?: string } = {}): Promise<T> {
+export async function call<T>(path: string, init: RequestInit & { token?: string } = {}): Promise<T> {
   const headers: Record<string, string> = { 'x-echo-client': '1', 'x-echo-uid': browserId() }
   if (init.body) headers['content-type'] = 'application/json'
   if (init.token) headers['x-echo-token'] = init.token
@@ -59,7 +59,7 @@ async function call<T>(path: string, init: RequestInit & { token?: string } = {}
   return data as T
 }
 
-const post = <T>(path: string, body: unknown, token?: string) => call<T>(path, { method: 'POST', body: JSON.stringify(body), token })
+export const post = <T>(path: string, body: unknown, token?: string) => call<T>(path, { method: 'POST', body: JSON.stringify(body), token })
 
 let infoCache: Promise<ServerInfo | null> | null = null
 

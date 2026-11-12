@@ -2,12 +2,13 @@
   "version": 1,
   "about": "伊瑟兰第一章的事件词表。每个事件按设计包 contracts/narrative.types.ts 的 CanonicalEvent 外壳提交（eventId、runId、seq、type、actorIds、regionId、subjectId、payload、sourceIntentId、committedAt、visibility），这里只定义 type 与 payload 字段。字段值里的编号必须来自 vocab.v1.json。规则见 12-开工规格.md 第 4 节。",
   "fieldTypes": {
-    "regionId": "region", "placeId": "place", "npcId": "npc", "subjectId": "npc", "towardsId": "npc", "factionId": "faction",
+    "regionId": "region", "placeId": "place", "npcId": "npc", "subjectId": "npc", "towardsId": "npc", "factionId": "faction", "towardsFactionId": "faction",
     "arcId": "arc", "directionId": "direction", "secondaryDirectionId": "direction", "darkLineId": "darkLine", "truthId": "truth",
     "cityId": "bellCity", "bellHeartId": "bellCity", "factId": "fact", "objectId": "object", "template": "interaction"
   },
   "events": [
     { "type": "run_started", "group": "run", "payload": { "mode": "solo|online", "partySize": "int", "seed": "string", "openingHook": "openingHook" } },
+    { "type": "round_started", "group": "run", "payload": { "round": "int" } },
     { "type": "seat_changed", "group": "run", "payload": { "seatId": "string", "actorId": "string", "controller": "human|ai|empty", "inheritedChoices": "int" } },
     { "type": "choice_counted", "group": "run", "payload": { "seatId": "string", "actorId": "string", "changeKinds": "string[]", "dedupeKey": "string" } },
     { "type": "consent_given", "group": "run", "payload": { "actorId": "string", "consequence": "death|memory_loss|stay_behind|other", "detail": "string" } },
@@ -29,6 +30,8 @@
     { "type": "region_stage_changed", "group": "world", "payload": { "regionId": "region", "stage": "calm|unrest|converging|resolved", "defaultOutcome": "string" } },
     { "type": "region_crisis_stabilized", "group": "world", "payload": { "regionId": "region" } },
     { "type": "region_visited", "group": "explore", "payload": { "regionId": "region", "isOutsideStart": "bool", "visitIndex": "int" } },
+    { "type": "location_changed", "group": "explore", "payload": { "regionId": "region", "placeId": "place|none" } },
+    { "type": "ambience_changed", "group": "explore", "payload": { "time": "黎明|白天|黄昏|夜", "weather": "雨|雪|雾|风暴|晴" } },
     { "type": "place_discovered", "group": "explore", "payload": { "placeId": "place", "regionId": "region", "aiCreated": "bool" } },
     { "type": "route_discovered", "group": "explore", "payload": { "routeId": "string", "previouslyUnknown": "bool" } },
     { "type": "fact_established", "group": "state", "payload": { "factId": "fact", "source": "string" } },
@@ -70,6 +73,7 @@
     { "type": "custom_resolution_verified", "group": "ending", "payload": { "importance": "minor|major|world" } },
     { "type": "player_project_created", "group": "sandbox", "payload": { "projectId": "string", "kind": "tavern|guild|caravan|sanctuary|home|custom", "regionId": "region" } },
     { "type": "player_project_stage_changed", "group": "sandbox", "payload": { "projectId": "string", "stage": "idea|founded|operational|stable|closed" } },
+    { "type": "player_project_risk", "group": "sandbox", "payload": { "projectId": "string", "risk": "tax|seal|brawl|patients|other", "weathered": "bool" } },
     { "type": "business_operational", "group": "sandbox", "payload": { "projectId": "string", "kind": "string", "regionId": "region" } },
     { "type": "business_profitable", "group": "sandbox", "payload": { "projectId": "string", "sustained": "bool" } },
     { "type": "trade_route_established", "group": "sandbox", "payload": { "projectId": "string", "stable": "bool" } },

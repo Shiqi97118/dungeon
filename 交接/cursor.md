@@ -15,11 +15,17 @@ coverage: "PARTIAL"
 
 ### 停止位置 / Stopped at
 
-2026-11-11 15:15（北京时间），ENG-01 完成并改为可审核：PR #7（cursor/eng-01-data-config-034a → feat/iselan-v1）。npm run texts 生成 src/iselan/data/*.generated.ts（不提交），dev / test / build 前自动运行；src/iselan/config.ts 收齐 12 第 7 节与相关数值；lint、test（57 通过）、build、check-texts 全部通过。
+2026-11-12 08:50（北京时间）。11-11 的九张卡（PR #7、#8、#10、#11、#13、#14、#15、#16、#17）仍等 Codex 审核；WorkBuddy 的 PR #18（草稿，Windows 兼容与费用纯函数）叠在 #17 上。11-12 新增：
+- UI-01 补充：PR #19（叠在 #18 上），375×667 翻页栏越屏修复。
+- OPS：PR #21（cursor/ops-cf-previews-034a → feat/iselan-v1），修复所有分支 Cloudflare 检查失败（缺 Wrangler previews 配置块），自身检查已转绿。
+- QTE-01 第一阶段：PR #22（叠在 #19 上），evidence（GH-BEAT-04）与互动外壳，按 GPT 的 7 条复核独立实现，31 项浏览器检查通过。
+- ENG-06：cursor/eng-06-cost-guard-034a（叠在 #22 上），D1 费用账与 28 元全站上限，331 条测试通过。
 
 ### 建议下一步 / Recommended next action
 
-用户要求 Codex 与 WorkBuddy 暂停到用户回家；Cursor 继续自己的卡。ENG-02（事件账本）依赖 ENG-01：在 PR #7 合并前，可以从 cursor/eng-01-data-config-034a 切出 ENG-02 分支并把 PR 目标设为 feat/iselan-v1（PR 正文注明依赖 #7）；CNT-01（灰港事业文本）不依赖代码，可先做。
+1. Codex 审 PR #21 并合并进 feat/iselan-v1，然后自下而上变基 #7 → … → ENG-06。ENG-06 的 worker/index.ts 会与 #21 冲突，两边都保留：没有 env.DB 时 store、profiles、budget 都为 null。
+2. QTE-01 第二阶段：dialogue-gesture（GH-SCN-09 晚宴），沿用 src/iselan/interaction/session.ts 的状态机与 src/ui/interaction/Modal.tsx；ART-02 视觉稿到了再替换账本的 CSS 占位。
+3. UI-02：把 evidence 接进 GH-BEAT-04 的真实流程（结算走 settleInteraction，跳过时按普通检定），晚宴手势同理；再走 A1–A12。
 
 ### 完成标准 / Completion criteria
 
@@ -50,6 +56,7 @@ coverage: "PARTIAL"
 ### 已回答问题 / Answered questions
 
 - Codex 合并权限：用户授权“怎么合理怎么推进”（2026-11-11）。
+- 正式环境只用 DeepSeek 的 API（2026-11-12），价格表不补其他模型。
 
 ## 材料与缺口 / Materials and gaps
 
@@ -63,12 +70,19 @@ coverage: "PARTIAL"
 
 ### 未决问题 / Open questions
 
-- PR #7 待 Codex 审核（用户回家后）。
+- 11-11 九张卡与 11-12 的 PR #19、#21、#22、ENG-06 都待 Codex 审核。
+- 看板待决问题 6：PR #21 合并后其余分支的 Cloudflare 检查才会转绿。
+- QTE-01 的取舍待审核：requestId 即账本意图编号；结果未知时只许同请求重试，玩家不能改选；跳过给出普通检定（洞察 12），检定本身由 UI-02 接骰子流程。
+- ENG-06 的取舍待审核：只有供应商明确返回错误状态才释放预占；旧版主持不报用量，按预估入账；部署的 Node 托管没有共享账，iselan_turn 回 503。
+- 之前的 ENG-04、ENG-05、ENG-07 取舍与 03 的节奏细节，见 11-11 修改日志对应小节。
 
 ### 已知缺失 / Known omissions
 
-- 游戏代码与测试尚未开始；未试玩。
+- QTE 的 dialogue-gesture 未做；evidence 只在开发演示 ?demo=evidence 里，没有接进游戏。
+- UI-02 灰港完整流程与 A1–A12 试玩未开始。
+- QTE v2 原始补丁和日志始终没拿到，QTE-01 按结论独立实现。
 
 ### 需要重新验证 / Revalidate
 
-- PR #7 是否已合并；feat/iselan-v1 的最新提交和打开的 [卡号] 草稿 PR。
+- PR #21 是否已合并进 feat/iselan-v1；各栈上分支变基后的 Cloudflare 检查。
+- PR #18 是否仍是草稿、head 是否仍为 9ff450f（#19 及以上都基于它）。

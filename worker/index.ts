@@ -2,9 +2,17 @@ import { anonymousViewer, setPlatform } from '../server/platform.js'
 import { D1Store } from '../server/d1Store.js'
 import { handleRoom } from '../server/rooms.js'
 import { handleGm } from '../server/gmProxy.js'
+import { configureProfileRules, handleProfile } from '../server/profile.js'
+import { SqlProfileStore } from '../server/profileStore.js'
+import { SqlBudgetStore } from '../server/budget.js'
 import { json } from '../server/http.js'
+import { judgeAchievements } from '../src/iselan/achievements/index.js'
+
+configureProfileRules({ judge: judgeAchievements })
 
 let store: D1Store | null = null
+let profiles: SqlProfileStore | null = null
+let budget: SqlBudgetStore | null = null
 let db: D1Database | null | undefined = null
 
 export default {
@@ -13,11 +21,14 @@ export default {
       db = env.DB
       // Previews have no D1 binding (wrangler.jsonc `previews`).
       store = env.DB ? new D1Store(env.DB) : null
+      profiles = env.DB ? new SqlProfileStore(env.DB) : null
+      budget = env.DB ? new SqlBudgetStore(env.DB) : null
     }
-    setPlatform({ viewer: async (r) => anonymousViewer(r), store: () => store })
+    setPlatform({ viewer: async (r) => anonymousViewer(r), store: () => store, profiles: () => profiles, budget: () => budget })
     const { pathname } = new URL(request.url)
     if (pathname === '/api/room') return handleRoom(request)
     if (pathname === '/api/gm') return handleGm(request)
+    if (pathname === '/api/profile') return handleProfile(request)
     if (pathname.startsWith('/api/')) return json({ error: '不存在的接口' }, 404)
     return env.ASSETS.fetch(request)
   },

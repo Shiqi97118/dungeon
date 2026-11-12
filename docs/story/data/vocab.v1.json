@@ -251,6 +251,7 @@
     { "id": "special_partner", "name": "特别合伙人", "kind": "world" },
     { "id": "banquet_invitation", "name": "持有晚宴请柬", "kind": "world", "about": "带 source：cedric（真）或 felix_forged（伪）" },
     { "id": "guild_job_done", "name": "商会委托已完成", "kind": "world" },
+    { "id": "fabian_faction_leads", "name": "法比安一派掌事", "kind": "world", "about": "商会异见派主事（04 第 6 节），商会状态转为已转向" },
     { "id": "bought_invitation_from_felix", "name": "已向菲利克斯买请柬", "kind": "world" },
     { "id": "saka_peace_talks", "name": "萨卡和谈进行中", "kind": "world" },
     { "id": "peace_talks_done", "name": "和谈达成", "kind": "world" },
@@ -263,7 +264,8 @@
     { "id": "project_sealed", "name": "事业被贴封条", "kind": "world", "about": "事业风险事件：门上被贴了查封令，等待处置" },
     { "id": "project_brawl", "name": "事业里发生斗殴", "kind": "world", "about": "事业风险事件：店里打起来了" },
     { "id": "patient_influx", "name": "病人涌入互助站", "kind": "world", "about": "事业风险事件：遗忘病人一夜之间挤满互助站" },
-    { "id": "project_risk_weathered", "name": "事业经受过风险", "kind": "world", "about": "一次风险事件已结算且事业没有关闭；稳定阶段的前提之一" }
+    { "id": "project_risk_weathered", "name": "事业经受过风险", "kind": "world", "about": "一次风险事件已结算且事业没有关闭；稳定阶段的前提之一" },
+    { "id": "astrion_sealed", "name": "阿斯特里昂已封印", "kind": "world", "about": "阿斯特里昂已被封印、撕碎或从合唱中永久分离（06 D12 的否定）" }
   ],
   "variables": {
     "地点": { "id": "location", "type": "place", "about": "地区，或 地区·具体地点" },

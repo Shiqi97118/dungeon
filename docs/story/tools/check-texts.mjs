@@ -79,7 +79,7 @@ function typedValue(type, raw) {
     case 'openingHook': return vocab.openingHooks[v] ?? null
     case 'direction': return directions.has(v) ? v : null
     case 'doorOutcome': return vocab.doorOutcomes[v] ?? null
-    case 'textId': return /^[A-Z]+-[A-Z0-9-]+$/.test(v) ? v : null
+    case 'textId': return /^[A-Z]+-[A-Z]+-[^\s/]+(\/[^\s/]+)?$/.test(v) ? v : null
     case 'route': {
       const ends = v.split('↔').map((x) => regions.get(x.trim())?.id)
       return ends.length === 2 && ends.every(Boolean) ? ends.sort().join('|') : null
@@ -232,7 +232,8 @@ const ID_RE = /^#### ((GEN|GH|KV|WP|SL|QZ|EM|SS|NC)-(ENV|SCN|BEAT|DLG|BRG|TRV|RS
 const DLG_LINE = /^- ([^（：【]+?)(【关键句】)?(?:（(.*?)）)?：(.*)$/
 
 function parseFile(name) {
-  const lines = readFileSync(join(TEXT_DIR, name), 'utf8').split('\n')
+  // Split on CRLF too: a Windows checkout (core.autocrlf) must compile to the same data.
+  const lines = readFileSync(join(TEXT_DIR, name), 'utf8').split(/\r?\n/)
   const entries = [], problems = []
   let cur = null
   const report = (line, msg) => problems.push({ file: name, line, id: cur?.id ?? '—', msg })
