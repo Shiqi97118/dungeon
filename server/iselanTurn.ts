@@ -43,6 +43,21 @@ export function iselanModelId(kind: CallKind = 'turn'): string | null {
   return endpoint(kind)?.model ?? null
 }
 
+const REFUSED = new Set([400, 401, 402, 403, 404, 422, 429])
+
+const count = (v: unknown) => (typeof v === 'number' && Number.isSafeInteger(v) && v >= 0 ? v : null)
+
+/** Reported usage, or null when any part is missing or implausible; null keeps the estimate booked. */
+export function usageOf(u: { prompt_tokens?: unknown; completion_tokens?: unknown; prompt_cache_hit_tokens?: unknown; prompt_tokens_details?: { cached_tokens?: unknown } } | undefined): ModelUsage | null {
+  if (!u) return null
+  const promptTokens = count(u.prompt_tokens)
+  const completionTokens = count(u.completion_tokens)
+  const rawCached = u.prompt_cache_hit_tokens ?? u.prompt_tokens_details?.cached_tokens
+  const cachedTokens = rawCached === undefined ? 0 : count(rawCached)
+  if (!promptTokens || completionTokens === null || cachedTokens === null || cachedTokens > promptTokens) return null
+  return { promptTokens, cachedTokens, completionTokens }
+}
+
 function providerModel(kind: CallKind): IselanModel | null {
   const ep = endpoint(kind)
   if (!ep) return null
@@ -62,7 +77,8 @@ function providerModel(kind: CallKind): IselanModel | null {
       body: JSON.stringify(body),
       signal: AbortSignal.timeout(40_000),
     })
-    if (!res.ok) throw new ProviderRefused(502, `AI 接口返回 ${res.status}`)
+    // Only a 4xx means the provider turned the request away unprocessed; a 5xx may still be billed.
+    if (!res.ok) throw new (REFUSED.has(res.status) ? ProviderRefused : HttpError)(502, `AI 接口返回 ${res.status}`)
     const data = (await res.json()) as {
       choices?: { message?: { content?: string } }[]
       usage?: { prompt_tokens?: number; completion_tokens?: number; prompt_cache_hit_tokens?: number; prompt_tokens_details?: { cached_tokens?: number } }
@@ -71,11 +87,7 @@ function providerModel(kind: CallKind): IselanModel | null {
     return {
       text: data?.choices?.[0]?.message?.content ?? '',
       model,
-      usage: u ? {
-        promptTokens: u.prompt_tokens ?? 0,
-        cachedTokens: u.prompt_cache_hit_tokens ?? u.prompt_tokens_details?.cached_tokens ?? 0,
-        completionTokens: u.completion_tokens ?? 0,
-      } : null,
+      usage: usageOf(u),
     }
   }
 }

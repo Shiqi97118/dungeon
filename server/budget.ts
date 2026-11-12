@@ -148,6 +148,8 @@ export interface GuardInput {
   readonly now: number
   /** Per-caller counts for 12 §9.3 次数上限 (the global one is added here). */
   readonly counts: readonly { readonly key: string; readonly limit: number }[]
+  /** Known prompt size; the estimate never goes below the configured worst case. */
+  readonly inputTokens?: number
 }
 
 /**
@@ -158,13 +160,14 @@ export async function guarded<T>(budget: BudgetStore, input: GuardInput, call: (
   const bucket = bucketOf(input.stage, input.now)
   const limits = CONFIG.cost.dailyLimits
   const global = input.kind === 'ending' ? { key: 'ending', limit: limits.endingGlobal } : { key: 'global', limit: limits.global }
-  for (const c of [global, ...input.counts]) {
+  // Per-caller limits first, so one caller running out does not also use up the site-wide count.
+  for (const c of [...input.counts, global]) {
     if (!(await budget.count(bucket, c.key, c.limit))) throw new HttpError(429, CALLS_OUT)
   }
 
   let estimate: number
   try {
-    estimate = estimateNano(input.model, input.kind, new Date(input.now))
+    estimate = estimateNano(input.model, input.kind, new Date(input.now), input.inputTokens)
   } catch (e) {
     if (e instanceof CostError) throw new HttpError(503, `当前 AI 模型不在价格表里，AI 主持暂停（${e.message}）`)
     throw e

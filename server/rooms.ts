@@ -7,7 +7,8 @@ import { AI, controllerOf, mayAct, nextCompanionMove, type Seating } from '../sr
 import { HttpError, assertSameSite, fail, json, readJson } from './http.js'
 import type { Player, RoomData, RoomRow, Store } from './store.js'
 import { platform, type Viewer } from './platform.js'
-import { serverGm } from './gm.js'
+import { meteredGm, serverGm } from './gm.js'
+import { CONFIG } from '../src/iselan/config.js'
 
 const MAX_PLAYERS = 6
 const ONLINE_MS = 45_000
@@ -122,9 +123,12 @@ const progress = (st: GameState) =>
 const usesGm = (st: GameState, t: string) =>
   t === 'free' || (t === 'rollCommit' && (st.rolling?.kind === 'ai' || st.rolling?.kind === 'final'))
 
-async function roomGm(store: Store, v: Viewer, d: RoomData) {
+async function roomGm(store: Store, v: Viewer, d: RoomData, code: string) {
   const gm = d.aiCalls < ROOM_AI_LIMIT ? serverGm() : null
-  return gm && (await spendGlobalAi(store, v)) ? gm : null
+  if (!gm || !(await spendGlobalAi(store, v))) return null
+  const budget = platform().budget?.() ?? null
+  if (budget) return meteredGm(gm, budget, v.stage, [{ key: `room:${code}`, limit: CONFIG.cost.dailyLimits.room }])
+  return v.open ? null : gm
 }
 
 /** Plays one step for an AI companion if one holds the table and the last step has had time to show. */
@@ -134,7 +138,7 @@ async function driveCompanion(store: Store, v: Viewer, code: string, row: RoomRo
   const seat = seating(row)
   const move = nextCompanionMove(d.state, (id) => controllerOf(seat, id) === AI)
   if (!move || Date.now() - (d.lastAt ?? 0) < move.delay) return row
-  const res = await runIntent(d.state, move.intent, usesGm(d.state, move.intent.t) ? await roomGm(store, v, d) : null)
+  const res = await runIntent(d.state, move.intent, usesGm(d.state, move.intent.t) ? await roomGm(store, v, d, code) : null)
   let state = res.state
   if (progress(state) === progress(d.state)) state = (await runIntent(d.state, { t: 'pass' }, null)).state
   if (progress(state) === progress(d.state)) return row
@@ -275,7 +279,7 @@ export async function handleRoom(request: Request): Promise<Response> {
       if (d.status !== 'play') throw new HttpError(409, '冒险还没有开始')
       if (!mayAct(d.state, intent, me.id, seating(row))) throw new HttpError(403, '现在不是你的回合')
       let cur = row.version
-      const gm = usesGm(d.state, intent.t) ? await roomGm(store, ident, d) : null
+      const gm = usesGm(d.state, intent.t) ? await roomGm(store, ident, d, code) : null
       const res = await runIntent(d.state, intent, gm, {
         interim: async (st) => {
           if (await store.update(stage, code, cur, { ...d, state: st })) cur += 1

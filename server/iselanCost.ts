@@ -118,9 +118,9 @@ export function costNano(model: string, usage: ModelUsage, at: Date): number {
 }
 
 /** 12 §9.2: pre-call estimate. Every prompt token is charged at the cache-miss price. */
-export function estimateNano(model: string, kind: 'turn' | 'ending', at: Date): number {
+export function estimateNano(model: string, kind: 'turn' | 'ending', at: Date, inputTokens = 0): number {
   const worst = CONFIG.cost.worstCase[kind]
-  return costNano(model, { promptTokens: worst.inputTokens, cachedTokens: 0, completionTokens: worst.outputTokens }, at)
+  return costNano(model, { promptTokens: Math.max(worst.inputTokens, inputTokens), cachedTokens: 0, completionTokens: worst.outputTokens }, at)
 }
 
 /**

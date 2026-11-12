@@ -4,6 +4,7 @@ import { CLUES, FACTS, knowsFact } from './data/clues.js'
 import { LOC_NAMES, SCENES, routeKnown } from './data/scenes.js'
 import { availableActions, type AiEffects } from './engine.js'
 import { CONDS, condsOf } from './conds.js'
+import { estimateTokens } from '../iselan/ai/tokens.js'
 
 export interface AiConfig {
   enabled: boolean
@@ -118,6 +119,9 @@ ${free}
 【最近的记录】
 ${recent}`
 }
+
+/** Rough input size of a call built from `s` plus `extra`, for the server's cost estimate. */
+export const promptTokens = (s: GameState, extra: string) => estimateTokens(`${SYSTEM}\n${contextFor(s)}\n${extra}`)
 
 export interface AiTurn {
   narration: string

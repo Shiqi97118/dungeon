@@ -91,10 +91,11 @@ function suite(name: string, url: string | undefined) {
     it('runs free actions through the server-side AI host', async () => {
       const realFetch = globalThis.fetch
       process.env.OPENAI_API_KEY = 'test-key'
+      process.env.GM_BASE_URL = 'https://api.deepseek.com'
       let calls = 0
       globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
         const u = String(input)
-        if (!u.startsWith('https://api.openai.com/')) return realFetch(input, init)
+        if (!u.startsWith('https://api.deepseek.com/')) return realFetch(input, init)
         calls++
         expect(JSON.parse(String(init?.body)).messages[1].content).toContain('当前行动者')
         const content = JSON.stringify({ narration: '井壁回应了你的敲击。「再敲一次。」', roll: null, effects: { pressure: 0, conds: [{ charId: 'helan', id: 'focus' }] } })
@@ -115,6 +116,7 @@ function suite(name: string, url: string | undefined) {
       } finally {
         globalThis.fetch = realFetch
         delete process.env.OPENAI_API_KEY
+        delete process.env.GM_BASE_URL
       }
     })
 

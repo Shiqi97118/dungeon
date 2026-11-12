@@ -2,12 +2,12 @@ import type { GameState, Stat, Tier } from '../src/game/types.js'
 import { SCENES } from '../src/game/data/scenes.js'
 import { HttpError, assertSameSite, fail, json, readJson } from './http.js'
 import { platform } from './platform.js'
-import { serverGm } from './gm.js'
+import { meteredGm, serverGm } from './gm.js'
 import { cleanTurnRequest, iselanModel, iselanModelId, iselanTurn, type IselanModel } from './iselanTurn.js'
 import { spendGlobalAi } from './rooms.js'
-import { guarded, type CallKind } from './budget.js'
-import { gmEndpoint } from './gm.js'
+import { guarded } from './budget.js'
 import { CONFIG } from '../src/iselan/config.js'
+import { estimateTokens } from '../src/iselan/ai/tokens.js'
 
 const DAILY_LIMIT = 200
 const IP_DAILY_LIMIT = 300
@@ -61,7 +61,7 @@ export async function handleGm(request: Request): Promise<Response> {
         { key: `room:${req.runId}`, limit: limits.room },
       ]
       const metered: IselanModel = (r) =>
-        guarded(budget, { stage: ident.stage, kind: 'turn', model: modelId, now: Date.now(), counts }, async () => {
+        guarded(budget, { stage: ident.stage, kind: 'turn', model: modelId, now: Date.now(), counts, inputTokens: estimateTokens(r.system) + estimateTokens(r.content) }, async () => {
           const reply = await model(r)
           return { value: reply, usage: reply.usage }
         })
@@ -72,35 +72,30 @@ export async function handleGm(request: Request): Promise<Response> {
     if (!gm) throw new HttpError(503, '内置 AI 主持人未配置')
     const state = cleanState(body.state)
     await spend()
-    // The legacy host shares the key, so it shares the 28 元 cap. It reports no usage, so each call is booked at its estimate.
     if (!budget && ident.open) throw new HttpError(503, '内置 AI 主持人暂不可用')
-    const legacyModel = gmEndpoint(process.env.OPENAI_API_KEY?.trim() ?? '', process.env.GM_BASE_URL, process.env.GM_MODEL).model
-    const metered = <T,>(kind: CallKind, run: () => Promise<T>): Promise<T> =>
-      budget
-        ? guarded(budget, { stage: ident.stage, kind, model: legacyModel, now: Date.now(), counts: [] }, async () => ({ value: await run(), usage: null }))
-        : run()
+    const host = budget ? meteredGm(gm, budget, ident.stage) : gm
 
     if (body.op === 'propose') {
       const said = text(body.text, 200)
-      return json(await metered('turn', () => gm.propose(state, said, typeof body.actorName === 'string' ? body.actorName.slice(0, 12) : undefined)))
+      return json(await host.propose(state, said, typeof body.actorName === 'string' ? body.actorName.slice(0, 12) : undefined))
     }
     if (body.op === 'resolve') {
       const r = (body.r ?? {}) as Record<string, unknown>
       const dice = Array.isArray(r.dice) ? [Number(r.dice[0]) || 1, Number(r.dice[1]) || 1] as [number, number] : [1, 1] as [number, number]
       const said = text(body.text, 200)
-      return json(await metered('turn', () => gm.resolve(state, said, {
+      return json(await host.resolve(state, said, {
         actorName: String(r.actorName ?? '').slice(0, 12),
         stat: STATS.includes(r.stat as Stat) ? (r.stat as Stat) : 'ins',
         dice,
         total: Number(r.total) || 0,
         tier: TIERS.includes(r.tier as Tier) ? (r.tier as Tier) : 'partial',
         risk: String(r.risk ?? '').slice(0, 120),
-      })))
+      }))
     }
     if (body.op === 'ending') {
       const tier = TIERS.includes(body.tier as Tier) ? (body.tier as Tier) : 'partial'
       const plan = text(body.plan, 300)
-      return json({ paragraphs: await metered('ending', () => gm.ending(state, plan, tier)) })
+      return json({ paragraphs: await host.ending(state, plan, tier) })
     }
     throw new HttpError(400, '未知操作')
   } catch (e) {

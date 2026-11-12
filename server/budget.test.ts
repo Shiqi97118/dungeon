@@ -4,7 +4,11 @@ import { BUDGET_OUT, CALLS_OUT, MemoryBudgetStore, ProviderRefused, SqlBudgetSto
 import { handleGm } from './gmProxy.js'
 import { HttpError } from './http.js'
 import { NANO_YUAN, costNano, estimateNano } from './iselanCost.js'
-import { iselanModelId, setIselanModel, type IselanModel } from './iselanTurn.js'
+import { iselanModel, iselanModelId, setIselanModel, usageOf, type IselanModel } from './iselanTurn.js'
+import { meteredGm, serverGm } from './gm.js'
+import { newGame } from '../src/game/engine.js'
+import { PREGENS, makeCharacter } from '../src/game/data/characters.js'
+import { promptTokens } from '../src/game/ai.js'
 import { anonymousViewer, setPlatform } from './platform.js'
 import { MemoryProfileStore } from './profileStore.js'
 import { sqliteD1 } from './sqliteD1.js'
@@ -95,6 +99,22 @@ function suite(name: string, make: () => BudgetStore) {
       await expect(guarded(b, input({ counts: [{ key: 'user:b', limit: 2 }] }), async () => ({ value: 1, usage }))).resolves.toBe(1)
     })
 
+    it('one caller at its limit does not use up the site-wide count', async () => {
+      const greedy = input({ counts: [{ key: 'ip:x', limit: 1 }] })
+      await guarded(b, greedy, async () => ({ value: 1, usage }))
+      for (let i = 0; i < 5; i++) await expect(guarded(b, greedy, async () => ({ value: 1, usage }))).rejects.toThrow(CALLS_OUT)
+      const bucket = bucketOf('production', PEAK)
+      expect(await b.count(bucket, 'global', 2)).toBe(true)
+      expect(await b.count(bucket, 'global', 2)).toBe(false)
+    })
+
+    it('a larger prompt holds a larger estimate', async () => {
+      const bucket = bucketOf('production', PEAK)
+      await guarded(b, input({ inputTokens: 40_000 }), async () => ({ value: 1, usage: null }))
+      expect(await b.total(bucket)).toBe(estimateNano('deepseek-flash', 'turn', new Date(PEAK), 40_000))
+      expect(estimateNano('deepseek-flash', 'turn', new Date(PEAK), 40_000)).toBeGreaterThan(estimateNano('deepseek-flash', 'turn', new Date(PEAK)))
+    })
+
     it('refuses an unpriced model before calling it', async () => {
       let called = 0
       await expect(guarded(b, input({ model: 'grok-4.7' }), async () => { called++; return { value: 1, usage } })).rejects.toMatchObject({ status: 503 })
@@ -152,6 +172,71 @@ describe('AI 接口经过费用守卫', () => {
     setPlatform({ viewer: async (r) => anonymousViewer(r), store: () => new MemoryStore(), profiles: () => new MemoryProfileStore(), budget: () => null })
     expect((await post({ op: 'iselan_turn', runId: 'run-budget-0001', seq: 1, content: 'x' })).status).toBe(503)
     expect(calls).toBe(0)
+  })
+})
+
+describe('供应商回包', () => {
+  it('usage is null when a count is missing, zero prompt, negative or cached above prompt', () => {
+    expect(usageOf({ prompt_tokens: 3000, completion_tokens: 800, prompt_cache_hit_tokens: 1500 })).toEqual(usage)
+    expect(usageOf({ prompt_tokens: 3000, completion_tokens: 800 })).toEqual({ promptTokens: 3000, cachedTokens: 0, completionTokens: 800 })
+    expect(usageOf(undefined)).toBeNull()
+    expect(usageOf({ completion_tokens: 800 })).toBeNull()
+    expect(usageOf({ prompt_tokens: 0, completion_tokens: 800 })).toBeNull()
+    expect(usageOf({ prompt_tokens: 3000 })).toBeNull()
+    expect(usageOf({ prompt_tokens: -1, completion_tokens: 800 })).toBeNull()
+    expect(usageOf({ prompt_tokens: 3000, completion_tokens: 800, prompt_cache_hit_tokens: 3001 })).toBeNull()
+    expect(usageOf({ prompt_tokens: '3000', completion_tokens: 800 })).toBeNull()
+  })
+
+  it('only a 4xx releases the hold; a 5xx stays booked at the estimate', async () => {
+    const saved = { ...process.env }
+    const realFetch = globalThis.fetch
+    process.env.OPENAI_API_KEY = 'sk-test-not-a-real-key'
+    process.env.GM_BASE_URL = 'https://api.deepseek.com'
+    setIselanModel(undefined)
+    const b = new MemoryBudgetStore()
+    const bucket = bucketOf('production', PEAK)
+    try {
+      for (const status of [429, 500]) {
+        globalThis.fetch = (async () => new Response('no', { status })) as typeof fetch
+        const model = iselanModel()!
+        const r = { value: null, usage: null }
+        await expect(guarded(b, input(), async () => { await model({ system: 's', content: 'c', maxTokens: 10 }); return r })).rejects.toThrow(String(status))
+      }
+      expect(await b.total(bucket)).toBe(estimateNano('deepseek-flash', 'turn', new Date(PEAK)))
+    } finally {
+      globalThis.fetch = realFetch
+      process.env = saved
+    }
+  })
+})
+
+describe('旧版主持人', () => {
+  it('goes through the ledger, sized from the real prompt, and refuses an oversized save', async () => {
+    const saved = { ...process.env }
+    const realFetch = globalThis.fetch
+    process.env.OPENAI_API_KEY = 'sk-test-not-a-real-key'
+    process.env.GM_BASE_URL = 'https://api.deepseek.com'
+    let calls = 0
+    globalThis.fetch = (async () => {
+      calls++
+      return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ narration: '好。', roll: null }) } }] }), { status: 200 })
+    }) as typeof fetch
+    const b = new MemoryBudgetStore()
+    try {
+      const gm = meteredGm(serverGm()!, b, 'production')
+      const s = newGame(PREGENS.slice(0, 2).map(makeCharacter), { softMemory: false, softTrapped: false })
+      await gm.propose(s, '看看')
+      expect(calls).toBe(1)
+      const spent = await b.total(bucketOf('production', Date.now()))
+      expect(spent).toBe(estimateNano('deepseek-flash', 'turn', new Date(), promptTokens(s, '看看')))
+      const huge = { ...s, party: s.party.map((c) => ({ ...c, motive: '长'.repeat(20_000) })) }
+      await expect(gm.propose(huge, '看看')).rejects.toMatchObject({ status: 413 })
+      expect(calls).toBe(1)
+    } finally {
+      globalThis.fetch = realFetch
+      process.env = saved
+    }
   })
 })
 
