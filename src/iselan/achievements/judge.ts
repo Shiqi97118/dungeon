@@ -27,15 +27,15 @@ export function intentActors(events: readonly AnyEvent[]): Map<string, Set<strin
 /**
  * The first committed event that satisfies `def`, or null. With `actorIds` (one participant of an
  * online run), a `character` achievement only counts events from that participant's own actions
- * or from the whole party.
+ * or from the whole party. An event's own `actorIds` win over the intent's counted choices.
  */
 export function earningEvent(def: AchievementDef, events: readonly AnyEvent[], actorIds?: readonly string[], actors = intentActors(events)): AnyEvent | null {
   const rule = def.rule
   if (rule.op !== 'event') throw new Error(`${def.id}：首版只判定 event 规则，收到 ${rule.op}`)
   const mine = (e: AnyEvent) => {
     if (!actorIds || def.scope !== 'character') return true
-    const by = actors.get(e.sourceIntentId)
-    return !by || [...by].some((a) => actorIds.includes(a))
+    const by = e.actorIds.length ? e.actorIds : [...(actors.get(e.sourceIntentId) ?? [])]
+    return !by.length || by.some((a) => actorIds.includes(a))
   }
   return events.find((e) => matches(rule, e) && mine(e)) ?? null
 }

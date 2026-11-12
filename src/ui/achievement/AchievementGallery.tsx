@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import type { AchievementCard, CatalogView } from '../../iselan/achievements/types'
 import { iconSrc } from './icons'
 import { RARITY_LABEL } from './toastQueue'
+import Modal from '../interaction/Modal'
 import './achievement.css'
 
 type StatusFilter = 'all' | 'got' | 'missing'
@@ -85,34 +86,23 @@ export function AchievementGallery({ view, onClose }: { view: CatalogView; onClo
   )
 }
 
-/** 02 §7 detail dialog: closes on the button, Esc or the backdrop, and focus returns to the card. */
+/** 02 §7 detail dialog: closes on the button or Esc, and focus returns to the card. */
 export function AchievementDetail({ card, onClose }: { card: AchievementCard; onClose: () => void }) {
-  const closeBtn = useRef<HTMLButtonElement>(null)
-  useEffect(() => {
-    closeBtn.current?.focus()
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
-
   const text = card.description ?? card.hint ?? (card.visibility === 'secret' ? '这是一项秘密成就，达成之前不会透露任何内容。' : null)
   return (
-    <div className="modal-backdrop ach-backdrop" onClick={(e) => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="modal ach-detail" role="dialog" aria-modal="true" aria-labelledby="ach-detail-title">
-        <div className="ach-detail-top">
-          <AchievementIcon card={card} size={96} />
-          <div>
-            <div className="modal-kicker">{card.categoryName}{card.rarity ? ` · ${RARITY_LABEL[card.rarity]}` : ''}</div>
-            <h3 id="ach-detail-title">{cardName(card)}</h3>
-            <p className="ach-status">{statusLabel(card)}{card.unlock ? ` · ${date(card.unlock.unlockedAt)}` : ''}</p>
-          </div>
-        </div>
-        {text && <p>{card.hint && !card.description ? `提示：${text}` : text}</p>}
-        {card.flavor && card.unlock && <p className="ach-flavor">{card.flavor}</p>}
-        <div className="ach-detail-actions">
-          <button ref={closeBtn} className="btn" onClick={onClose}>关闭</button>
+    <Modal title={cardName(card)} onClose={onClose} className="ach-detail">
+      <div className="ach-detail-top">
+        <AchievementIcon card={card} size={96} />
+        <div>
+          <div className="modal-kicker">{card.categoryName}{card.rarity ? ` · ${RARITY_LABEL[card.rarity]}` : ''}</div>
+          <p className="ach-status">{statusLabel(card)}{card.unlock ? ` · ${date(card.unlock.unlockedAt)}` : ''}</p>
         </div>
       </div>
-    </div>
+      {text && <p>{card.hint && !card.description ? `提示：${text}` : text}</p>}
+      {card.flavor && card.unlock && <p className="ach-flavor">{card.flavor}</p>}
+      <div className="ach-detail-actions">
+        <button className="btn" onClick={onClose} data-autofocus>关闭</button>
+      </div>
+    </Modal>
   )
 }

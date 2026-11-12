@@ -49,8 +49,11 @@ export default function Reader({ screens, fallbackImage, end }: { screens: reado
   const shown = useRef({ screens, page: view.page })
   useEffect(() => {
     if (shown.current.screens === screens && shown.current.page === view.page) return
+    const newBatch = shown.current.screens !== screens
     shown.current = { screens, page: view.page }
     const el = sectionRef.current
+    // The end slot that held focus is gone with the old batch; without this focus falls to <body>.
+    if (newBatch && (!document.activeElement || document.activeElement === document.body)) screenRef.current?.focus({ preventScroll: true })
     if (el && el.getBoundingClientRect().top < 0) el.scrollIntoView({ block: 'start' })
   }, [screens, view.page])
 

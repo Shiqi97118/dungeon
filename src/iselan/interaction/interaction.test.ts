@@ -58,6 +58,18 @@ describe('evidence session', () => {
     expect(reduceEvents('r1', other.events).interactions[id]).toEqual({ template: 'evidence', outcome: 'skipped', textId: 'GH-BEAT-04' })
   })
 
+  it('in an online run each character settles their own instance, attributed to them', () => {
+    const a = interactionInstanceId(LEDGER.textId, 'helan')
+    const b = interactionInstanceId(LEDGER.textId, 'qilan')
+    const first = settleInteraction([], LEDGER, { requestId: `${a}#1`, instanceId: a, action: 'skip', params: { inspected: [] } }, ctx)
+    const second = settleInteraction(first.events, LEDGER, { requestId: `${b}#1`, instanceId: b, action: 'complete', params: { inspected: ['unit', 'seven', 'margin'] } }, ctx)
+    expect(second.result).toMatchObject({ outcome: 'completed', duplicate: false })
+    expect(second.events.filter((e) => e.type === 'interaction_completed').map((e) => e.actorIds)).toEqual([['helan'], ['qilan']])
+    for (const bad of [`${id}@`, `${id}@a@b`, 'ix:GH-BEAT-05@helan']) {
+      expect(() => settleInteraction([], LEDGER, { requestId: `${bad}#1`, instanceId: bad, action: 'skip', params: { inspected: [] } }, ctx)).toThrow(InteractionRejected)
+    }
+  })
+
   it('rejects incomplete or unknown inspections without writing, and frees the session', () => {
     const base = { requestId: `${id}#1`, instanceId: id, action: 'complete' as const }
     expect(() => settleInteraction([], LEDGER, { ...base, params: { inspected: ['unit'] } }, ctx)).toThrow(InteractionRejected)

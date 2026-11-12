@@ -4,10 +4,10 @@ import { createPortal } from 'react-dom'
 const FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
 
 /**
- * Modal shell for interactions. While open the app root is `inert`, Tab cycles inside the panel,
+ * Modal shell for interactions and detail dialogs. While open the app root is `inert`, Tab cycles inside the panel,
  * and on close focus goes back to whatever opened it.
  */
-export default function Modal({ title, onClose, canClose = true, children }: { title: string; onClose: () => void; canClose?: boolean; children: ReactNode }) {
+export default function Modal({ title, onClose, canClose = true, className, children }: { title: string; onClose: () => void; canClose?: boolean; className?: string; children: ReactNode }) {
   const panel = useRef<HTMLDivElement>(null)
   const titleId = useId()
   const close = useRef({ onClose, canClose })
@@ -67,7 +67,7 @@ export default function Modal({ title, onClose, canClose = true, children }: { t
 
   return createPortal(
     <div className="ix-backdrop">
-      <div className="ix-panel" role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} ref={panel}>
+      <div className={className ? `ix-panel ${className}` : 'ix-panel'} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} ref={panel}>
         <header className="ix-head">
           <h2 id={titleId}>{title}</h2>
           <button className="btn ghost ix-close" onClick={onClose} disabled={!canClose} aria-label="关闭">

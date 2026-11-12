@@ -84,6 +84,16 @@ describe('首版成就判定（12 §6.1）', () => {
     expect(run.events.find((e) => e.eventId === re01.eventId)?.payload).toEqual({ npcId: 'ludo' })
   })
 
+  it('角色成就按事件自带的行动者归属；事件没写行动者时才看本次意图里计入的选择', () => {
+    const run = new TestRun()
+    run.commit([draft('npc_met', { npcId: 'ludo' }, { actorIds: ['a'] })])
+    const mine = (actorIds: string[]) => judgeAchievements(run.s, run.events, actorIds).map((e) => e.achievementId)
+    expect(mine(['a'])).toContain('RE01')
+    expect(mine(['b'])).not.toContain('RE01')
+    run.commit([draft('npc_met', { npcId: 'felix' })])
+    expect(mine(['b'])).toContain('RE01')
+  })
+
   it('刚开局只有 ST01', () => {
     expect(ids(new TestRun())).toEqual(['ST01'])
   })

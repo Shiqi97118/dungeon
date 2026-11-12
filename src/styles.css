@@ -768,6 +768,7 @@ details summary { cursor: pointer; color: var(--echo); margin: 8px 0; }
 .rd-nav .btn.ghost { min-height: 44px; }
 .rd-tab:focus-visible, .rd-reader .btn:focus-visible { outline: 2px solid var(--echo); outline-offset: 2px; }
 .rd-end { width: 100%; max-width: 780px; margin: 14px auto 0; display: flex; justify-content: flex-end; outline: none; }
+.rd-end .btn { min-height: 44px; }
 .rd-world { min-height: 0; overflow-y: auto; border-left: 1px solid var(--line); background: rgba(9,12,16,.7); padding: 6px 18px 20px; }
 .rd-tabs { display: none; }
 .rd-sec { padding: 12px 0; border-bottom: 1px solid var(--line); }

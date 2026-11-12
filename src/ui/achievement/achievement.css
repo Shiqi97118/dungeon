@@ -18,7 +18,7 @@
 .ach-body { display: flex; flex: 1; min-height: 0; }
 .ach-filters { flex: none; width: 180px; padding: 14px; border-right: 1px solid var(--line); display: flex; flex-direction: column; gap: 16px; overflow-y: auto; }
 .ach-filters [role='group'] { display: flex; flex-direction: column; gap: 4px; }
-.ach-tab { display: flex; justify-content: space-between; gap: 8px; padding: 6px 10px; border: 1px solid transparent; border-radius: 8px; background: none; cursor: pointer; text-align: left; white-space: nowrap; }
+.ach-tab { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px; padding: 6px 10px; border: 1px solid transparent; border-radius: 8px; background: none; cursor: pointer; text-align: left; white-space: nowrap; }
 .ach-tab small { color: var(--dim); }
 .ach-tab:hover { border-color: var(--line2); }
 .ach-tab.on { border-color: var(--copper); background: rgba(208, 147, 86, .12); }
@@ -36,7 +36,7 @@
 
 :where(.ach-gallery, .ach-toasts, .ach-ending) button:focus-visible { outline: 2px solid var(--echo); outline-offset: 2px; }
 
-.ach-detail { width: min(520px, 90vw); max-height: 86vh; overflow-y: auto; }
+.ix-panel.ach-detail { width: min(520px, 100%); }
 .ach-detail-top { display: flex; gap: 16px; align-items: center; margin-bottom: 10px; }
 .ach-detail-top h3 { margin: 0; }
 .ach-detail .ach-status { margin: 0; color: var(--dim); font-size: 13px; }
@@ -57,7 +57,7 @@
 .ach-toast-main > span { display: flex; flex-direction: column; line-height: 1.35; }
 .ach-toast-kicker { font-size: 11px; letter-spacing: .3em; color: var(--copper2); }
 .ach-toast-main small { color: var(--dim); }
-.ach-toast-close { flex: none; width: 36px; border: 0; background: none; color: var(--dim); font-size: 18px; cursor: pointer; }
+.ach-toast-close { flex: none; width: 44px; min-height: 44px; border: 0; background: none; color: var(--dim); font-size: 18px; cursor: pointer; }
 .ach-toast-more { padding: 10px 14px; font-size: 13px; color: var(--dim); }
 @media (max-width: 720px) {
   .ach-toasts { top: calc(env(safe-area-inset-top, 0px) + 8px); right: 50%; transform: translateX(50%); }

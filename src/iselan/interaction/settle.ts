@@ -18,7 +18,15 @@ export interface InteractionResult {
 /** The request is malformed; nothing was written, so the player may act again. */
 export class InteractionRejected extends Error {}
 
-export const interactionInstanceId = (textId: string) => `ix:${textId}`
+/** One instance per text, or per text and character when each player meets it on their own. */
+export const interactionInstanceId = (textId: string, actorId?: string) => (actorId ? `ix:${textId}@${actorId}` : `ix:${textId}`)
+
+function actorOf(def: EvidenceDef, instanceId: string): string | null | undefined {
+  const base = interactionInstanceId(def.textId)
+  if (instanceId === base) return null
+  const actor = instanceId.startsWith(`${base}@`) ? instanceId.slice(base.length + 1) : ''
+  return actor && !actor.includes('@') ? actor : undefined
+}
 
 function recorded(events: readonly AnyEvent[], def: EvidenceDef, instanceId: string): InteractionResult | null {
   for (const e of events) {
@@ -49,7 +57,8 @@ export function settleInteraction(
   req: InteractionRequest,
   ctx: CommitContext,
 ): { readonly events: readonly AnyEvent[]; readonly result: InteractionResult } {
-  if (req.instanceId !== interactionInstanceId(def.textId)) throw new InteractionRejected('互动实例与条目不符')
+  const actor = actorOf(def, req.instanceId)
+  if (actor === undefined) throw new InteractionRejected('互动实例与条目不符')
   const done = recorded(events, def, req.instanceId)
   if (done) return { events, result: done }
 
@@ -61,7 +70,7 @@ export function settleInteraction(
 
   const outcome = skip ? 'skipped' : 'completed'
   const r = commitIntent(events, req.requestId, [
-    { type: 'interaction_completed', payload: { template: def.template, outcome, textId: def.textId, interactionInstanceId: req.instanceId } },
+    { type: 'interaction_completed', payload: { template: def.template, outcome, textId: def.textId, interactionInstanceId: req.instanceId }, actorIds: actor ? [actor] : [] },
   ], ctx)
   return {
     events: r.events,

@@ -101,7 +101,7 @@ export default function EvidencePanel({ def, s, dispatch, knownName, onClose }: 
                   {result.inspected.filter((id) => spot(id).key).map((id) => <li key={id}>{spot(id).detail}</li>)}
                 </ul>
               ) : (
-                <p>按普通检定结算：{result.check!.skill}，难度 {result.check!.difficulty}。跳过不改变成功率；之后仍可以回来细看。</p>
+                <p>按普通检定结算：{result.check!.skill}，难度 {result.check!.difficulty}。跳过不改变成功率。</p>
               )}
               <div className="ix-actions">
                 <button className="btn" onClick={() => dispatch({ type: 'showResult', open: false })}>收起结果</button>
