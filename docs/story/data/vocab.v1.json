@@ -265,7 +265,22 @@
     { "id": "project_brawl", "name": "事业里发生斗殴", "kind": "world", "about": "事业风险事件：店里打起来了" },
     { "id": "patient_influx", "name": "病人涌入互助站", "kind": "world", "about": "事业风险事件：遗忘病人一夜之间挤满互助站" },
     { "id": "project_risk_weathered", "name": "事业经受过风险", "kind": "world", "about": "一次风险事件已结算且事业没有关闭；稳定阶段的前提之一" },
-    { "id": "astrion_sealed", "name": "阿斯特里昂已封印", "kind": "world", "about": "阿斯特里昂已被封印、撕碎或从合唱中永久分离（06 D12 的否定）" }
+    { "id": "astrion_sealed", "name": "阿斯特里昂已封印", "kind": "world", "about": "阿斯特里昂已被封印、撕碎或从合唱中永久分离（06 D12 的否定）" },
+    {"id": "wick_lane_residents", "name": "灯芯巷的居民", "kind": "knowledge"},
+    {"id": "synthetic_heart_trial_held", "name": "人造钟心实验已举行", "kind": "world"},
+    {"id": "synthetic_heart_invitation", "name": "人造钟心实验邀请", "kind": "knowledge"},
+    {"id": "wick_lane_43", "name": "灯芯巷居民四十三人", "kind": "knowledge"},
+    {"id": "seraphine_pact_obtained", "name": "密约已获得", "kind": "knowledge"},
+    {"id": "cassandra_crown_shadow", "name": "卡珊卓的影子冠冕", "kind": "knowledge"},
+    {"id": "seraphine_resigned", "name": "塞拉芬已辞职", "kind": "world"},
+    {"id": "bell_valley_resolved", "name": "栖钟河谷已收束", "kind": "world"},
+    {"id": "wick_lane_names_recovered", "name": "灯芯巷的名字被取回", "kind": "world"},
+    {"id": "wick_lane_remembered", "name": "灯芯巷被记起", "kind": "world"},
+    {"id": "wick_lane_clock_reduced", "name": "栖钟抢回名字时钟已减一", "kind": "world"},
+    {"id": "cassandra_left_academy", "name": "卡珊卓离开学院", "kind": "world"},
+    {"id": "cassandra_joined", "name": "卡珊卓已随队", "kind": "world"},
+    {"id": "cassandra_knows_host", "name": "卡珊卓知晓宿主真相", "kind": "world"},
+    {"id": "archive_originals_handed_over", "name": "原件被交出", "kind": "world"}
   ],
   "variables": {
     "地点": { "id": "location", "type": "place", "about": "地区，或 地区·具体地点" },
