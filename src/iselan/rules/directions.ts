@@ -7,6 +7,7 @@ import { attitudeOf, bellHeartsHeld, darkLineStateOf, friendlyFactionCluster, ha
 import { drawWeighted, rngFor } from './random'
 
 const ROUND_CAP = 3
+const FACTION_IDS = VOCAB.factions.map((f) => f.id as FactionId)
 
 /** R6: in act 4 every push on a direction counts double. */
 export const directionMultiplier = (s: Snapshot) => (s.act === 4 ? CONFIG.act4LastActions.directionPushMultiplier : 1)
@@ -100,7 +101,8 @@ export function tierOpen(s: Snapshot, tier: Tier, factions: readonly FactionId[]
     case 1:
       return seatsReach(s, t1) && coreArcsDone(s) >= 1 && truthLevel(s) >= 2
     case 2:
-      return seatsReach(s, t2) && coreArcsDone(s) >= 2 && truthLevel(s) >= 3 && factions.some((f) => Math.abs(relationOf(s, f)) >= 2)
+      // 02 §7 asks for a faction related to the direction; until DIRECTION_RULES lists them, any faction counts.
+      return seatsReach(s, t2) && coreArcsDone(s) >= 2 && truthLevel(s) >= 3 && (factions.length ? factions : FACTION_IDS).some((f) => Math.abs(relationOf(s, f)) >= 2)
     case 3:
       return seatsReach(s, t3) && reachedNamelessCity(s) && truthLevel(s) >= 4
   }
@@ -124,7 +126,7 @@ const DIRECTION_IDS = VOCAB.directions.map((d) => d.id)
 
 export const availableDirections = (s: Snapshot): DirectionId[] => DIRECTION_IDS.filter((id) => whyUnavailable(s, id) === null)
 
-export const weightOf = (score: number) => Math.max(score, 0) + 1
+export const weightOf = (score: number) => Math.max(score, CONFIG.candidateWeight.floor) + CONFIG.candidateWeight.add
 
 /**
  * 06 §3 steps 2–4: drop directions at or below −3 (D01 stays if nothing is left), take

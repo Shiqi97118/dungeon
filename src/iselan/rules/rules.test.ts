@@ -323,6 +323,7 @@ describe('player projects (12 §6.3)', () => {
     expect(d01Variant(run.s)).toEqual({ variant: 'settle', regionId: 'gray_harbor' })
     run.settle([projectRiskDraft('p1', 'brawl', true)], { profitable: new Set(['p1']) })
     expect(run.s.projects.p1?.stage).toBe('stable')
+    expect(run.s.facts.project_risk_weathered).toBeTruthy()
     expect(run.events.some((e) => e.type === 'business_profitable' && e.payload.sustained)).toBe(true)
   })
 })

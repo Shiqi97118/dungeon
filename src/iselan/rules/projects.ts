@@ -2,7 +2,7 @@ import { CONFIG } from '../config'
 import type { EventPayloads, NpcId, ObjectId, RegionId } from '../data'
 import { VOCAB } from '../data'
 import { draft, type AnyDraft, type ProjectSnapshot, type Snapshot } from '../events'
-import { attitudeOf } from './conditions'
+import { attitudeOf, hasFact } from './conditions'
 
 type Kind = EventPayloads['player_project_created']['kind']
 type Stage = ProjectSnapshot['stage']
@@ -67,6 +67,7 @@ export function projectDrafts(s: Snapshot, profitable: ReadonlySet<string> = new
       )
     } else if (p.stage === 'operational' && p.risks.some((r) => r.weathered && p.operationalRound !== null && r.round >= p.operationalRound)) {
       out.push(...stageDrafts(s, projectId, 'stable'))
+      if (!hasFact(s, 'project_risk_weathered')) out.push(draft('fact_established', { factId: 'project_risk_weathered', source: projectId }))
       if (p.kind === 'tavern' && profitable.has(projectId)) out.push(draft('business_profitable', { projectId, sustained: true }))
     }
   }
