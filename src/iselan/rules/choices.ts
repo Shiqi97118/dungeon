@@ -22,6 +22,7 @@ const CHANGE_BY_EVENT: Partial<Record<EventType, ChangeKind>> = {
   npc_reconciled: 'relation',
   npc_relationship_repaired: 'relation',
   npc_rescued: 'relation',
+  npc_state_changed: 'risk',
   fact_established: 'knowledge',
   fact_retracted: 'knowledge',
   truth_evidence_added: 'knowledge',
@@ -39,6 +40,7 @@ const CHANGE_BY_EVENT: Partial<Record<EventType, ChangeKind>> = {
   player_project_stage_changed: 'task',
   player_project_risk: 'task',
   business_operational: 'task',
+  tavern_service_settled: 'resource',
   civic_service_operational: 'task',
 }
 

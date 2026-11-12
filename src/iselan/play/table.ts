@@ -12,13 +12,14 @@ import { choiceDraft, joinSeatDraft, r1Met, setControllerDraft, type ActionInput
 import { d01Variant, endingCandidates } from '../rules/directions'
 import { openingDrafts } from '../rules/initial'
 import { wrapUpDrafts } from '../rules/progress'
+import { tavernServiceDraft } from '../rules/projects'
 import { preview, startRound, withConsequences } from '../rules/settle'
 import { stagedDrafts } from '../rules/staged'
 import { ALL_UNITS, fillPlaceholders, placeholderValues, sceneChange, selectFor, selectText, shownDrafts, type Pick as TextPick, type TextUnit } from '../texts'
 import { rollCheck, statFor, type Stat } from './check'
 import { chronicleOf, citedDeeds, directionName, endingCast, projectLine, unfinishedOf } from './ending'
 import { PREGENS } from './pregens'
-import { ambienceDrafts, banquetDrafts, outcomeLabel, placeName, sceneContext } from './world'
+import { ambienceDrafts, banquetDrafts, outcomeLabel, placeName, presentAt, sceneContext } from './world'
 
 export { outcomeLabel }
 
@@ -51,7 +52,7 @@ export interface Screen {
 }
 
 export type Pending =
-  | { readonly kind: 'check'; readonly seatId: string; readonly text: string; readonly request: CheckRequest; readonly stat: Stat; readonly intents: readonly IntentTag[]; readonly interaction?: string }
+  | { readonly kind: 'check'; readonly seatId: string; readonly text: string; readonly request: CheckRequest; readonly stat: Stat; readonly intents: readonly IntentTag[]; readonly interaction?: string; readonly tavernService?: string }
   | { readonly kind: 'interaction'; readonly seatId: string; readonly textId: string; readonly instanceId: string }
   | { readonly kind: 'ending'; readonly candidates: readonly DirectionId[] }
   /** A rewind waiting on every player at the table; `resume` is what was pending before it. */
@@ -388,6 +389,68 @@ function turnInput(t: Table, m: Member, text: string, ctx: SceneContext, prewrit
 
 const narrationScreen = (r: TurnResult) => r.reply.narration.split(/\n+/).map((p) => p.trim()).filter(Boolean)
 
+const DOCKS = 'gray_harbor.docks'
+const DOCK_SETUP = 'GH-SCN-25'
+const DOCK_RESCUE = 'GH-SCN-26'
+const DOCK_DEATH = 'GH-SCN-27'
+const COUNCIL_LEDGER = 'GH-SCN-28'
+const INSPECT_ROPE = '检查码头吊索'
+const SAVE_LUDO = '反摇绞盘救卢多'
+const CUT_ROPE = '割断吊索（卢多会落水身亡）'
+const READ_LEDGER = '查阅议会存档'
+const SERVE_TAVERN = '酒馆开门营业'
+
+function serviceOptions(s: Snapshot) {
+  const taverns = Object.entries(s.projects).filter(([, p]) =>
+    p.kind === 'tavern' && p.regionId === s.location?.regionId && (p.stage === 'operational' || p.stage === 'stable'))
+  return taverns
+    .filter(([, p]) => p.services.at(-1)?.round !== s.round)
+    .map(([id, p]) => ({ id, label: taverns.length === 1 ? SERVE_TAVERN : `${SERVE_TAVERN}：${p.name ?? '酒馆'}（${id}）` }))
+}
+
+function sceneActions(s: Snapshot) {
+  const place = s.location?.placeId
+  if (place === 'gray_harbor.council_hall' && !s.texts[COUNCIL_LEDGER]) return [READ_LEDGER]
+  if (place !== DOCKS || !presentAt(s, DOCKS).includes('ludo') || s.texts[DOCK_RESCUE] || s.texts[DOCK_DEATH]) return []
+  return s.texts[DOCK_SETUP] ? [SAVE_LUDO, CUT_ROPE] : [INSPECT_ROPE]
+}
+
+export function tableActions(s: Snapshot): readonly string[] {
+  return [...sceneActions(s), ...serviceOptions(s).map(({ label }) => label)]
+}
+
+function settleLocalAction(t: Table, b: Builder, target: string, method: string, o: TableOptions): Table {
+  const m = currentMember(t)
+  const choice = choiceDraft(b.base, {
+    seatId: m.seatId, actorId: m.actorId, kind: 'act', sceneId: b.base.location?.placeId ?? 'none',
+    target, method, drafts: b.drafts,
+  })
+  if (choice) b.add([choice])
+  return advance(finishIntent(t, b, b.prefix, o, { pending: null }), o)
+}
+
+function playSceneAction(t: Table, m: Member, s: Snapshot, text: string, o: TableOptions): Table {
+  const { id, t: tt } = nextId(t, 'act')
+  const b = new Builder(s, id, m.name, m.memento)
+  let textId = DOCK_SETUP
+  let tag: Tag = INSPECT_ROPE
+  if (text === READ_LEDGER) {
+    textId = COUNCIL_LEDGER
+    tag = READ_LEDGER
+  } else if (text === SAVE_LUDO || text === CUT_ROPE) {
+    const rescued = text === SAVE_LUDO
+    b.add([draft('npc_state_changed', { npcId: 'ludo', state: rescued ? 'wounded' : 'dead' })])
+    if (rescued) b.add([draft('npc_rescued', { subjectId: 'ludo' })])
+    textId = rescued ? DOCK_RESCUE : DOCK_DEATH
+    tag = rescued ? SAVE_LUDO : '割断吊索'
+  }
+  const ctx = sceneContext(b.cur, { tags: [tag] })
+  const { pick } = selectFor(b.cur, 'action', { ids: [textId], ctx })
+  if (!pick) throw new Error(`当前无法展示场景 ${textId}`)
+  b.show(pick, ctx)
+  return settleLocalAction(tt, b, textId, tag, o)
+}
+
 /** Same scene, same target, same way: the key `choiceDraft` uses to drop repeats (02 §2). */
 function actionKey(t: Table, r: TurnResult, project: string | null = null): Pick<ActionInput, 'sceneId' | 'target' | 'method'> {
   const s = snapshotOf(t)
@@ -427,6 +490,14 @@ export async function act(t0: Table, text: string, model: ModelCall | null, o: T
   const t = checkpoint(t0, `${currentMember(t0).name}：${text.slice(0, 24)}`)
   const m = currentMember(t)
   const s = snapshotOf(t)
+  if (sceneActions(s).includes(text)) return playSceneAction(t, m, s, text, o)
+  if ([INSPECT_ROPE, SAVE_LUDO, CUT_ROPE, READ_LEDGER].includes(text)) throw new Error('当前场景无法执行这项行动')
+  if (text === SERVE_TAVERN || text.startsWith(`${SERVE_TAVERN}：`)) {
+    const service = serviceOptions(s).find(({ label }) => label === text)
+    if (!service) throw new Error('需要一家本地正在运转的酒馆，每家酒馆每轮只结算一班')
+    const request = { skill: '交涉', difficulty: 12, reason: '招呼客人、安排酒食，结算本班营业收支' }
+    return { ...t, pending: { kind: 'check', seatId: m.seatId, text, request, stat: 'soc', intents: ['交易'], tavernService: service.id } }
+  }
   const ctx = sceneContext(s)
   const r = await runAiTurn(s, turnInput(t, m, text, ctx, []), model)
   if (r.checks.length) {
@@ -451,12 +522,22 @@ export async function roll(t: Table, model: ModelCall | null, o: TableOptions = 
   const outcome = rollCheck(p.request, p.stat, m.stats[p.stat], d)
   const s = snapshotOf(t)
   const ctx = sceneContext(s)
-  const r = await runAiTurn(s, turnInput(t, m, p.text, ctx, [], outcome), model)
   const free = { ...t, pending: null }
   const rollScreen: Screen = {
     id: `roll:${t.n}`, kind: 'roll', actorId: m.actorId,
     paragraphs: [`${m.name} · ${outcome.skill}检定（难度 ${outcome.difficulty}）`, `${d[0]} + ${d[1]} + ${m.stats[p.stat]} = ${outcome.total}　${{ hit: '成功', partial: '有代价的成功', miss: '失利' }[outcome.tier]}`],
   }
+  if (p.tavernService !== undefined) {
+    const { id, t: tt } = nextId(free, 'act')
+    const b = new Builder(s, id, m.name, m.memento)
+    const service = tavernServiceDraft(p.tavernService, outcome.tier)
+    b.screens.push(rollScreen)
+    b.add([service])
+    const { revenue, cost } = service.payload
+    b.screen('note', [`酒馆本班收入 ${revenue} 银克朗，酒食、灯油与人手共花 ${cost} 银克朗。`])
+    return settleLocalAction(tt, b, p.tavernService, `营业:${s.round}`, o)
+  }
+  const r = await runAiTurn(s, turnInput(t, m, p.text, ctx, [], outcome), model)
   return settleTurn(free, m, { ...r, checks: [] }, ctx, o, [rollScreen])
 }
 
@@ -473,7 +554,12 @@ export function move(t0: Table, placeId: PlaceId, o: TableOptions = {}): Table {
   const moved = [draft('location_changed', { regionId: 'gray_harbor', placeId })]
   b.add(moved)
   const arrival = sceneContext(b.cur)
-  const change = sceneChange(b.cur, { closing: [`${m.name}离开了${from ? placeName(from) : '原处'}，身后的声音一点点落远。`], travel: false, arrival })
+  const change = sceneChange(b.cur, {
+    closing: [`${m.name}离开了${from ? placeName(from) : '原处'}，身后的声音一点点落远。`], travel: false,
+    arrival: placeId === DOCKS ? sceneContext(b.cur, { tags: ['抵达码头'] }) : arrival,
+    // Each arrival is a new dock scene, even when multiple seats move in the same round.
+    ...(placeId === DOCKS ? { arrivalIds: ['GH-SCN-29', 'GH-SCN-30'], sceneInstanceSince: b.cur.round + 1 } : {}),
+  })
   b.screen('narration', change.closing, { part: 'closing' })
   if (change.transition) b.show(change.transition, arrival, 'transition')
   if (change.arrival) b.show(change.arrival, arrival, 'arrival')

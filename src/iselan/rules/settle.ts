@@ -20,12 +20,7 @@ export function preview(s: Snapshot, drafts: readonly AnyDraft[]): Snapshot {
   )
 }
 
-export interface SettleOptions {
-  /** Taverns whose books the settlement judged profitable this time (12 §6.3). */
-  readonly profitable?: ReadonlySet<string>
-}
-
-type Rule = (s: Snapshot, o: SettleOptions) => RuleResult | AnyDraft[] | null
+type Rule = (s: Snapshot) => RuleResult | AnyDraft[] | null
 
 const asResult = (r: RuleResult | AnyDraft[] | null): RuleResult => (!r ? { drafts: [], texts: [] } : Array.isArray(r) ? { drafts: r, texts: [] } : r)
 
@@ -41,7 +36,7 @@ const CONSEQUENCES: readonly Rule[] = [
   },
   (s) => (s.hunger >= HUNGER_EXTRA_CLOCK && !s.clock.extras.some((x) => x.planId === HUNGER_CLOCK_PLAN) ? extraAdvance(s, HUNGER_CLOCK_PLAN) : null),
   (s) => regionDrafts(s),
-  (s, o) => projectDrafts(s, o.profitable),
+  projectDrafts,
   (s) => truthLayerDrafts(s),
   (s) => actDrafts(s),
 ]
@@ -49,7 +44,7 @@ const CONSEQUENCES: readonly Rule[] = [
 const PASS_LIMIT = 10
 
 /** Runs the consequence rules to a fixed point after `drafts`, returning everything to commit in one intent. */
-export function withConsequences(s: Snapshot, drafts: readonly AnyDraft[], texts: readonly string[] = [], options: SettleOptions = {}): RuleResult {
+export function withConsequences(s: Snapshot, drafts: readonly AnyDraft[], texts: readonly string[] = []): RuleResult {
   const out: RuleResult = { drafts: [...drafts], texts: [...texts] }
   let cur = preview(s, drafts)
   for (const d of drafts) {
@@ -62,7 +57,7 @@ export function withConsequences(s: Snapshot, drafts: readonly AnyDraft[], texts
   for (let pass = 0; pass < PASS_LIMIT; pass++) {
     let changed = false
     for (const rule of CONSEQUENCES) {
-      const r = asResult(rule(cur, options))
+      const r = asResult(rule(cur))
       if (!r.drafts.length) continue
       changed = true
       out.drafts.push(...r.drafts)
@@ -75,7 +70,7 @@ export function withConsequences(s: Snapshot, drafts: readonly AnyDraft[], texts
 }
 
 /** One intent at the start of a round: the round itself, crisis, hunger, and the clock check when due. */
-export function startRound(s: Snapshot, round: number, options: SettleOptions = {}): RuleResult & { readonly clock: ClockOutcome | null } {
+export function startRound(s: Snapshot, round: number): RuleResult & { readonly clock: ClockOutcome | null } {
   // Clock checks, crisis framing and reuse cooldowns all assume rounds go up one at a time.
   if (round !== s.round + 1) throw new Error(`轮数必须逐轮推进：当前第 ${s.round} 轮，收到第 ${round} 轮`)
   const drafts: AnyDraft[] = [draft('round_started', { round })]
@@ -98,5 +93,5 @@ export function startRound(s: Snapshot, round: number, options: SettleOptions = 
     texts.push(...r.texts)
     cur = preview(cur, r.drafts)
   }
-  return { ...withConsequences(s, drafts, texts, options), clock }
+  return { ...withConsequences(s, drafts, texts), clock }
 }

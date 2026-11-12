@@ -24,6 +24,7 @@ export interface SceneChangeRequest {
   readonly travel: boolean
   /** Context at the destination, for the arrival text. */
   readonly arrival: SceneContext
+  readonly arrivalIds?: readonly string[]
   /** Context while under way. Defaults to the arrival context without people present. */
   readonly transit?: SceneContext
   readonly sceneInstanceSince?: number
@@ -57,7 +58,7 @@ export function sceneChange(s: Snapshot, req: SceneChangeRequest, units: readonl
   if (transition.gap) gaps.push(transition.gap)
   if (!transition.pick) problems.push('缺少过渡')
 
-  const arrival = selectText(s, { kinds: ['SCN', 'ENV'], ctx: req.arrival, sceneInstanceSince: req.sceneInstanceSince, salt: 'scene:arrival' }, units)
+  const arrival = selectText(s, { kinds: ['SCN', 'ENV'], ctx: req.arrival, ids: req.arrivalIds, sceneInstanceSince: req.sceneInstanceSince, salt: 'scene:arrival' }, units)
   if (arrival.gap) gaps.push(arrival.gap)
   if (!arrival.pick) problems.push('缺少进入')
 

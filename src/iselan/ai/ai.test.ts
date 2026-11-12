@@ -206,7 +206,7 @@ describe('a whole run with the fake AI (13 ENG-05)', () => {
       const choice = choiceDraft(run.s, {
         seatId: 's1', actorId: 'helan', kind: 'act', sceneId: `scene-${turn}`, target: 'felix', method: 'talk', drafts: t.drafts, settled: ['knowledge'],
       })
-      run.settle([...t.drafts, ...(choice ? [choice] : [])], {}, t.intentId ?? undefined)
+      run.settle([...t.drafts, ...(choice ? [choice] : [])], t.intentId ?? undefined)
     }
     const [directionId] = endingCandidates(run.s)
     if (directionId) run.commit([draft('ending_committed', { directionId, secondaryDirectionId: directionId, variant: 'none', worldResolution: 'unresolved' })])

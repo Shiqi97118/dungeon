@@ -46,7 +46,7 @@ async function play(turns: number): Promise<SaveFile> {
   for (let i = 0; i < turns; i++) {
     const t = await runAiTurn(run.s, input, model)
     responses.push(...t.responses)
-    run.settle(t.drafts, {}, t.intentId ?? undefined)
+    run.settle(t.drafts, t.intentId ?? undefined)
   }
   run.commit([draft('ending_committed', { directionId: 'D07', secondaryDirectionId: 'D03', variant: 'none', worldResolution: 'resolved' })])
   const events = run.events.map((e) => ({ ...e, runId: RUN, eventId: `${RUN}:${e.seq}` }))

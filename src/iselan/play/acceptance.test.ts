@@ -8,7 +8,7 @@ import { ModelUnavailable, type ModelCall } from '../ai/turn'
 import { commitIntent, draft } from '../events'
 import { availableDirections, endingCandidates, tierOpen } from '../rules/directions'
 import { seatsReach } from '../rules/choices'
-import { act, adjudicate, canWrapUp, currentMember, interact, joinTable, move, openTable, resolveArc, roll, snapshotOf, wrapUp, type Member, type Table } from './table'
+import { act, adjudicate, canWrapUp, currentMember, interact, joinTable, move, openTable, resolveArc, roll, snapshotOf, tableActions, wrapUp, type Member, type Table } from './table'
 import { npcName, presentAt } from './world'
 
 /**
@@ -98,6 +98,19 @@ describe('12 §12 acceptance', () => {
 
     t = await doing(t, '照看酒馆的生意（又一天）')
     expect(snapshotOf(t).projects.tavern).toMatchObject({ stage: 'stable', risks: [expect.objectContaining({ risk: 'brawl', weathered: true })] })
+    expect(tableActions(snapshotOf(t))).toContain('酒馆开门营业')
+    const profitEvents = () => t.events.filter((e) => e.type === 'business_profitable')
+    t = await doing(t, '酒馆开门营业', [1, 1])
+    t = await doing(t, '酒馆开门营业')
+    t = await doing(t, '酒馆开门营业', [4, 4])
+    expect(snapshotOf(t).projects.tavern?.services.map(({ revenue, cost }) => revenue - cost)).toEqual([-2, 3, 0])
+    expect(profitEvents()).toHaveLength(0)
+    t = await doing(t, '酒馆开门营业')
+    expect(profitEvents()).toHaveLength(0)
+    t = await doing(t, '酒馆开门营业')
+    expect(profitEvents().map((e) => e.payload)).toEqual([{ projectId: 'tavern', sustained: true }])
+    t = await doing(t, '酒馆开门营业')
+    expect(profitEvents()).toHaveLength(1)
 
     t = await untilR1(t)
     expect(snapshotOf(t).arcs.gray_well?.outcomes ?? null).toBeNull()
@@ -155,8 +168,23 @@ describe('12 §12 acceptance', () => {
   it('A5: with Ludo dead, his beat and lines are gone, GH-BEAT-07 drops its second paragraph, and the AI cannot move him', async () => {
     const ludoSpeaks = (text: string) => async () => ({ seq: 1, text: JSON.stringify({ narration: text, intents: ['交谈'], emotion: '悲伤', suggestions: ['一', '二', '三'], proposals: [{ kind: 'attitude', npcId: 'ludo', delta: 1 }] }) })
     let t = openTable({ runId: 'run-a5', seed: 'a5', party: [HELAN], openingHook: 'memento' }, o)
-    t = { ...t, events: commitIntent(t.events, 'side:ludo', [draft('npc_state_changed', { npcId: 'ludo', state: 'dead' })], { runId: t.runId, committedAt: o.now() }).events }
     t = move(t, 'gray_harbor.docks', o)
+    expect(t.screens.findLast((x) => x.part === 'arrival')?.textId).toBe('GH-SCN-30')
+    await expect(act(t, '割断吊索（卢多会落水身亡）', null, o)).rejects.toThrow('当前场景无法执行')
+    t = await doing(t, '检查码头吊索')
+    const saved = await doing(t, '反摇绞盘救卢多')
+    expect(snapshotOf(saved).npcs.ludo?.state).toBe('wounded')
+    expect(presentAt(snapshotOf(saved), 'gray_harbor.docks')).toContain('ludo')
+    expect(saved.screens.some((x) => x.textId === 'GH-SCN-26')).toBe(true)
+    expect(tableActions(snapshotOf(saved))).not.toContain('割断吊索（卢多会落水身亡）')
+    t = await doing(t, '割断吊索（卢多会落水身亡）')
+    expect(snapshotOf(t).npcs.ludo?.state).toBe('dead')
+    expect(t.screens.some((x) => x.textId === 'GH-SCN-27')).toBe(true)
+    expect(snapshotOf(t).darkLines.dl1?.evidence.map((e) => e.id)).toContain('docks_waybill')
+    const sinceDeath = t.screens.length
+    t = move(t, 'gray_harbor.council_hall', o)
+    t = move(t, 'gray_harbor.docks', o)
+    expect(t.screens.findLast((x) => x.part === 'arrival')?.textId).toBe('GH-SCN-29')
     expect(presentAt(snapshotOf(t), 'gray_harbor.docks')).not.toContain('ludo')
     const said = await act(t, '在码头问问卢多', ludoSpeaks('卢多抬起头说：“你们来晚了。”'.repeat(4)), o)
     expect(snapshotOf(said).npcs.ludo?.attitude).toBe(snapshotOf(t).npcs.ludo?.attitude)
@@ -164,13 +192,29 @@ describe('12 §12 acceptance', () => {
     expect(said.gaps.some((g) => g.includes('卢多'))).toBe(true)
 
     t = await toChoice(t, fakeModel({ seed: 'a5', strayRate: 0 }))
-    const ids = t.screens.map((x) => x.textId)
+    const ids = t.screens.slice(sinceDeath).map((x) => x.textId)
     expect(ids).not.toContain('GH-BEAT-02')
-    expect(t.screens.flatMap((x) => x.paragraphs).join('')).not.toMatch(/卢多[^，。]*说|“[^”]*”[^。]*卢多/)
+    expect(t.screens.slice(sinceDeath).flatMap((x) => x.paragraphs).join('')).not.toMatch(/卢多[^，。]*说|“[^”]*”[^。]*卢多/)
     t = resolveArc(t, ['exposed'], o)
     const beat = t.screens.find((x) => x.textId === 'GH-BEAT-07')
     expect(beat).toBeDefined()
     expect(beat!.paragraphs.join('')).not.toContain('卢多')
+  })
+
+  it('uses the empty dock arrival when Ludo is alive but missing and lets players read the council ledger independently', async () => {
+    let t = openTable({ runId: 'run-council-ledger', seed: 'council', party: [HELAN], openingHook: 'memento' }, o)
+    t = { ...t, events: commitIntent(t.events, 'ludo-away', [draft('npc_state_changed', { npcId: 'ludo', state: 'missing' })], { runId: t.runId, committedAt: o.now() }).events }
+    t = move(t, 'gray_harbor.docks', o)
+    expect(t.screens.findLast((x) => x.part === 'arrival')?.textId).toBe('GH-SCN-29')
+    t = move(t, 'gray_harbor.council_hall', o)
+    expect(snapshotOf(t).facts.memory_ledger_seen).toBeUndefined()
+    t = await doing(t, '查阅议会存档')
+    expect(snapshotOf(t).facts.memory_ledger_seen?.source).toBe('GH-SCN-28')
+    expect(snapshotOf(t).darkLines.dl1?.evidence.map((e) => e.id)).toContain('felix_ledger')
+    expect(t.screens.some((x) => x.textId === 'GH-BEAT-04')).toBe(false)
+    t = await toChoice(t, fakeModel({ seed: 'council', strayRate: 0 }))
+    expect(t.screens.some((x) => x.textId === 'GH-BEAT-04')).toBe(true)
+    expect(snapshotOf(t).darkLines.dl1?.evidence.filter((e) => e.id === 'felix_ledger')).toHaveLength(1)
   })
 
   it('A6: left alone, the clock reaches 12; the world crisis starts without forcing the end, worsens every 2 rounds, and D02 opens', async () => {
