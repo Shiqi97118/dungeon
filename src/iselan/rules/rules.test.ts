@@ -4,7 +4,7 @@ import { draft } from '../events'
 import {
   BLOCKED_BY_PARTY, canEnterNamelessCity, checkClock, choiceDraft, createProject, d01Variant, DIRECTION_RULES, directionDraft,
   doorDrafts, drawWeighted, endingCandidates, evalCond, extraAdvance, foundProject, friendlyFactionCluster, joinSeatDraft, nameDrafts,
-  projectRiskDraft, r1Met, regionDrafts, replaceCharacterDraft, rngFor, setControllerDraft, weightOf, whyUnavailable, wrapUpDrafts,
+  projectRiskDraft, r1Met, regionDrafts, replaceCharacterDraft, rngFor, setControllerDraft, startRound, weightOf, whyUnavailable, wrapUpDrafts,
   type ActionInput,
 } from '.'
 import { TestRun } from './testRun'
@@ -152,6 +152,7 @@ describe('clock and faction plans (R2, R2a, 12 §11)', () => {
   it('when neither version holds the clock does not move', () => {
     const run = new TestRun().setClock(2)
     run.commit([draft('object_state_changed', { objectId: 'whitestone_well', state: 'destroyed' })])
+    run.commit([draft('round_started', { round: 5 })])
     const r = checkClock(run.round(6) && run.s)
     expect(r.outcome).toBe('stalled')
     expect(run.s.clock.value).toBe(2)
@@ -170,6 +171,7 @@ describe('clock and faction plans (R2, R2a, 12 §11)', () => {
   it('a leader out of office blocks version A', () => {
     const run = new TestRun().setClock(4)
     run.commit([draft('npc_state_changed', { npcId: 'ulug', state: 'captive' })])
+    run.commit([draft('round_started', { round: 5 })])
     const r = checkClock(run.round(6) && run.s)
     expect(r.outcome).toBe('stalled')
   })
@@ -214,6 +216,13 @@ describe('clock and faction plans (R2, R2a, 12 §11)', () => {
     const shown = run.events.filter((e) => e.type === 'text_shown').map((e) => e.payload.textId).filter((id) => id.startsWith('GEN-CLK-0'))
     expect(shown[0]).toMatch(/^GEN-CLK-01/)
     expect(shown.filter((id) => id.startsWith('GEN-CLK-01'))).toHaveLength(1)
+  })
+
+  it('rounds must go up one at a time', () => {
+    const run = new TestRun()
+    run.round(1)
+    expect(() => startRound(run.s, 3)).toThrow()
+    expect(() => startRound(run.s, 1)).toThrow()
   })
 
   it('hunger 8 moves the clock once', () => {

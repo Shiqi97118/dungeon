@@ -74,6 +74,8 @@ export function withConsequences(s: Snapshot, drafts: readonly AnyDraft[], texts
 
 /** One intent at the start of a round: the round itself, crisis, hunger, and the clock check when due. */
 export function startRound(s: Snapshot, round: number, options: SettleOptions = {}): RuleResult & { readonly clock: ClockOutcome | null } {
+  // Clock checks, crisis framing and reuse cooldowns all assume rounds go up one at a time.
+  if (round !== s.round + 1) throw new Error(`轮数必须逐轮推进：当前第 ${s.round} 轮，收到第 ${round} 轮`)
   const drafts: AnyDraft[] = [draft('round_started', { round })]
   const texts: string[] = []
   let cur = preview(s, drafts)
