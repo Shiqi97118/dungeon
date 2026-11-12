@@ -1,5 +1,11 @@
 # 换电脑继续：先读本页
 
+## 当前试玩版本（2026-11-12）
+
+灰港首版已通过 PR #52 合入 `main`，并由 Cloudflare 发布。[公开试玩](https://echo-well.tintenfisch.workers.dev/)
+
+在新电脑从 `main` 开始游戏开发。先读项目准则、全部修改日志，再按 Jiaojie 接收 [最新游戏交接](交接/cursor.md)。下文记录此前 WorkBuddy 协作与本机环境的历史。
+
 最后检查日期：2026-11-11。GitHub 是项目代码、可复现工具和任务交接的共同来源；本地聊天不是唯一进度记录。
 
 最高优先级：先读 `.agents/skills/jiaojie/SKILL.md`，按 RECEIVE 流程接收根目录 `handoff.md`。本页保留环境准备与历史检查点；最新意图、停止点和建议下一步以 `handoff.md` 为交接入口，不凭旧聊天或旧摘要擅自恢复被否决的方案。
