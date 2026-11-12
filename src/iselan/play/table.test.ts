@@ -6,7 +6,8 @@ import { verifyLog } from '../events'
 import { r1Met } from '../rules/choices'
 import { d01Variant } from '../rules/directions'
 import { hitAt, rollCheck } from './check'
-import { act, canWrapUp, chooseEnding, interact, move, openTable, resolveArc, roll, snapshotOf, wrapUp, type Member, type Table } from './table'
+import { loadTable, saveTable } from './persist'
+import { act, canRewind, canWrapUp, chooseEnding, interact, move, openTable, resolveArc, rewind, roll, snapshotOf, wrapUp, type Member, type Table } from './table'
 
 const HELAN: Member = { seatId: 's1', actorId: 'helan', name: '哈兰', stats: { str: 2, dex: 0, ins: 1, soc: -1 }, controller: 'human' }
 const o = { now: () => '2026-11-12T00:00:00.000Z', rng: () => 0.5 }
@@ -147,6 +148,10 @@ describe('table', () => {
     expect(t.pending).toEqual({ kind: 'ending', candidates: ['D01'] })
     t = chooseEnding(t, 'D01', null, o)
     expect(snapshotOf(t).ending).toMatchObject({ directionId: 'D01', variant: d01Variant(snapshotOf(t)).variant, worldResolution: 'unresolved' })
+    const back = rewind(t, t.checkpoints.find((c) => c.label === '收束故事')!.id)
+    expect(snapshotOf(back).ending).toBeNull()
+    expect(snapshotOf(back).act).not.toBe(4)
+    expect(canWrapUp(back)).toBe(true)
     expect(verifyLog('run-play', t.events)).toEqual([])
   })
 
@@ -181,5 +186,69 @@ describe('pacing', () => {
     expect(ambienceFor('x', 1)).toEqual({ time: '黄昏', weather: '雨' })
     expect(ambienceFor('x', n).time).toBe('黄昏')
     expect([n + 1, 2 * n + 1, 3 * n + 1].map((r) => ambienceFor('x', r).time)).toEqual(['夜', '黎明', '白天'])
+  })
+})
+
+describe('save and rewind', () => {
+  it('rewinds to just before a decision and lets the player choose again', async () => {
+    const model = fakeModel({ seed: 'rw', strayRate: 0 })
+    let t = await act(open('rw'), '打听怪病', model, o)
+    const before = { events: t.events.length, screens: t.screens.length, round: snapshotOf(t).round }
+    t = move(t, 'gray_harbor.docks', o)
+    t = await act(t, '帮卢多搬货', model, o)
+    expect(t.checkpoints.map((c) => c.label)).toEqual(['哈兰：打听怪病', '前往码头', '哈兰：帮卢多搬货'])
+    t = rewind(t, t.checkpoints[1].id)
+    const s = snapshotOf(t)
+    expect(t.events).toHaveLength(before.events)
+    expect(s.round).toBe(before.round)
+    expect(s.location?.placeId).toBe('gray_harbor.seven_lamps')
+    expect(t.screens).toHaveLength(before.screens + 1)
+    expect(t.checkpoints).toHaveLength(1)
+    t = move(t, 'gray_harbor.low_tide_street', o)
+    expect(snapshotOf(t).location?.placeId).toBe('gray_harbor.low_tide_street')
+    expect(verifyLog('run-play', t.events)).toEqual([])
+  })
+
+  it('a regretted outcome at the well can be chosen again', async () => {
+    let t = open('regret')
+    const model = fakeModel({ seed: 'regret', strayRate: 0 })
+    for (let i = 0; i < 40 && !snapshotOf(t).arcs.gray_well?.beats.includes('choice'); i++) {
+      if (t.pending?.kind === 'interaction') t = interact(t, { requestId: `ix-${i}`, instanceId: t.pending.instanceId, action: 'skip', params: { inspected: [] } }, o).table
+      else if (t.pending?.kind === 'check') t = await roll(t, model, o)
+      else t = await act(t, `追查潮井 ${i}`, model, o)
+    }
+    t = resolveArc(t, ['destroyed'], o)
+    expect(snapshotOf(t).objects.tide_well).toBe('destroyed')
+    const cp = t.checkpoints.find((c) => c.label.startsWith('潮井之下'))!
+    t = rewind(t, cp.id)
+    expect(snapshotOf(t).arcs.gray_well?.outcomes ?? null).toBeNull()
+    t = resolveArc(t, ['exposed'], o)
+    expect(snapshotOf(t).objects.tide_well).toBe('exposed')
+  })
+
+  it('saves and loads the table, screens and rewind points included', async () => {
+    let t = await act(open('save'), '打听怪病', fakeModel({ seed: 'save' }), o)
+    t = move(t, 'gray_harbor.docks', o)
+    const r = loadTable(saveTable(t))
+    expect(r.status).toBe('ok')
+    if (r.status !== 'ok') return
+    expect(r.table.screens).toEqual(t.screens)
+    expect(r.table.checkpoints).toEqual(t.checkpoints)
+    expect(snapshotOf(r.table)).toEqual(snapshotOf(t))
+    const back = rewind(r.table, r.table.checkpoints[1].id)
+    expect(snapshotOf(back).location?.placeId).toBe('gray_harbor.seven_lamps')
+  })
+
+  it('a tampered rewind point is refused on load', () => {
+    const save = JSON.parse(saveTable(open('bad')))
+    save.table.checkpoints = [{ id: 'cp:999', events: 999 }]
+    expect(loadTable(JSON.stringify(save))).toMatchObject({ status: 'corrupt' })
+  })
+
+  it('shared runs keep no rewind points', async () => {
+    const t = openTable({ runId: 'run-two', seed: 'two', party: [HELAN, { ...HELAN, seatId: 's2', actorId: 'fuhe', name: '芙蕾雅' }], openingHook: 'memento' }, o)
+    const after = move(t, 'gray_harbor.docks', o)
+    expect(canRewind(after)).toBe(false)
+    expect(after.checkpoints).toEqual([])
   })
 })

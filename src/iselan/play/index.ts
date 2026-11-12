@@ -1,3 +1,4 @@
 export * from './check'
 export * from './world'
 export * from './table'
+export * from './persist'

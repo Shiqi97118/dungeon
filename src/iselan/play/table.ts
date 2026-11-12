@@ -63,6 +63,21 @@ export interface Table {
   readonly recent: readonly string[]
   /** Local intent counter for intents that are not AI responses. */
   readonly n: number
+  /** Decisions the solo player may go back to, oldest first. */
+  readonly checkpoints: readonly Checkpoint[]
+}
+
+/** The table as it stood just before one decision; rewinding restores it. */
+export interface Checkpoint {
+  readonly id: string
+  readonly round: number
+  readonly label: string
+  readonly events: number
+  readonly screens: number
+  readonly turn: number
+  readonly pending: Pending | null
+  readonly suggestions: readonly string[]
+  readonly recent: readonly string[]
 }
 
 export interface TableOptions {
@@ -272,7 +287,7 @@ export interface OpenInput {
 
 /** GEN-BEAT opening at the Seven Lamps on a rainy dusk, then the arrival in Grayport. */
 export function openTable(input: OpenInput, o: TableOptions = {}): Table {
-  const t0: Table = { runId: input.runId, events: [], party: input.party, turn: 0, pending: null, screens: [], suggestions: [], gaps: [], responses: [], recent: [], n: 0 }
+  const t0: Table = { runId: input.runId, events: [], party: input.party, turn: 0, pending: null, screens: [], suggestions: [], gaps: [], responses: [], recent: [], n: 0, checkpoints: [] }
   const seats = input.party.map((m) => ({ seatId: m.seatId, actorId: m.actorId, controller: m.controller }))
   const opening = openingDrafts({ mode: input.party.length > 1 ? 'online' : 'solo', seed: input.seed, openingHook: input.openingHook, seats })
   let s = preview(snapshotOf(t0), opening)
@@ -345,8 +360,9 @@ async function settleTurn(t: Table, m: Member, r: TurnResult, ctx: SceneContext,
 }
 
 /** 07 §1: one free action. A check proposal pauses for the roll; otherwise the action settles now. */
-export async function act(t: Table, text: string, model: ModelCall | null, o: TableOptions = {}): Promise<Table> {
-  assertFree(t)
+export async function act(t0: Table, text: string, model: ModelCall | null, o: TableOptions = {}): Promise<Table> {
+  assertFree(t0)
+  const t = checkpoint(t0, `${currentMember(t0).name}：${text.slice(0, 24)}`)
   const m = currentMember(t)
   const s = snapshotOf(t)
   const ctx = sceneContext(s)
@@ -383,11 +399,12 @@ export async function roll(t: Table, model: ModelCall | null, o: TableOptions = 
 }
 
 /** Moves within Grayport: closing, transition and arrival (09 §3.3a); counts as the seat's action. */
-export function move(t: Table, placeId: PlaceId, o: TableOptions = {}): Table {
-  assertFree(t)
+export function move(t0: Table, placeId: PlaceId, o: TableOptions = {}): Table {
+  assertFree(t0)
+  if (snapshotOf(t0).location?.placeId === placeId) throw new Error('已经在这里')
+  const t = checkpoint(t0, `前往${placeName(placeId)}`)
   const m = currentMember(t)
   const s = snapshotOf(t)
-  if (s.location?.placeId === placeId) throw new Error('已经在这里')
   const from = s.location?.placeId
   const { id, t: tt } = nextId(t, 'move')
   const b = new Builder(s, id, m.name)
@@ -429,10 +446,11 @@ export const ARC_OUTCOMES: readonly OutcomeId[] = ['exposed', 'handed_over', 'tr
 export const outcomeLabel = (id: OutcomeId) => OUTCOME_LABEL[id]
 
 /** The party's decision at the well (GH-BEAT-06): resolves the core adventure and shows its result beat. */
-export function resolveArc(t: Table, outcomes: readonly OutcomeId[], o: TableOptions = {}): Table {
-  assertFree(t)
+export function resolveArc(t0: Table, outcomes: readonly OutcomeId[], o: TableOptions = {}): Table {
+  assertFree(t0)
+  if (!outcomeOpen(snapshotOf(t0))) throw new Error('潮井之下还没到抉择的时候')
+  const t = checkpoint(t0, `潮井之下：${outcomes.map(outcomeLabel).join('、')}`)
   const s = snapshotOf(t)
-  if (!outcomeOpen(s)) throw new Error('潮井之下还没到抉择的时候')
   const m = currentMember(t)
   const { id, t: tt } = nextId(t, 'resolve')
   const resolved = withConsequences(s, [draft('core_arc_resolved', { arcId: 'gray_well', outcomes: [...outcomes] })])
@@ -448,11 +466,12 @@ export function resolveArc(t: Table, outcomes: readonly OutcomeId[], o: TableOpt
 /** R4: every human seat agrees to close the story; R1 must already hold. */
 export const canWrapUp = (t: Table) => r1Met(snapshotOf(t)) && snapshotOf(t).act !== 4
 
-export function wrapUp(t: Table, o: TableOptions = {}): Table {
-  assertFree(t)
-  const s = snapshotOf(t)
-  const drafts = wrapUpDrafts(s, t.party.filter((m) => m.controller === 'human').map((m) => m.seatId))
+export function wrapUp(t0: Table, o: TableOptions = {}): Table {
+  assertFree(t0)
+  const drafts = wrapUpDrafts(snapshotOf(t0), t0.party.filter((m) => m.controller === 'human').map((m) => m.seatId))
   if (!drafts) throw new Error('还不能收束：每位玩家都要先做满足够的选择')
+  const t = checkpoint(t0, '收束故事')
+  const s = snapshotOf(t)
   const { id, t: tt } = nextId(t, 'wrap')
   const b = new Builder(s, id, currentMember(t).name)
   b.add(drafts)
@@ -469,6 +488,38 @@ export function chooseEnding(t: Table, directionId: DirectionId, secondary: Dire
   const s = snapshotOf(t)
   const variant = directionId === 'D01' ? d01Variant(s).variant : 'none'
   const drafts = [draft('ending_committed', { directionId, secondaryDirectionId: secondary ?? directionId, variant, worldResolution: directionId === 'D01' ? 'unresolved' : 'resolved' })]
-  const { id, t: tt } = nextId({ ...t, pending: null }, 'ending')
+  const { id, t: tt } = nextId({ ...checkpoint(t, `结局：${directionId}`), pending: null }, 'ending')
   return commit(tt, id, drafts, o)
+}
+
+/** Rewinding is solo only: in a shared run the others would lose their turns too. */
+export const canRewind = (t: Table) => t.party.filter((m) => m.controller === 'human').length === 1
+
+function checkpoint(t: Table, label: string): Table {
+  if (!canRewind(t)) return t
+  const cp: Checkpoint = {
+    id: `cp:${t.events.length}`, round: snapshotOf(t).round, label, events: t.events.length, screens: t.screens.length,
+    turn: t.turn, pending: t.pending, suggestions: t.suggestions, recent: t.recent,
+  }
+  return { ...t, checkpoints: [...t.checkpoints, cp] }
+}
+
+/**
+ * Back to just before a decision, so the player can choose again. Everything after it leaves
+ * the log; AI responses stay in `responses` because their receipts already exist on the server,
+ * and achievements already unlocked stay unlocked (they belong to the profile, not the run).
+ */
+export function rewind(t: Table, checkpointId: string): Table {
+  if (!canRewind(t)) throw new Error('联机局不能回退')
+  const i = t.checkpoints.findIndex((c) => c.id === checkpointId)
+  if (i < 0) throw new Error('没有这个回退点')
+  const cp = t.checkpoints[i]
+  const screens = t.screens.slice(0, cp.screens)
+  return {
+    ...t,
+    events: t.events.slice(0, cp.events),
+    screens: [...screens, { id: `rewind:${t.n + 1}`, kind: 'note', paragraphs: [`回到了第 ${cp.round} 轮，“${cp.label}”之前。`, '之后发生的事都没有发生过，你可以重新选择。'] }],
+    turn: cp.turn, pending: cp.pending, suggestions: cp.suggestions, recent: cp.recent,
+    checkpoints: t.checkpoints.slice(0, i), n: t.n + 1,
+  }
 }

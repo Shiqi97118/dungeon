@@ -1,0 +1,31 @@
+import { createSave, loadSave, serializeSave, type LoadResult } from '../save'
+import { snapshotOf, type Table } from './table'
+
+/** Save v5 with the table's presentation alongside the log; written after every decision. */
+export function saveTable(t: Table): string {
+  const s = snapshotOf(t)
+  const { runId, events, responses, ...view } = t
+  return serializeSave(createSave({ runId, seed: s.seed, createdAt: events[0]?.committedAt ?? '', events, aiResponses: responses, table: view }))
+}
+
+export type TableLoad = { readonly status: 'ok'; readonly table: Table } | Exclude<LoadResult, { status: 'ok' }>
+
+const isArray = (x: unknown): x is unknown[] => Array.isArray(x)
+
+/** The rules state always comes from replaying the log; the stored view only restores the screens and turn. */
+export function loadTable(raw: string): TableLoad {
+  const r = loadSave(raw)
+  if (r.status !== 'ok') return r
+  const v = r.save.table
+  const problems: string[] = []
+  if (!v) problems.push('存档里没有桌面记录')
+  else {
+    for (const k of ['party', 'screens', 'suggestions', 'gaps', 'recent', 'checkpoints'] as const) if (!isArray(v[k])) problems.push(`桌面记录缺少 ${k}`)
+    if (!Number.isInteger(v.turn) || !Number.isInteger(v.n)) problems.push('桌面记录的轮次编号错误')
+    if (isArray(v.party) && Number.isInteger(v.turn) && !(Number(v.turn) >= 0 && Number(v.turn) < v.party.length)) problems.push('当前席位超出队伍')
+    if (isArray(v.checkpoints) && v.checkpoints.some((c) => !c || typeof c !== 'object' || Number((c as { events?: unknown }).events) > r.save.events.length)) problems.push('回退点超出事件日志')
+  }
+  if (problems.length) return { status: 'corrupt', problems }
+  const table = { ...(v as unknown as Omit<Table, 'runId' | 'events' | 'responses'>), runId: r.save.runId, events: r.save.events, responses: r.save.aiResponses ?? [] }
+  return { status: 'ok', table }
+}
