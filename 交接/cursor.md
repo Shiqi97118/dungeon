@@ -56,6 +56,7 @@ coverage: "PARTIAL"
 ### 已回答问题 / Answered questions
 
 - Codex 合并权限：用户授权“怎么合理怎么推进”（2026-11-11）。
+- 正式环境只用 DeepSeek 的 API（2026-11-12），价格表不补其他模型。
 
 ## 材料与缺口 / Materials and gaps
 
@@ -70,7 +71,6 @@ coverage: "PARTIAL"
 ### 未决问题 / Open questions
 
 - 11-11 九张卡与 11-12 的 PR #19、#21、#22、ENG-06 都待 Codex 审核。
-- 看板待决问题 5（待用户）：价格表只有两种 DeepSeek 模型，正式环境若用 xAI / OpenRouter 密钥，ENG-06 之后 AI 主持回 503。
 - 看板待决问题 6：PR #21 合并后其余分支的 Cloudflare 检查才会转绿。
 - QTE-01 的取舍待审核：requestId 即账本意图编号；结果未知时只许同请求重试，玩家不能改选；跳过给出普通检定（洞察 12），检定本身由 UI-02 接骰子流程。
 - ENG-06 的取舍待审核：只有供应商明确返回错误状态才释放预占；旧版主持不报用量，按预估入账；部署的 Node 托管没有共享账，iselan_turn 回 503。
