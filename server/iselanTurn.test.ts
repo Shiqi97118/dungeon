@@ -9,6 +9,7 @@ import { configureProfileRules, handleProfile } from './profile.js'
 import { MemoryProfileStore } from './profileStore.js'
 import { setIselanModel, type IselanModel } from './iselanTurn.js'
 import { MemoryStore } from './store.js'
+import { MemoryBudgetStore } from './budget.js'
 
 type Json = Record<string, unknown>
 const UID = 'device-turn-0123456789ab'
@@ -58,7 +59,8 @@ describe('伊瑟兰 AI 回合与回执（12 §8.4）', () => {
     calls = []
     const profiles = new MemoryProfileStore()
     const store = new MemoryStore()
-    setPlatform({ viewer: async (r) => anonymousViewer(r), store: () => store, profiles: () => profiles })
+    const budget = new MemoryBudgetStore()
+    setPlatform({ viewer: async (r) => anonymousViewer(r), store: () => store, profiles: () => profiles, budget: () => budget })
     const model: IselanModel = async (req) => {
       calls.push(req)
       return { text: reply(calls.length), model: 'fake', usage: null }

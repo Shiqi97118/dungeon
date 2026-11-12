@@ -1,3 +1,4 @@
+import type { BudgetStore } from './budget.js'
 import type { ProfileStore } from './profileStore.js'
 import type { Store } from './store.js'
 
@@ -19,6 +20,8 @@ export interface Platform {
   store(): Store | null
   /** 12 §10 profiles; null where the host has no database for them. */
   profiles?(): ProfileStore | null
+  /** 12 §9.3 spending ledger; null where the host has no shared database for it. */
+  budget?(): BudgetStore | null
 }
 
 const g = globalThis as unknown as { __echoPlatform?: Platform }

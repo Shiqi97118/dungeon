@@ -3,6 +3,7 @@ import { FIXED_PREFIX } from '../src/iselan/ai/prefix.js'
 import { responseHash } from '../src/iselan/profile/digest.js'
 import { gmEndpoint } from './gm.js'
 import { HttpError } from './http.js'
+import { ProviderRefused, type CallKind } from './budget.js'
 import type { ProfileStore } from './profileStore.js'
 
 export interface ModelUsage {
@@ -20,17 +21,32 @@ export interface ModelReply {
 
 export type IselanModel = (req: { readonly system: string; readonly content: string; readonly maxTokens: number }) => Promise<ModelReply>
 
-let override: IselanModel | null | undefined
+let override: { readonly model: IselanModel | null; readonly id: string } | undefined
 
-/** Tests swap in a fake model; pass undefined to go back to the configured provider. */
-export function setIselanModel(m: IselanModel | null | undefined) {
-  override = m
+/** Tests swap in a fake model, billed as `id`; pass undefined to go back to the configured provider. */
+export function setIselanModel(m: IselanModel | null | undefined, id = 'deepseek-flash') {
+  override = m === undefined ? undefined : { model: m, id }
 }
 
-function providerModel(): IselanModel | null {
+/** 12 §9.3: the ending uses `GM_ENDING_MODEL` when set, otherwise the everyday model. */
+function endpoint(kind: CallKind) {
   const apiKey = process.env.OPENAI_API_KEY?.trim()
   if (!apiKey) return null
-  const { baseUrl, model } = gmEndpoint(apiKey, process.env.GM_BASE_URL, process.env.GM_MODEL)
+  const daily = gmEndpoint(apiKey, process.env.GM_BASE_URL, process.env.GM_MODEL)
+  const ending = process.env.GM_ENDING_MODEL?.trim()
+  return { apiKey, baseUrl: daily.baseUrl, model: kind === 'ending' && ending ? ending : daily.model }
+}
+
+/** The model id a call of `kind` is priced as; null when no model is configured. */
+export function iselanModelId(kind: CallKind = 'turn'): string | null {
+  if (override !== undefined) return override.model ? override.id : null
+  return endpoint(kind)?.model ?? null
+}
+
+function providerModel(kind: CallKind): IselanModel | null {
+  const ep = endpoint(kind)
+  if (!ep) return null
+  const { apiKey, baseUrl, model } = ep
   return async ({ system, content, maxTokens }) => {
     const body: Record<string, unknown> = {
       model,
@@ -39,14 +55,14 @@ function providerModel(): IselanModel | null {
       max_tokens: maxTokens,
       response_format: { type: 'json_object' },
     }
-    if (/api\.deepseek\.com/.test(baseUrl)) body.thinking = { type: 'disabled' }
+    if (/api\.deepseek\.com/.test(baseUrl)) body.thinking = { type: kind === 'ending' ? 'enabled' : 'disabled' }
     const res = await fetch(`${baseUrl}/chat/completions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify(body),
       signal: AbortSignal.timeout(40_000),
     })
-    if (!res.ok) throw new HttpError(502, `AI 接口返回 ${res.status}`)
+    if (!res.ok) throw new ProviderRefused(502, `AI 接口返回 ${res.status}`)
     const data = (await res.json()) as {
       choices?: { message?: { content?: string } }[]
       usage?: { prompt_tokens?: number; completion_tokens?: number; prompt_cache_hit_tokens?: number; prompt_tokens_details?: { cached_tokens?: number } }
@@ -64,8 +80,8 @@ function providerModel(): IselanModel | null {
   }
 }
 
-export function iselanModel(): IselanModel | null {
-  return override === undefined ? providerModel() : override
+export function iselanModel(kind: CallKind = 'turn'): IselanModel | null {
+  return override === undefined ? providerModel(kind) : override.model
 }
 
 const RUN_ID = /^[A-Za-z0-9_-]{8,64}$/

@@ -16,5 +16,5 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["worker", "server/d1Store.ts", "server/rooms.ts", "server/gmProxy.ts", "server/iselanTurn.ts", "server/profile.ts", "server/profileStore.ts", "worker-configuration.d.ts"]
+  "include": ["worker", "server/d1Store.ts", "server/rooms.ts", "server/gmProxy.ts", "server/iselanTurn.ts", "server/iselanCost.ts", "server/budget.ts", "server/profile.ts", "server/profileStore.ts", "worker-configuration.d.ts"]
 }

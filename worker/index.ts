@@ -4,6 +4,7 @@ import { handleRoom } from '../server/rooms.js'
 import { handleGm } from '../server/gmProxy.js'
 import { configureProfileRules, handleProfile } from '../server/profile.js'
 import { SqlProfileStore } from '../server/profileStore.js'
+import { SqlBudgetStore } from '../server/budget.js'
 import { json } from '../server/http.js'
 import { judgeAchievements } from '../src/iselan/achievements/index.js'
 
@@ -11,6 +12,7 @@ configureProfileRules({ judge: judgeAchievements })
 
 let store: D1Store | null = null
 let profiles: SqlProfileStore | null = null
+let budget: SqlBudgetStore | null = null
 let db: D1Database | null = null
 
 export default {
@@ -19,8 +21,9 @@ export default {
       db = env.DB
       store = new D1Store(env.DB)
       profiles = new SqlProfileStore(env.DB)
+      budget = new SqlBudgetStore(env.DB)
     }
-    setPlatform({ viewer: async (r) => anonymousViewer(r), store: () => store, profiles: () => profiles })
+    setPlatform({ viewer: async (r) => anonymousViewer(r), store: () => store, profiles: () => profiles, budget: () => budget })
     const { pathname } = new URL(request.url)
     if (pathname === '/api/room') return handleRoom(request)
     if (pathname === '/api/gm') return handleGm(request)

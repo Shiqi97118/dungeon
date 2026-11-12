@@ -3,12 +3,13 @@ import { anonymousViewer, setPlatform } from './platform.js'
 import { MemoryStore, type Store } from './store.js'
 import { PgStore } from './pgStore.js'
 import { MemoryProfileStore, type ProfileStore } from './profileStore.js'
+import { MemoryBudgetStore, type BudgetStore } from './budget.js'
 import { configureProfileRules } from './profile.js'
 import { judgeAchievements } from '../src/iselan/achievements/index.js'
 
 configureProfileRules({ judge: judgeAchievements })
 
-const g = globalThis as unknown as { __echoStore?: Store | null; __echoProfiles?: ProfileStore | null }
+const g = globalThis as unknown as { __echoStore?: Store | null; __echoProfiles?: ProfileStore | null; __echoBudget?: BudgetStore | null }
 
 const isDeployed = () => !!(process.env.VERCEL || process.env.CURSOR_APP_ID)
 const isPublic = () => process.env.ECHO_PUBLIC === '1'
@@ -37,5 +38,10 @@ setPlatform({
   profiles() {
     if (g.__echoProfiles === undefined) g.__echoProfiles = isDeployed() ? null : new MemoryProfileStore()
     return g.__echoProfiles
+  },
+  // Serverless Node instances share no memory, so a deployed Node host has no ledger that could hold the 28 元 cap.
+  budget() {
+    if (g.__echoBudget === undefined) g.__echoBudget = isDeployed() ? null : new MemoryBudgetStore()
+    return g.__echoBudget
   },
 })
