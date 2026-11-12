@@ -167,6 +167,9 @@
     {"id": "dl5", "name": "暗线五", "title": "银叶之誓", "truthId": "silverleaf_oath", "evidence": {"叶钟城树根中的记忆": "leaf_bell_root_memory", "艾尔文偷出的长老会卷轴": "elwin_scroll", "赛勒斯的承认": "cyrus_admits", "断钟之夜的树中画面": "broken_bell_tree_vision"}},
     { "id": "dl6", "name": "暗线六", "title": "烬原史诗", "truthId": "ember_epic", "evidence": { "乌鲁格的完整史诗": "ulug_epic", "冠钟城的铸钟记录": "crown_bell_casting_record", "格里姆船长的回忆": "grim_memory" } },
     {"id": "dl7", "name": "暗线七", "title": "空名者的分裂", "truthId": "nameless_split", "evidence": {"薇娅瑟认出声音": "vyaser_recognizes", "妮娜转述的合唱": "nina_chorus", "卡珊卓梦中的宫廷语": "cassandra_dream", "冠钟城画像": "crown_bell_portrait", "老国王的钟下回忆": "oswald_bell_memory"}},
+    { "id": "dl5", "name": "暗线五", "title": "银叶之誓", "truthId": "silverleaf_oath", "evidence": { "叶钟城树根中的记忆": "leaf_bell_root_memory", "艾尔文偷出的长老会卷轴": "elwin_scroll", "赛勒斯的承认": "cyrus_admits" } },
+    {"id": "dl6", "name": "暗线六", "title": "烬原史诗", "truthId": "ember_epic", "evidence": {"乌鲁格的完整史诗": "ulug_epic", "冠钟城的铸钟记录": "crown_bell_casting_record", "格里姆船长的回忆": "grim_memory", "黑钟刻痕中的遗言": "ember_bell_last_words"}},
+    { "id": "dl7", "name": "暗线七", "title": "空名者的分裂", "truthId": "nameless_split", "evidence": { "薇娅瑟认出声音": "vyaser_recognizes", "妮娜转述的合唱": "nina_chorus", "卡珊卓梦中的宫廷语": "cassandra_dream", "冠钟城画像": "crown_bell_portrait" } },
     { "id": "dl8", "name": "暗线八", "title": "拾名人的资金", "truthId": "merchant_funds_namekeepers", "evidence": { "中间人的汇票": "broker_draft", "提姆的调查": "tim_investigation", "菲利克斯的账本": "felix_ledger" } },
     { "id": "dl9", "name": "暗线九", "title": "学院实验", "truthId": "academy_experiment", "evidence": { "实验记录": "experiment_records", "卡珊卓的伤痕": "cassandra_scars", "莫德歌里的笔记": "maud_song_notes", "伊娃修过的钟": "eva_bell" } }
   ],
@@ -319,7 +322,16 @@
     {"id": "cassandra_left_academy", "name": "卡珊卓离开学院", "kind": "world"},
     {"id": "cassandra_joined", "name": "卡珊卓已随队", "kind": "world"},
     {"id": "cassandra_knows_host", "name": "卡珊卓知晓宿主真相", "kind": "world"},
-    {"id": "archive_originals_handed_over", "name": "原件被交出", "kind": "world"}
+    {"id": "archive_originals_handed_over", "name": "原件被交出", "kind": "world"},
+    {"id": "ulug_crosses_tomorrow", "name": "乌鲁格明日越过白石线", "kind": "knowledge"},
+    {"id": "aetherlyn_alive", "name": "艾瑟琳存活", "kind": "world"},
+    {"id": "astrion_unmasked_ember", "name": "阿斯特里昂在烬原被识破", "kind": "knowledge"},
+    {"id": "ember_crown_peace", "name": "烬原与王室已和谈", "kind": "world"},
+    {"id": "ember_peace_clock_reduced", "name": "烬原和谈时钟已减一", "kind": "world"},
+    {"id": "ember_crown_war", "name": "烬原与王室已开战", "kind": "world"},
+    {"id": "aided_ulug_march", "name": "帮乌鲁格进军", "kind": "world"},
+    {"id": "ulug_ring_entrusted", "name": "乌鲁格已托付第七骨环位置", "kind": "world"},
+    {"id": "saka_letter_intercepted", "name": "密信被截获", "kind": "world"}
   ],
   "variables": {
     "地点": { "id": "location", "type": "place", "about": "地区，或 地区·具体地点" },
