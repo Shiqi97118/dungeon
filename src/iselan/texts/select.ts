@@ -53,7 +53,7 @@ const varValue = (conds: readonly Cond[], name: string) =>
 function settled(e: Effect, s: Snapshot, ctx: SceneContext): boolean {
   if (e.phase !== 'before') return true
   if ('npc' in e && 'towards' in e) return (s.npcs[e.npc as keyof Snapshot['npcs']]?.towards[e.towards as keyof Snapshot['npcs']] ?? 0) === e.value
-  // ±n changes (relations, attitudes, directions, hunger) carry no target state to check against.
+  // ±n changes carry no target state to check against; a result beat's are written with the resolution (rules/outcomes.ts).
   if ('delta' in e) return true
   if ('impression' in e || 'contact' in e || 'evidence' in e) return true
   return evalCond(e as Atom, s, ctx)
@@ -99,15 +99,16 @@ export function whyNot(u: TextUnit, s: Snapshot, ctx: SceneContext = {}): Inelig
   if (!u.effects.every((e) => settled(e, s, ctx))) return 'unsettled'
   const speaker = u.entry.speaker
   if (speaker && (!(ctx.present ?? []).includes(speaker) || ['dead', 'erased'].includes(npcStateOf(s, speaker as keyof Snapshot['npcs'])))) return 'speaker'
-  // 02 §11: a resolved region no longer opens its core adventure; aftermath texts stay.
-  const region = regionOfText(u.entry.id)
-  if (u.kind === 'BEAT' && region && s.regions[region]?.stage === 'resolved') return 'resolved'
-  // 09 §2.1: a result beat only describes an outcome already in the log.
   const outcomes = u.requires
     .flatMap((c) => ('any' in c ? c.any : [c]))
     .filter((a): a is Extract<Atom, { var: unknown }> => 'var' in a && a.var === 'outcome' && a.op === 'eq')
     .map((a) => a.value as OutcomeId)
-  if (outcomes.length || varValue(u.requires, 'beat') === 'outcome') {
+  const isResult = outcomes.length > 0 || varValue(u.requires, 'beat') === 'outcome'
+  // 02 §11: a resolved region no longer opens its core adventure; its result beats and aftermath texts stay.
+  const region = regionOfText(u.entry.id)
+  if (u.kind === 'BEAT' && !isResult && region && s.regions[region]?.stage === 'resolved') return 'resolved'
+  // 09 §2.1: a result beat only describes an outcome already in the log.
+  if (isResult) {
     const arc = (varValue(u.requires, 'arc') ?? ctx.vars?.arc) as ArcId | undefined
     const done = (arc && s.arcs[arc]?.outcomes) || []
     const claimed = ctx.vars?.outcome as OutcomeId | undefined

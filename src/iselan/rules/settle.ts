@@ -4,7 +4,8 @@ import { HUNGER_CLOCK_PLAN, HUNGER_EXTRA_CLOCK, hungerRoundDrafts } from './hung
 import { guildStateDrafts, actDrafts } from './progress'
 import { projectDrafts } from './projects'
 import { regionDrafts } from './regions'
-import type { ArcId } from '../data'
+import { outcomeDrafts } from './outcomes'
+import type { ArcId, OutcomeId } from '../data'
 
 /** The snapshot as it would be after committing `drafts` (same order, so seq numbers match the real commit). */
 export function preview(s: Snapshot, drafts: readonly AnyDraft[]): Snapshot {
@@ -49,6 +50,13 @@ const PASS_LIMIT = 10
 export function withConsequences(s: Snapshot, drafts: readonly AnyDraft[], texts: readonly string[] = [], options: SettleOptions = {}): RuleResult {
   const out: RuleResult = { drafts: [...drafts], texts: [...texts] }
   let cur = preview(s, drafts)
+  for (const d of drafts) {
+    if (d.type !== 'core_arc_resolved') continue
+    const p = d.payload as { arcId: ArcId; outcomes: readonly OutcomeId[] }
+    const extra = outcomeDrafts(cur, p.arcId, p.outcomes)
+    out.drafts.push(...extra)
+    cur = preview(cur, extra)
+  }
   for (let pass = 0; pass < PASS_LIMIT; pass++) {
     let changed = false
     for (const rule of CONSEQUENCES) {

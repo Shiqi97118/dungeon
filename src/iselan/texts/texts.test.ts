@@ -193,6 +193,27 @@ describe('结果类节拍与展示前的世界变化（09 §2.1，12 §3.4）', 
     expect(selectFor(run.s, 'beat', {}, nc08).pick?.unit.id).toBe('NC-BEAT-08A')
   })
 
+  it('经规则结算收束灰港后，结果节拍仍能选出，后置里的关系与方向随结算写入', () => {
+    for (const [outcome, state, id, guild, dir] of [
+      ['exposed', 'exposed', 'GH-BEAT-07', -2, ['D07', 2]],
+      ['traded', 'guild_kept', 'GH-BEAT-08', 2, ['D03', 2]],
+      ['destroyed', 'destroyed', 'GH-BEAT-09', 0, ['D13', 1]],
+    ] as const) {
+      const run = new TestRun()
+      at(run, 'gray_harbor.tide_well')
+      const guild0 = run.s.factions.copper_guild?.relation ?? 0
+      run.settle([
+        draft('object_state_changed', { objectId: 'tide_well', state }),
+        ...(outcome === 'traded' ? [draft('fact_established', { factId: 'special_partner', source: 'test' })] : []),
+        draft('core_arc_resolved', { arcId: 'gray_well', outcomes: [outcome] }),
+      ])
+      expect(run.s.regions.gray_harbor?.stage).toBe('resolved')
+      expect(run.s.factions.copper_guild?.relation ?? 0).toBe(Math.max(-3, Math.min(3, guild0 + guild)))
+      expect(run.s.directions[dir[0]]).toBe(dir[1])
+      expect(selectFor(run.s, 'beat', { ctx: { vars: { arc: 'gray_well', outcome } as never } }).pick?.unit.id).toBe(id)
+    }
+  })
+
   it('“或”里列出的结果同样要求存档里有对应结果', () => {
     const run = new TestRun()
     const ctx: SceneContext = { vars: { arc: 'gray_well', outcome: 'traded' } as never }
