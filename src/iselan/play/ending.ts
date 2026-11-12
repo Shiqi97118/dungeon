@@ -3,6 +3,7 @@ import { VOCAB } from '../data'
 import type { AnyEvent, ProjectSnapshot, Snapshot } from '../events'
 import type { RunRecord } from '../profile/types'
 import { d01Variant } from '../rules/directions'
+import { PROJECT_KIND_NAME as PROJECT_KIND } from '../rules/projects'
 import { ALL_UNITS } from '../texts'
 import { PREGENS } from './pregens'
 import { npcName, outcomeLabel } from './world'
@@ -37,9 +38,6 @@ const evidenceName = (id: string) => {
   return null
 }
 
-const PROJECT_KIND: Readonly<Record<ProjectSnapshot['kind'], string>> = {
-  tavern: '酒馆', guild: '行会', caravan: '商队', sanctuary: '互助站', home: '家', custom: '事业',
-}
 const PROJECT_STAGE: Readonly<Record<ProjectSnapshot['stage'], string>> = {
   idea: '还只是构想', founded: '刚刚创办', operational: '正在运转', stable: '已经站稳', closed: '已经关闭',
 }
@@ -119,6 +117,9 @@ export function chronicleOf(events: readonly AnyEvent[]): ChronicleEntry[] {
       case 'player_project_stage_changed':
         if (p.stage !== 'idea') push(`事业${PROJECT_STAGE[p.stage as ProjectSnapshot['stage']]}`)
         break
+      case 'player_project_details':
+        push(`「${(e.payload as { name: string }).name}」开张，${npcName((e.payload as { contactId: NpcId }).contactId)}做了联系人`)
+        break
       case 'player_project_risk':
         push(`事业经历了一次${RISK[p.risk] ?? '风波'}${(e.payload as { weathered: boolean }).weathered ? '，挺了过来' : ''}`)
         break
@@ -148,7 +149,9 @@ export interface Axes {
 
 export function projectLine(p: ProjectSnapshot): string {
   const risks = p.risks.length ? `，经历了${p.risks.map((r) => RISK[r.risk] ?? '风波').join('、')}` : ''
-  return `${regionName(p.regionId)}的${PROJECT_KIND[p.kind]}${PROJECT_STAGE[p.stage]}${risks}`
+  const name = p.name ? `「${p.name}」` : PROJECT_KIND[p.kind]
+  const contact = p.contactId ? `（联系人${npcName(p.contactId)}）` : ''
+  return `${regionName(p.regionId)}的${name}${contact}${PROJECT_STAGE[p.stage]}${risks}`
 }
 
 /** 06 §6 renown, by evidence: a legend beyond the region, a place that calls them "ours", or nobody yet. */

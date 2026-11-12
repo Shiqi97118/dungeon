@@ -73,6 +73,7 @@
     { "type": "custom_resolution_verified", "group": "ending", "payload": { "importance": "minor|major|world" } },
     { "type": "player_project_created", "group": "sandbox", "payload": { "projectId": "string", "kind": "tavern|guild|caravan|sanctuary|home|custom", "regionId": "region" } },
     { "type": "player_project_stage_changed", "group": "sandbox", "payload": { "projectId": "string", "stage": "idea|founded|operational|stable|closed" } },
+    { "type": "player_project_details", "group": "sandbox", "payload": { "projectId": "string", "name": "string", "contactId": "npc" } },
     { "type": "player_project_risk", "group": "sandbox", "payload": { "projectId": "string", "risk": "tax|seal|brawl|patients|other", "weathered": "bool" } },
     { "type": "business_operational", "group": "sandbox", "payload": { "projectId": "string", "kind": "string", "regionId": "region" } },
     { "type": "business_profitable", "group": "sandbox", "payload": { "projectId": "string", "sustained": "bool" } },

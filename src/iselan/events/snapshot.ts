@@ -56,6 +56,9 @@ export interface ProjectSnapshot {
   readonly investedRounds: readonly number[]
   readonly risks: readonly (P<'player_project_risk'> & { readonly round: number })[]
   readonly marks: readonly string[]
+  /** Set at founding (12 §6.3): what the party calls it and the local contact who vouched for it. */
+  readonly name: string | null
+  readonly contactId: NpcId | null
 }
 
 /** State derived from the event log (08 §4). Never edited directly; rebuild with `reduceEvents`. */
@@ -403,7 +406,7 @@ function apply(s: Draft<Snapshot>, e: AnyEvent): void {
       return
     case 'player_project_created':
       s.projects[e.payload.projectId] ??= {
-        kind: e.payload.kind, regionId: e.payload.regionId, stage: 'idea', foundedRound: null, operationalRound: null, investedRounds: [], risks: [], marks: [],
+        kind: e.payload.kind, regionId: e.payload.regionId, stage: 'idea', foundedRound: null, operationalRound: null, investedRounds: [], risks: [], marks: [], name: null, contactId: null,
       }
       return
     case 'player_project_stage_changed': {
@@ -412,6 +415,11 @@ function apply(s: Draft<Snapshot>, e: AnyEvent): void {
       p.stage = e.payload.stage
       if (e.payload.stage === 'founded') p.foundedRound ??= s.round
       if (e.payload.stage === 'operational') p.operationalRound ??= s.round
+      return
+    }
+    case 'player_project_details': {
+      const p = s.projects[e.payload.projectId]
+      if (p) Object.assign(p, { name: e.payload.name, contactId: e.payload.contactId })
       return
     }
     case 'player_project_risk':

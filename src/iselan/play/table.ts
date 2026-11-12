@@ -373,8 +373,10 @@ function turnInput(t: Table, m: Member, text: string, ctx: SceneContext, prewrit
 const narrationScreen = (r: TurnResult) => r.reply.narration.split(/\n+/).map((p) => p.trim()).filter(Boolean)
 
 /** Same scene, same target, same way: the key `choiceDraft` uses to drop repeats (02 §2). */
-function actionKey(t: Table, r: TurnResult): Pick<ActionInput, 'sceneId' | 'target' | 'method'> {
+function actionKey(t: Table, r: TurnResult, project: string | null = null): Pick<ActionInput, 'sceneId' | 'target' | 'method'> {
   const s = snapshotOf(t)
+  // Each round's work on a project is its own choice (12 §6.3), not a repeat of last round's.
+  if (project) return { sceneId: s.location?.placeId ?? 'none', target: `project:${project}`, method: `round:${s.round}` }
   const subject = r.drafts
     .map((d) => d.payload as Record<string, unknown>)
     .map((p) => p.npcId ?? p.factionId ?? p.factId ?? p.evidenceId ?? p.projectId ?? p.placeId)
@@ -395,7 +397,8 @@ async function settleTurn(t: Table, m: Member, r: TurnResult, ctx: SceneContext,
   const actx = { ...ctx, tags }
   b.pick(selectFor(b.cur, 'action', { ctx: actx }), actx)
   const pending = storyBeats(b, ctx, m.seatId)
-  const choice = choiceDraft(s, { seatId: m.seatId, actorId: m.actorId, kind: 'act', ...actionKey(t, r), drafts: b.drafts.filter((d) => d.type !== 'text_shown') })
+  const invested = r.invested ? { projectId: r.invested, settled: ['task' as const] } : {}
+  const choice = choiceDraft(s, { seatId: m.seatId, actorId: m.actorId, kind: 'act', ...actionKey(t, r, r.invested), drafts: b.drafts.filter((d) => d.type !== 'text_shown'), ...invested })
   if (choice) b.add([choice])
   const recent = [...tt.recent, `第 ${s.round} 轮 ${m.name}：${r.reply.narration.slice(0, 40)}`].slice(-CONFIG.recentRoundsInPrompt)
   const out = finishIntent(tt, b, intentId, o, { pending, suggestions: r.reply.suggestions, recent, responses: [...tt.responses, ...r.responses], gaps: [...r.gaps] })

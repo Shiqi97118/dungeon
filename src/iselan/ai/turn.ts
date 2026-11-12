@@ -39,6 +39,8 @@ export interface TurnResult {
   readonly drafts: AnyDraft[]
   readonly checks: readonly CheckRequest[]
   readonly consents: readonly ConsentRequest[]
+  /** The running project this action went into, for its investment count (12 §6.3). */
+  readonly invested: string | null
   /** 12 §8.3: dropped proposals, format problems, people who should not appear. */
   readonly gaps: readonly string[]
   /** Every response received this turn, including ones that failed to parse; store them all in the save. */
@@ -88,7 +90,7 @@ export async function runAiTurn(s: Snapshot, input: TurnInput, model: ModelCall 
   }
 
   const reply = parsed?.reply ?? offlineReply(s, input)
-  const clipped = clipProposals(s, reply.proposals, context.allow, options)
+  const clipped = clipProposals(s, reply.proposals, context.allow, { ...(input.check ? { checked: input.check.tier } : {}), ...options })
   return {
     source: parsed ? 'ai' : 'offline',
     intentId: parsed ? aiIntentId(parsed.seq) : null,
@@ -96,6 +98,7 @@ export async function runAiTurn(s: Snapshot, input: TurnInput, model: ModelCall 
     drafts: clipped.drafts,
     checks: clipped.checks,
     consents: clipped.consents,
+    invested: clipped.invested,
     gaps: [...gaps, ...clipped.gaps, ...absentPeopleNamed(s, reply.narration)],
     responses,
     tags: [...reply.intents, ...(reply.emotion ? [reply.emotion] : [])],

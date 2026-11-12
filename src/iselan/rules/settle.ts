@@ -4,6 +4,7 @@ import { HUNGER_CLOCK_PLAN, HUNGER_EXTRA_CLOCK, hungerRoundDrafts } from './hung
 import { guildStateDrafts, actDrafts } from './progress'
 import { projectDrafts } from './projects'
 import { regionDrafts } from './regions'
+import { truthLayerDrafts } from './truths'
 import { outcomeDrafts } from './outcomes'
 import type { ArcId, OutcomeId } from '../data'
 
@@ -41,6 +42,7 @@ const CONSEQUENCES: readonly Rule[] = [
   (s) => (s.hunger >= HUNGER_EXTRA_CLOCK && !s.clock.extras.some((x) => x.planId === HUNGER_CLOCK_PLAN) ? extraAdvance(s, HUNGER_CLOCK_PLAN) : null),
   (s) => regionDrafts(s),
   (s, o) => projectDrafts(s, o.profitable),
+  (s) => truthLayerDrafts(s),
   (s) => actDrafts(s),
 ]
 

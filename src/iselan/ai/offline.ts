@@ -1,8 +1,8 @@
 import { CONFIG } from '../config'
-import type { IntentTag } from '../data'
+import type { IntentTag, NpcId } from '../data'
 import { VOCAB } from '../data'
 import type { Snapshot } from '../events'
-import { npcStateOf } from '../rules/conditions'
+import { attitudeOf, npcStateOf } from '../rules/conditions'
 import { situationOf, type TurnInput } from './context'
 import type { RawProposal, Reply } from './reply'
 
@@ -58,6 +58,13 @@ const TIER_RESULT: Readonly<Record<'hit' | 'partial' | 'miss', string>> = {
   miss: '话说岔了，对方的脸色冷了下来。',
 }
 
+/** Grayport v1 projects (12 §6.3): the words that name them and the words that start one. */
+const PROJECT_WORDS: readonly (readonly ['tavern' | 'sanctuary', RegExp])[] = [
+  ['tavern', /酒馆|酒肆|小馆/],
+  ['sanctuary', /互助站|救济站|收容所|施粥/],
+]
+const START = /开|办|建|筹|盘下|张罗/
+
 type NpcEntry = { readonly id: string; readonly name: string; readonly aliases?: readonly string[] }
 
 /** The person the action is aimed at: someone present named in the words, otherwise the first present. */
@@ -73,7 +80,39 @@ function targetOf(s: Snapshot, input: TurnInput): NpcEntry | null {
  * 12 §8.3 step 1: the offline host's reply. Only one rule of its own: an action towards someone
  * present is checked, and the roll moves that person's attitude by one; everything else the rules settle.
  */
+function projectReply(s: Snapshot, input: TurnInput): { proposals: RawProposal[]; result: string } | null {
+  const kind = PROJECT_WORDS.find(([, re]) => re.test(input.text))?.[0]
+  if (!kind) return null
+  const region = s.location?.regionId
+  const id = Object.entries(s.projects).find(([, p]) => p.kind === kind && p.regionId === region && p.stage !== 'closed')?.[0]
+  const p = id ? s.projects[id] : undefined
+  if (!p) {
+    if (!START.test(input.text)) return null
+    return { proposals: [{ kind: 'project', projectId: kind, stage: 'idea', projectKind: kind }], result: '这个念头一说出口，就再也放不下了。地方、本钱、肯替你们担保的人，一样都还没有。' }
+  }
+  if (p.stage === 'idea') {
+    const contact = (input.ctx.present ?? []).find((n): n is NpcId => VOCAB.npcs.some((x) => x.id === n) && attitudeOf(s, n as NpcId) >= 1)
+    if (!contact) return { proposals: [], result: '要把事情办起来，还缺一位肯替你们担保的本地人。' }
+    return { proposals: [{ kind: 'project', projectId: id, stage: 'founded', contactId: contact }], result: input.check?.tier === 'miss' ? '凑来的本钱还差一截，招牌只好先收起来。' : '本钱和货凑齐了，招牌挂了上去。' }
+  }
+  const risk = p.stage === 'operational' && !p.risks.some((r) => r.weathered)
+  return {
+    proposals: [{ kind: 'project', projectId: id, stage: 'invest' }, ...(risk ? [{ kind: 'project', projectId: id, stage: 'risk', risk: kind === 'tavern' ? 'brawl' : 'patients' }] : [])],
+    result: risk ? (kind === 'tavern' ? '一伙喝醉的水手在店里闹了起来。' : '一夜之间，涌进来的病人比床位还多。') : '你们又忙了一阵，事情一点点有了样子。',
+  }
+}
+
 export function offlineReply(s: Snapshot, input: TurnInput): Reply {
+  const project = projectReply(s, input)
+  if (project) {
+    return {
+      narration: `${input.actorName}：${project.result}（${situationOf(s)}。）`,
+      intents: ['帮助'],
+      emotion: null,
+      suggestions: SUGGESTIONS,
+      proposals: project.proposals,
+    }
+  }
   const intents = guessIntents(input.text)
   const social = SOCIAL[intents[0]]
   const target = social ? targetOf(s, input) : null

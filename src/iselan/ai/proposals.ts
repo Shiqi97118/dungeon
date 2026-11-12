@@ -4,7 +4,7 @@ import { VOCAB } from '../data'
 import { draft, type AnyDraft, type Snapshot } from '../events'
 import { attitudeOf, hasFact, npcStateOf, relationOf } from '../rules/conditions'
 import { directionDraft } from '../rules/directions'
-import { closeProject, createProject, foundProject } from '../rules/projects'
+import { closeProject, createProject, foundProject, PROJECT_KIND_NAME, projectRiskDraft, projectRunning } from '../rules/projects'
 import { rngFor } from '../rules/random'
 import { preview } from '../rules/settle'
 import type { Allowlist } from './context'
@@ -30,11 +30,18 @@ export interface ClipResult {
   readonly consents: ConsentRequest[]
   /** 12 §8.3: every dropped proposal, for the gap log. */
   readonly gaps: string[]
+  /** The running project this action was put into (12 §6.3 运转). */
+  invested: string | null
 }
 
 export interface ClipOptions {
-  /** Whether the party can pay to found a project this round (rules decide, 12 §6.3). */
+  /** Whether the party can pay to found a project this round (rules decide, 12 §6.3); defaults to the roll. */
   readonly funded?: boolean
+  /**
+   * The roll this action already made. Founding (money or goods) and a project's risk are
+   * settled by a check: without one, the proposal becomes the check and applies on the roll.
+   */
+  readonly checked?: 'hit' | 'partial' | 'miss'
 }
 
 /** 12 §8.2: what the AI may never propose, by the kinds it might try. */
@@ -49,6 +56,8 @@ const IMPRESSION_MAX = 40
 const UNAVAILABLE = new Set(['dead', 'erased'])
 const RANGE = 3
 const PROJECT_KINDS = ['tavern', 'guild', 'caravan', 'sanctuary', 'home', 'custom'] as const
+const PROJECT_RISKS = ['tax', 'seal', 'brawl', 'patients', 'other'] as const
+const RISK_NAME: Readonly<Record<(typeof PROJECT_RISKS)[number], string>> = { tax: '征税', seal: '查封', brawl: '斗殴', patients: '病人涌入', other: '风波' }
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v))
 const int = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? Math.trunc(v) : null)
@@ -62,7 +71,10 @@ const isNpc = (id: unknown): id is NpcId => typeof id === 'string' && VOCAB.npcs
  * and the per-round direction cap still holds.
  */
 export function clipProposals(s0: Snapshot, proposals: readonly RawProposal[], allow: Allowlist, options: ClipOptions = {}): ClipResult {
-  const out: ClipResult = { drafts: [], checks: [], consents: [], gaps: [] }
+  const out: ClipResult = { drafts: [], checks: [], consents: [], gaps: [], invested: null }
+  const needCheck = (skill: string, reason: string) => {
+    if (!out.checks.length) out.checks.push({ skill, difficulty: CONFIG.ai.offlineCheckDifficulty, reason })
+  }
   let s = s0
   const add = (ds: readonly AnyDraft[]) => {
     out.drafts.push(...ds)
@@ -158,15 +170,27 @@ export function clipProposals(s0: Snapshot, proposals: readonly RawProposal[], a
         } else if (p.stage === 'founded') {
           const contact = p.contactId
           if (!isNpc(contact) || !allow.npcs.includes(contact)) { drop(p, '创办需要在场的联系人'); break }
-          const r = foundProject(s, id, options.funded ?? false, contact)
+          const funded = options.funded ?? (options.checked ? options.checked !== 'miss' : undefined)
+          if (funded === undefined) { needCheck('交涉', `筹措${PROJECT_KIND_NAME[s.projects[id]?.kind ?? 'custom']}的本钱与物资`); break }
+          const r = foundProject(s, id, funded, contact, str(p.name, 20) ?? undefined)
           if ('refused' in r) { drop(p, `创办条件不满足（${r.refused}）`); break }
           add(r.drafts)
         } else if (p.stage === 'closed') {
           const ds = closeProject(s, id)
           if (!ds) { drop(p, `事业 ${id} 无法关闭`); break }
           add(ds)
+        } else if (p.stage === 'invest') {
+          if (!projectRunning(s.projects[id])) { drop(p, `事业 ${id} 还没创办或已关闭`); break }
+          out.invested = id
+        } else if (p.stage === 'risk') {
+          const risk = PROJECT_RISKS.find((r) => r === p.risk)
+          const cur = s.projects[id]
+          if (!risk) { drop(p, '风险类型无效'); break }
+          if (!cur || !['operational', 'stable'].includes(cur.stage)) { drop(p, `事业 ${id} 还没运转，谈不上风险`); break }
+          if (!options.checked) { needCheck(risk === 'brawl' ? '强韧' : '交涉', `${PROJECT_KIND_NAME[cur.kind]}遇到${RISK_NAME[risk]}`); break }
+          add([projectRiskDraft(id, risk, options.checked !== 'miss')])
         } else {
-          drop(p, '运转与稳定由规则推进')
+          drop(p, '运转与稳定由规则推进；投入用 invest，风险用 risk')
         }
         break
       }

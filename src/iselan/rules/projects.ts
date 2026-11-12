@@ -30,14 +30,20 @@ export function createProject(s: Snapshot, projectId: string, kind: Kind, region
 export type FoundResult = { readonly drafts: AnyDraft[] } | { readonly refused: 'no_project' | 'not_idea' | 'no_funds' | 'no_contact' }
 
 /** 12 §6.3 创办: money or goods (settled by the action) and a local contact at attitude ≥ +1. */
-export function foundProject(s: Snapshot, projectId: string, funded: boolean, contact: NpcId): FoundResult {
+export function foundProject(s: Snapshot, projectId: string, funded: boolean, contact: NpcId, name?: string): FoundResult {
   const p = s.projects[projectId]
   if (!p) return { refused: 'no_project' }
   if (p.stage !== 'idea') return { refused: 'not_idea' }
   if (!funded) return { refused: 'no_funds' }
   if (attitudeOf(s, contact) < 1) return { refused: 'no_contact' }
-  return { drafts: stageDrafts(s, projectId, 'founded') }
+  return { drafts: [...stageDrafts(s, projectId, 'founded'), draft('player_project_details', { projectId, name: name || projectName(p.kind), contactId: contact })] }
 }
+
+export const PROJECT_KIND_NAME: Readonly<Record<Kind, string>> = { tavern: '酒馆', guild: '行会', caravan: '商队', sanctuary: '互助站', home: '家', custom: '事业' }
+const projectName = (kind: Kind) => PROJECT_KIND_NAME[kind]
+
+/** Founded and not closed: the party can put actions into it and it can meet risks. */
+export const projectRunning = (p: ProjectSnapshot | undefined) => !!p && ['founded', 'operational', 'stable'].includes(p.stage)
 
 export const investedSinceFounding = (p: ProjectSnapshot) => p.investedRounds.filter((r) => p.foundedRound !== null && r > p.foundedRound).length
 

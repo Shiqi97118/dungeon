@@ -137,7 +137,7 @@ function allowLines(a: Allowlist): string[] {
     `证据：${a.evidence.map((e) => `${e.darkLineId}/${e.evidenceId}`).join('、') || '无'}`,
     `方向：${a.directions.join('、') || '无'}`,
     `地点：${a.places.join('、') || '无'}`,
-    `事业：${a.projects.join('、') || '无'}`,
+    `事业：${a.projects.join('、') || '无'}（founded 带在场联系人 contactId 与 name；为事业出力提 invest；运转后遭遇风波提 risk，risk 取 tax|seal|brawl|patients|other；本钱与风波由程序检定）`,
     `可征求同意的角色：${a.actors.join('、') || '无'}`,
   ]
 }
