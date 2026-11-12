@@ -119,14 +119,37 @@ export function generateVocab(vocab, events) {
   ].join('\n')
 }
 
+/** Fact ids an entry reads or writes, at any depth (conditions, effects, dialogue lines). */
+function factsOf(x, out = new Set()) {
+  if (Array.isArray(x)) for (const y of x) factsOf(y, out)
+  else if (x && typeof x === 'object') {
+    for (const [k, v] of Object.entries(x)) {
+      if (k === 'fact' && typeof v === 'string') out.add(v)
+      else factsOf(v, out)
+    }
+  }
+  return out
+}
+
+/** Facts that only texts not yet in the game mention: no point offering them to the host. */
+export function offstageFacts(compiled) {
+  const onstage = new Set()
+  const offstage = new Set()
+  for (const e of compiled.entries) for (const f of factsOf(e)) (e.strict ? onstage : offstage).add(f)
+  return [...offstage].filter((f) => !onstage.has(f)).sort()
+}
+
 export function generateTexts(compiled) {
   const entries = compiled.entries
     .filter((e) => e.strict)
     .map(({ strict: _strict, hasTrigger: _hasTrigger, ...rest }) => rest)
   return [
     HEADER,
+    "import type { FactId } from './vocab.generated'",
     "import type { CompiledText } from './textTypes'\n",
     `export const TEXTS: readonly CompiledText[] = ${JSON.stringify(entries, null, 1)}\n`,
+    '/** Facts only texts outside the game mention (regions still being written). */',
+    `export const OFFSTAGE_FACTS: readonly FactId[] = ${JSON.stringify(offstageFacts(compiled))}\n`,
   ].join('\n')
 }
 

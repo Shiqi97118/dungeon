@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterAll, describe, expect, it } from 'vitest'
-import { generateTexts, generateVocab } from './build-data.mjs'
+import { generateTexts, generateVocab, offstageFacts } from './build-data.mjs'
 
 const TOOLS = dirname(fileURLToPath(import.meta.url))
 const STORY = join(TOOLS, '..')
@@ -52,6 +52,17 @@ describe('build-data', () => {
 })
 
 // A Windows checkout (core.autocrlf=true) hands the compiler CRLF; the data must not change.
+describe('offstage facts', () => {
+  it('lists facts that only texts outside the game read or write', () => {
+    const entries = [
+      { strict: true, requires: [{ fact: 'a', op: 'eq', value: true }] },
+      { strict: false, effects: [{ phase: 'after', fact: 'a', op: 'eq', value: true }, { phase: 'after', fact: 'b', op: 'eq', value: true }] },
+      { strict: false, lines: [{ requires: [{ any: [{ fact: 'c', op: 'eq', value: true }] }] }] },
+    ]
+    expect(offstageFacts({ entries })).toEqual(['b', 'c'])
+  })
+})
+
 describe('CRLF text files', () => {
   const crlfCopy = () => {
     const dir = mkdtempSync(join(tmp, 'crlf-'))

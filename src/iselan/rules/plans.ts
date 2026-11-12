@@ -68,7 +68,8 @@ export const BLOCKED_BY_PARTY = 'blocked_by_party'
 export const OUT_OF_OFFICE: readonly NpcStateId[] = ['deposed', 'captive', 'dead', 'erased']
 
 export function leaderInOffice(s: Snapshot, faction: FactionId): boolean {
-  const leader = VOCAB.factions.find((f) => f.id === faction)?.leader
+  const f = VOCAB.factions.find((x) => x.id === faction)
+  const leader = f && 'leader' in f ? f.leader : undefined
   return !leader || !OUT_OF_OFFICE.includes(npcStateOf(s, leader))
 }
 

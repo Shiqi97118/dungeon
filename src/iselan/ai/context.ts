@@ -1,6 +1,6 @@
 import { CONFIG } from '../config'
 import type { DirectionId, FactId, FactionId, NpcId, PlaceId, RegionId } from '../data'
-import { VOCAB } from '../data'
+import { OFFSTAGE_FACTS, VOCAB } from '../data'
 import type { Snapshot } from '../events'
 import { CLOCK_MAX } from '../rules/clock'
 import { hasFact, npcStateOf, type SceneContext } from '../rules/conditions'
@@ -65,6 +65,8 @@ export interface TurnContext {
 /** Facts only rules may establish; the AI never proposes them. */
 export const RULE_OWNED_FACTS: ReadonlySet<string> = new Set(['fabian_faction_leads', 'astrion_sealed', 'special_partner'])
 
+const OFFSTAGE: ReadonlySet<FactId> = new Set(OFFSTAGE_FACTS)
+
 const npcName = (id: string) => VOCAB.npcs.find((n) => n.id === id)?.name ?? VOCAB.pcs.find((p) => p.id === id)?.name ?? id
 const factionName = (id: string) => VOCAB.factions.find((f) => f.id === id)?.name ?? id
 const regionName = (id: string) => VOCAB.regions.find((r) => r.id === id)?.name ?? id
@@ -92,7 +94,7 @@ export function defaultAllowlist(s: Snapshot, ctx: SceneContext, region: RegionI
   return {
     npcs,
     factions,
-    facts: VOCAB.facts.filter((f) => !RULE_OWNED_FACTS.has(f.id) && !hasFact(s, f.id as FactId)).map((f) => f.id as FactId),
+    facts: VOCAB.facts.filter((f) => !RULE_OWNED_FACTS.has(f.id) && !OFFSTAGE.has(f.id as FactId) && !hasFact(s, f.id as FactId)).map((f) => f.id as FactId),
     evidence: VOCAB.darkLines.flatMap((d) =>
       Object.values(d.evidence).filter((e) => !held(d.id).has(e as never)).map((e) => ({ darkLineId: d.id, evidenceId: e as string }))),
     directions: [...CONFIG.sliceDirections],
