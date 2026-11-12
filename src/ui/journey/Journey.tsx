@@ -5,7 +5,7 @@ import type { OutcomeId, PlaceId } from '../../iselan/data'
 import { recordedResult, type InteractionRequest, type InteractionResult } from '../../iselan/interaction'
 import {
   applyOp, ARC_OUTCOMES, byOwnSeat, canWrapUp, directionName, INTERACTIONS, outcomeLabel, outcomeOpen, rewindNeedsVote, rewindVoters, tableActions, voting,
-  saveTable, seatsFor, SKILL_OF_STAT, snapshotOf, tableSaveFile, type EndingCall, type Models, type Table, type TableOp,
+  saveTable, seatsFor, SKILL_OF_STAT, STAT_ORDER, snapshotOf, specialtyBonus, tableSaveFile, type EndingCall, type Models, type Table, type TableOp,
 } from '../../iselan/play'
 import type { ModelCall } from '../../iselan/ai'
 import { profileApi } from '../../net/profile'
@@ -85,6 +85,8 @@ export function JourneyTable({ table, send, seat, aiLabel, hasAi, record, notice
   const [text, setText] = useState('')
   const [ix, setIx] = useState<{ textId: string; instanceId: string } | null>(null)
   const [showRewind, setShowRewind] = useState(false)
+  const [showCard, setShowCard] = useState(false)
+  const card = table.party.find((m) => m.seatId === seat.mine)?.draft
   const [summary, setSummary] = useState(() => !!snapshotOf(table).ending)
   const s = snapshotOf(table)
   const seen = useRef(table.screens.length)
@@ -205,7 +207,7 @@ export function JourneyTable({ table, send, seat, aiLabel, hasAi, record, notice
         return (
           <div className="jy-check">
             <p>{m.name} · {SKILL_OF_STAT[p.stat]}检定，难度 {p.request.difficulty}<span className="dim small">（{p.request.reason}）</span></p>
-            <p className="small dim">掷 2d6 {sign(m.stats[p.stat])}</p>
+            <p className="small dim">掷 2d6 {sign(m.stats[p.stat])}{specialtyBonus(m.draft, p.stat) ? ' +1 专长' : ''}</p>
             {can({ t: 'roll' })
               ? <button className="btn primary" disabled={busy} onClick={() => { sound.dice(); void run({ t: 'roll' }) }}>掷骰</button>
               : waiting(p.seatId, '掷骰')}
@@ -268,6 +270,7 @@ export function JourneyTable({ table, send, seat, aiLabel, hasAi, record, notice
         <div className="row">
           <span className="dim small jy-ai">{aiLabel}</span>
           {side}
+          {card && <button className="btn ghost small" onClick={() => setShowCard(true)}>角色卡</button>}
           <button className="btn ghost small" onClick={() => setShowRewind(true)} disabled={busy || !table.checkpoints.length || !seat.mine || voting(table)}>回退</button>
           <button className="btn ghost small" onClick={onQuit}>标题</button>
         </div>
@@ -284,6 +287,13 @@ export function JourneyTable({ table, send, seat, aiLabel, hasAi, record, notice
         </main>
       )}
       {ix && <InteractionHost table={table} textId={ix.textId} instanceId={ix.instanceId} settle={settle} onClose={() => setIx(null)} />}
+      {showCard && card && <Modal title={card.name} onClose={() => setShowCard(false)} className="character-draft">
+        <p>{card.ancestry} · {card.job}</p>
+        <p>{STAT_ORDER.map((stat) => `${SKILL_OF_STAT[stat]} ${sign(card.stats[stat])}`).join('　')}</p>
+        <p>专长：{card.specialties.join('、')}</p>
+        <p>动机：{card.motive}</p>
+        <p>随身纪念物：{card.memento}</p>
+      </Modal>}
       {showRewind && (
         <Modal title="回到之前的决定" onClose={() => setShowRewind(false)}>
           <p className="small dim">

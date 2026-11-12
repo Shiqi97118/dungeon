@@ -978,6 +978,12 @@ details summary { cursor: pointer; color: var(--echo); margin: 8px 0; }
 .character-setup .jy-detail { margin-block: 10px; }
 .character-setup .opening-hook { display: block; margin-block: 14px 6px; }
 .character-setup .opening-hook .input { width: 100%; margin-top: 6px; }
+.character-draft { width: min(560px, 100%); }
+.character-draft fieldset { display: grid; gap: 8px; border: 0; margin: 0; padding: 0; min-width: 0; }
+.character-draft .draft-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.character-draft .draft-field { display: grid; gap: 4px; min-width: 0; }
+.character-draft .draft-field .input { width: 100%; min-width: 0; }
+.character-draft .draft-actions { position: sticky; bottom: 0; background: var(--panel-solid); padding-block: 10px 0; }
 .jy-turn { margin: 0; color: var(--copper2); }
 .jy-detail { padding: 10px 14px; border-left: 2px solid var(--copper); margin-bottom: 14px; }
 .jy-rewind { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 6px; max-height: 60vh; overflow: auto; }

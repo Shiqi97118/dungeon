@@ -1,9 +1,9 @@
-import type { TableOp } from '../iselan/play'
+import type { CharacterDraft, TableOp } from '../iselan/play'
 import type { InteractionResult } from '../iselan/interaction'
 
 export interface ChatMsg { id: number; pid: string; name: string; text: string; t: number }
 
-export interface RoomPlayer { id: string; name: string; pick: string | null; seat: string | null }
+export interface RoomPlayer { id: string; name: string; pick: string | null; seat: string | null; draft?: CharacterDraft }
 
 export interface RoomView {
   code: string
@@ -79,6 +79,7 @@ export const api = {
   poll: (seat: Seat, v: number) =>
     call<{ version: number; now: number; presence: Record<string, number>; room?: RoomView }>(`api/room?code=${encodeURIComponent(seat.code)}&v=${v}`, { token: seat.token }),
   pick: (seat: Seat, pick: string | null) => post<{ version: number }>('api/room', pick ? { op: 'pick', code: seat.code, pick } : { op: 'unpick', code: seat.code }, seat.token),
+  pickCustom: (seat: Seat, draft: CharacterDraft) => post<{ version: number }>('api/room', { op: 'pickCustom', code: seat.code, draft }, seat.token),
   hook: (seat: Seat, hook: string) => post<{ version: number }>('api/room', { op: 'hook', code: seat.code, hook }, seat.token),
   start: (seat: Seat) => post<{ version: number }>('api/room', { op: 'start', code: seat.code }, seat.token),
   chat: (seat: Seat, text: string) => post<{ version: number }>('api/room', { op: 'chat', code: seat.code, text }, seat.token),

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { sound } from '../../audio/sound'
 import { InteractionRejected } from '../../iselan/interaction'
 import { CONFIG } from '../../iselan/config'
-import { PREGENS, SKILL_OF_STAT, STAT_ORDER, snapshotOf, unpackTable, voting, type Table } from '../../iselan/play'
+import { PREGENS, SKILL_OF_STAT, STAT_ORDER, randomCharacterDraft, snapshotOf, unpackTable, voting, type CharacterDraft, type Table } from '../../iselan/play'
 import { ApiError, api, type RoomView, type Seat } from '../../net/api'
 import { profileApi } from '../../net/profile'
 import { isOnline, type RoomConn } from '../../net/useRoom'
@@ -10,8 +10,10 @@ import ChatDock from '../Chat'
 import { JourneyTable, type Send, type TableSeat } from './Journey'
 import type { RunRecordView } from './EndingSummary'
 import { HOOKS } from './view'
+import CharacterDraftDialog from './CharacterDraftDialog'
 
 const sign = (n: number) => (n > 0 ? `+${n}` : String(n))
+const PREGEN_NAMES = PREGENS.map((p) => p.name)
 /** Matches the server's limit in server/rooms.ts. */
 const MAX_SEATS = 4
 
@@ -26,6 +28,7 @@ export function RoomLobby({ room, seat, conn, busy, error, op, onLeave }: {
   onLeave: () => void
 }) {
   const [copied, setCopied] = useState<'code' | 'link' | null>(null)
+  const [editing, setEditing] = useState(false)
   const isHost = room.hostId === seat.pid
   const me = room.players.find((p) => p.id === seat.pid)
   const link = `${location.origin}${location.pathname}?room=${room.code}`
@@ -38,6 +41,8 @@ export function RoomLobby({ room, seat, conn, busy, error, op, onLeave }: {
   }
   const host = room.players.find((p) => p.id === room.hostId)
   const picked = room.players.filter((p) => p.pick).length
+  const takenNames = [...PREGEN_NAMES, ...room.players.flatMap((p) => p.id !== seat.pid && p.draft ? [p.draft.name] : [])]
+  const canPick = !busy && (!!me?.pick || picked < MAX_SEATS)
 
   return (
     <div className="setup-screen">
@@ -59,10 +64,16 @@ export function RoomLobby({ room, seat, conn, busy, error, op, onLeave }: {
             {room.players.map((p) => (
               <span key={p.id} className={`lobby-player ${isOnline(conn.presence, p.id, conn.skew) ? 'on' : ''} ${p.id === seat.pid ? 'me' : ''}`}>
                 <i />{p.name}{p.id === room.hostId && <small>房主</small>}{p.id === seat.pid && <small>你</small>}
-                {p.pick && <small>{PREGENS.find((g) => g.id === p.pick)?.name}</small>}
+                {p.pick && <small>{p.draft?.name ?? PREGENS.find((g) => g.id === p.pick)?.name}</small>}
               </span>
             ))}
           </div>
+          <div className="row">
+            <button className="btn small" disabled={!canPick} onClick={() => setEditing(true)}>{me?.draft ? '编辑自定义角色' : '自定义车卡'}</button>
+            <button className="btn small" disabled={!canPick} onClick={() => op(() => api.pickCustom(seat, randomCharacterDraft(me?.draft ? [...takenNames, me.draft.name] : takenNames)))}>随机生成角色</button>
+            {me?.draft && <button className="btn ghost small" disabled={busy} onClick={() => op(() => api.pick(seat, null))}>放弃自定义角色</button>}
+          </div>
+          {me?.draft && <p className="small">已选：{me.draft.name} · {me.draft.ancestry} · {me.draft.job}</p>}
 
           <h3>选你的角色</h3>
           <div className="jy-cards" role="radiogroup" aria-label="角色">
@@ -114,26 +125,36 @@ export function RoomLobby({ room, seat, conn, busy, error, op, onLeave }: {
         </div>
       </div>
       <ChatDock chat={room.chat} meId={seat.pid} onSend={async (t) => { await api.chat(seat, t); conn.refresh() }} />
+      {editing && <CharacterDraftDialog initial={me?.draft} taken={takenNames} onConfirm={async (draft) => {
+        await api.pickCustom(seat, draft)
+        conn.refresh()
+      }} onClose={() => setEditing(false)} />}
     </div>
   )
 }
 
 /** R1a: a watcher brings a free pre-made character into the running story. */
-function JoinPanel({ table, onPick, onClose }: { table: Table; onPick: (id: string) => Promise<void>; onClose: () => void }) {
+function JoinPanel({ table, onPick, onCustom, onClose }: { table: Table; onPick: (id: string) => Promise<void>; onCustom: (draft: CharacterDraft) => Promise<void>; onClose: () => void }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [editing, setEditing] = useState(false)
   const free = PREGENS.filter((g) => !table.party.some((m) => m.actorId === g.id))
-  const pick = async (id: string) => {
+  const taken = [...PREGEN_NAMES, ...table.party.map((m) => m.name)]
+  const pick = async (choose: () => Promise<void>) => {
     setBusy(true)
     setError(null)
     try {
-      await onPick(id)
+      await choose()
       onClose()
     } catch (e) {
       setError((e as Error).message)
     }
     setBusy(false)
   }
+  if (editing) return <CharacterDraftDialog taken={taken} action="用这张卡加入" onConfirm={async (draft) => {
+    await onCustom(draft)
+    onClose()
+  }} onClose={() => setEditing(false)} />
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
@@ -142,12 +163,16 @@ function JoinPanel({ table, onPick, onClose }: { table: Table; onPick: (id: stri
         <p className="dim small">新加入的角色从在座者里最少的选择数算起，要亲手做满 {CONFIG.minOwnChoicesAfterJoin} 件事，大家才能一起收束故事。之前的回退点会清空。</p>
         <div className="jy-cards">
           {free.map((g) => (
-            <button key={g.id} className="jy-card" disabled={busy} onClick={() => { sound.click(); void pick(g.id) }}>
+            <button key={g.id} className="jy-card" disabled={busy} onClick={() => { sound.click(); void pick(() => onPick(g.id)) }}>
               <b>{g.name}</b><small>{g.title}</small>
               <span className="dim small">{g.motive}</span>
               <span className="small">{STAT_ORDER.map((k) => `${SKILL_OF_STAT[k]} ${sign(g.stats[k])}`).join(' ')}</span>
             </button>
           ))}
+        </div>
+        <div className="row">
+          <button className="btn" disabled={busy} onClick={() => setEditing(true)}>自定义车卡</button>
+          <button className="btn" disabled={busy} onClick={() => void pick(() => onCustom(randomCharacterDraft(taken)))}>随机生成并加入</button>
         </div>
         {error && <div className="error">{error}</div>}
         <div className="row end"><button className="btn ghost" onClick={onClose}>继续旁观</button></div>
@@ -238,7 +263,10 @@ export function RoomJourney({ room, seat, conn, onLeave, onQuit }: {
         onQuit={onQuit}
       />
       <ChatDock chat={room.chat} meId={seat.pid} onSend={async (t) => { await api.chat(seat, t); conn.refresh() }} />
-      {joining && <JoinPanel table={table} onPick={async (id) => { await api.pick(seat, id); conn.refresh() }} onClose={() => setJoining(false)} />}
+      {joining && <JoinPanel table={table}
+        onPick={async (id) => { await api.pick(seat, id); conn.refresh() }}
+        onCustom={async (draft) => { await api.pickCustom(seat, draft); conn.refresh() }}
+        onClose={() => setJoining(false)} />}
     </>
   )
 }
