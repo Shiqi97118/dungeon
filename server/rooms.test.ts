@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { applyOp, canWrapUp, packTable, snapshotOf, unpackTable, wrapUp, type Table } from '../src/iselan/play/index.js'
+import { applyOp, canWrapUp, packTable, randomCharacterDraft, snapshotOf, unpackTable, wrapUp, type Table } from '../src/iselan/play/index.js'
 import { fakeModel } from '../src/iselan/ai/fake.js'
 import { anonymousViewer, setPlatform } from './platform.js'
 import { configureProfileRules } from './profile.js'
@@ -63,6 +63,21 @@ describe('room api on the new engine', () => {
     configureProfileRules({ judge: judgeAchievements })
   })
   afterEach(() => setIselanModel(undefined))
+
+  it('validates and saves custom cards before opening a room and on late entry', async () => {
+    const [host, guest, late] = await open(['主持', '来客', '晚到'])
+    const draft = { ...randomCharacterDraft([], () => 0), name: '灰港新客' }
+    expect((await post(host, { op: 'pickCustom', draft: { ...draft, stats: { str: 99, dex: 99, ins: 99, soc: 99 } } })).status).toBe(400)
+    expect((await post(host, { op: 'pickCustom', draft })).status).toBe(200)
+    expect((await post(guest, { op: 'pickCustom', draft })).status).toBe(409)
+    expect((await post(guest, { op: 'pick', pick: 'qilan' })).status).toBe(200)
+    expect((await post(host, { op: 'start' })).status).toBe(200)
+    expect((await tableOf(guest)).party[0]).toMatchObject({ name: draft.name, draft, stats: draft.stats })
+    expect((await post(late, { op: 'pickCustom', draft })).status).toBe(409)
+    const lateDraft = { ...draft, name: '灰港迟客' }
+    expect((await post(late, { op: 'pickCustom', draft: lateDraft })).status).toBe(200)
+    expect((await tableOf(host)).party.at(-1)?.draft).toEqual(lateDraft)
+  })
 
   it('picks characters in the lobby, starts one shared table and keeps turn order', async () => {
     const [host, guest] = await open(['阿岚', '小周'])

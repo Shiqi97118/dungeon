@@ -1,10 +1,13 @@
+import type { CharacterDraft } from '../src/iselan/play/characterDraft.js'
+
 export interface Player {
   id: string
   name: string
   tokenHash: string
   user: string
-  /** The pre-made character picked in the lobby (05 §10). */
+  /** Selected pre-made or custom character id. */
   pick?: string
+  draft?: CharacterDraft
   /** The seat that character took when the story began. */
   seat?: string
   joinedAt: number

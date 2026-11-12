@@ -11,7 +11,8 @@ import { estimateTokens } from '../src/iselan/ai/tokens.js'
 import { ModelUnavailable, type AiResponse } from '../src/iselan/ai/turn.js'
 import { InteractionRejected } from '../src/iselan/interaction/index.js'
 import {
-  applyOp, byOwnSeat, joinTable, leaveSeat, openTable, packTable, parseOp, PREGENS, seatsFor, snapshotOf, soloMember, unpackTable, type Models, type Table,
+  applyOp, byOwnSeat, customCharacter, joinTable, leaveSeat, openTable, packTable, parseCharacterDraft, parseOp, PREGENS, seatsFor, snapshotOf, soloMember, unpackTable,
+  type CharacterDraft, type Models, type Table,
 } from '../src/iselan/play/index.js'
 
 const MAX_PLAYERS = 6
@@ -98,7 +99,7 @@ function view(code: string, row: RoomRow) {
     hostId: d.hostId,
     status: d.status,
     hook: d.hook,
-    players: d.players.map((x) => ({ id: x.id, name: x.name, pick: x.pick ?? null, seat: x.seat ?? null })),
+    players: d.players.map((x) => ({ id: x.id, name: x.name, pick: x.pick ?? null, seat: x.seat ?? null, ...(x.draft ? { draft: x.draft } : {}) })),
     table: d.table ?? null,
     judged: d.judged ?? {},
     chat: d.chat,
@@ -168,18 +169,26 @@ function roomModels(store: Store, v: Viewer, code: string, t: Table, d: RoomData
   return { turn: call('turn'), ending: call('ending') }
 }
 
-/** R1a: a watcher takes a free pre-made character into the running story, up to the table's limit. */
-async function joinMidRun(store: Store, stage: string, code: string, request: Request, pick: string) {
-  const gen = PREGENS.find((x) => x.id === pick)
-  if (!gen) throw new HttpError(400, '没有这个角色')
+const customId = (p: Player) => `custom-${p.id}`
+const playerCard = (p: Player) => p.draft ? customCharacter(p.draft, customId(p)) : PREGENS.find((x) => x.id === p.pick)
+
+function assertDraftName(draft: CharacterDraft, names: readonly string[]) {
+  if (PREGENS.some((x) => x.name === draft.name) || names.includes(draft.name)) throw new HttpError(409, '这张桌上已经有同名角色')
+}
+
+/** R1a: a watcher brings a character into the running story. */
+async function joinMidRun(store: Store, stage: string, code: string, request: Request, pick: string, draft: CharacterDraft | null) {
   for (let i = 0; i < 4; i++) {
     const row = await getRoom(store, stage, code)
     const me = authPlayer(row, request)
     const d = row.data
     if (me.seat) throw new HttpError(409, '你已经在桌上了')
     const t = await unpack(d.table!)
+    const gen = draft ? customCharacter(draft, customId(me)) : PREGENS.find((x) => x.id === pick)
+    if (!gen) throw new HttpError(400, '没有这个角色')
+    if (draft) assertDraftName(draft, t.party.map((m) => m.name))
     if (t.party.filter((m) => snapshotOf(t).seats[m.seatId]?.controller !== 'empty').length >= MAX_SEATS) throw new HttpError(409, `一桌最多 ${MAX_SEATS} 名角色，其余的人可以旁观`)
-    if (t.party.some((m) => m.actorId === pick)) throw new HttpError(409, '这个角色已经在故事里了')
+    if (t.party.some((m) => m.actorId === gen.id)) throw new HttpError(409, '这个角色已经在故事里了')
     const seatId = `s${t.party.length + 1}`
     let joined: Table
     try {
@@ -187,7 +196,8 @@ async function joinMidRun(store: Store, stage: string, code: string, request: Re
     } catch (e) {
       throw new HttpError(409, (e as Error).message)
     }
-    me.pick = pick
+    me.pick = gen.id
+    if (draft) me.draft = draft
     me.seat = seatId
     d.table = await pack(joined)
     d.chatSeq += 1
@@ -284,20 +294,26 @@ export async function handleRoom(request: Request): Promise<Response> {
       throw new HttpError(409, '房间正忙，请重试')
     }
 
-    if (op === 'pick' && typeof body.pick === 'string') {
-      const row0 = await getRoom(store, stage, code)
-      if (row0.data.status === 'play') return json(await joinMidRun(store, stage, code, request, body.pick))
-    }
-
-    if (op === 'pick' || op === 'unpick') {
+    if (op === 'pick' || op === 'pickCustom' || op === 'unpick') {
       const pick = typeof body.pick === 'string' ? body.pick : ''
+      const draft = op === 'pickCustom' ? parseCharacterDraft(body.draft) : null
+      if (op === 'pickCustom' && !draft) throw new HttpError(400, '车卡不完整或属性点、专长不符合规则')
+      if (op !== 'unpick') {
+        const row0 = await getRoom(store, stage, code)
+        if (row0.data.status === 'play') return json(await joinMidRun(store, stage, code, request, pick, draft))
+      }
       const r = await mutate(store, stage, code, request, (d, me) => {
         if (d.status !== 'lobby') throw new HttpError(409, '故事已经开始，不能再换角色')
-        if (op === 'unpick') { delete me.pick; return }
-        if (!PREGENS.some((x) => x.id === pick)) throw new HttpError(400, '没有这个角色')
-        if (d.players.some((x) => x.id !== me.id && x.pick === pick)) throw new HttpError(409, '这个角色已经有人了')
+        if (op === 'unpick') { delete me.pick; delete me.draft; return }
+        if (draft) assertDraftName(draft, d.players.filter((x) => x.id !== me.id && x.draft).map((x) => x.draft!.name))
+        else {
+          if (!PREGENS.some((x) => x.id === pick)) throw new HttpError(400, '没有这个角色')
+          if (d.players.some((x) => x.id !== me.id && x.pick === pick)) throw new HttpError(409, '这个角色已经有人了')
+        }
         if (!me.pick && d.players.filter((x) => x.pick).length >= MAX_SEATS) throw new HttpError(409, `一桌最多 ${MAX_SEATS} 名角色，其余的人可以旁观`)
-        me.pick = pick
+        me.pick = draft ? customId(me) : pick
+        if (draft) me.draft = draft
+        else delete me.draft
       })
       return json({ ok: true, version: r.version })
     }
@@ -319,7 +335,11 @@ export async function handleRoom(request: Request): Promise<Response> {
       if (d.status !== 'lobby') throw new HttpError(409, '故事已经开始')
       const seated = d.players.filter((x) => x.pick)
       if (!seated.length) throw new HttpError(400, '至少要有一人选好角色')
-      const party = seated.map((x, i) => ({ ...soloMember(PREGENS.find((g) => g.id === x.pick)!), seatId: `s${i + 1}` }))
+      const party = seated.map((x, i) => {
+        const card = playerCard(x)
+        if (!card) throw new HttpError(409, '有角色卡已失效，请重新选择')
+        return { ...soloMember(card), seatId: `s${i + 1}` }
+      })
       seated.forEach((x, i) => { x.seat = `s${i + 1}` })
       const runId = randomUUID()
       d.table = await pack(openTable({ runId, seed: runId.slice(0, 8), party, openingHook: d.hook as OpeningHookId, mode: 'online' }))

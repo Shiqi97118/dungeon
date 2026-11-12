@@ -1,5 +1,6 @@
 import type { Stat } from './check'
 import type { Member } from './table'
+import type { CharacterDraft } from './characterDraft'
 
 /** 05 §10 pre-made characters: ids kept from the earlier chapter, names and hooks for the new world. */
 export interface Pregen {
@@ -10,6 +11,7 @@ export interface Pregen {
   readonly hook: string
   readonly memento: string
   readonly stats: Readonly<Record<Stat, number>>
+  readonly draft?: CharacterDraft
 }
 
 const stats = (str: number, dex: number, ins: number, soc: number) => ({ str, dex, ins, soc })
@@ -23,4 +25,7 @@ export const PREGENS: readonly Pregen[] = [
   { id: 'dawei', name: '达维娜', title: '遗迹学者', motive: '让古代记忆库不落入商会手中', hook: '与赛勒斯有过书信往来；曾是奥兰多院长的学生', memento: '亲友留下的布片', stats: stats(0, -1, 2, 1) },
 ]
 
-export const soloMember = (p: Pregen): Member => ({ seatId: 's1', actorId: p.id, name: p.name, stats: p.stats, memento: p.memento, controller: 'human' })
+export const soloMember = (p: Pregen): Member => ({
+  seatId: 's1', actorId: p.id, name: p.name, stats: p.stats, memento: p.memento, controller: 'human',
+  ...(p.draft ? { draft: p.draft } : {}),
+})

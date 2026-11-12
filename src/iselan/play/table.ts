@@ -17,6 +17,7 @@ import { preview, startRound, withConsequences } from '../rules/settle'
 import { stagedDrafts } from '../rules/staged'
 import { ALL_UNITS, fillPlaceholders, placeholderValues, sceneChange, selectFor, selectText, shownDrafts, type Pick as TextPick, type TextUnit } from '../texts'
 import { rollCheck, statFor, type Stat } from './check'
+import { specialtyBonus, type CharacterDraft } from './characterDraft'
 import { chronicleOf, citedDeeds, directionName, endingCast, projectLine, unfinishedOf } from './ending'
 import { PREGENS } from './pregens'
 import { ambienceDrafts, banquetDrafts, outcomeLabel, placeName, presentAt, sceneContext } from './world'
@@ -34,6 +35,7 @@ export interface Member {
   readonly name: string
   readonly stats: Readonly<Record<Stat, number>>
   readonly memento?: string
+  readonly draft?: CharacterDraft
   readonly controller: 'human' | 'ai'
 }
 
@@ -536,13 +538,14 @@ export async function roll(t: Table, model: ModelCall | null, o: TableOptions = 
   const m = t.party.find((x) => x.seatId === p.seatId)!
   const rng = o.rng ?? Math.random
   const d = dice ?? ([1 + Math.floor(rng() * 6), 1 + Math.floor(rng() * 6)] as const)
-  const outcome = rollCheck(p.request, p.stat, m.stats[p.stat], d)
+  const bonus = specialtyBonus(m.draft, p.stat)
+  const outcome = rollCheck(p.request, p.stat, m.stats[p.stat] + bonus, d)
   const s = snapshotOf(t)
   const ctx = sceneContext(s)
   const free = { ...t, pending: null }
   const rollScreen: Screen = {
     id: `roll:${t.n}`, kind: 'roll', actorId: m.actorId,
-    paragraphs: [`${m.name} · ${outcome.skill}检定（难度 ${outcome.difficulty}）`, `${d[0]} + ${d[1]} + ${m.stats[p.stat]} = ${outcome.total}　${{ hit: '成功', partial: '有代价的成功', miss: '失利' }[outcome.tier]}`],
+    paragraphs: [`${m.name} · ${outcome.skill}检定（难度 ${outcome.difficulty}）`, `${d[0]} + ${d[1]} + ${m.stats[p.stat]}${bonus ? ' + 1（专长）' : ''} = ${outcome.total}　${{ hit: '成功', partial: '有代价的成功', miss: '失利' }[outcome.tier]}`],
   }
   if (p.tavernService !== undefined) {
     const { id, t: tt } = nextId(free, 'act')
@@ -663,7 +666,9 @@ function endingInput(t: Table, s: Snapshot, candidates: readonly DirectionId[]):
     chronicle: chronicleOf(t.events),
     party: t.party.map((m) => {
       const pre = PREGENS.find((p) => p.id === m.actorId)
-      return { seatId: m.seatId, name: m.name, about: pre ? `${pre.title}；动机：${pre.motive}；钩子：${pre.hook}` : '自创角色', memento: m.memento }
+      const about = m.draft ? `${m.draft.ancestry} · ${m.draft.job}；动机：${m.draft.motive}`
+        : pre ? `${pre.title}；动机：${pre.motive}；钩子：${pre.hook}` : '自创角色'
+      return { seatId: m.seatId, name: m.name, about, memento: m.memento }
     }),
     projects: Object.entries(s.projects).map(([id, p]) => ({ id, text: projectLine(p) })),
     npcs: cast.npcs,
