@@ -1,18 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { sound } from '../../audio/sound'
 import { InteractionRejected } from '../../iselan/interaction'
-import { PREGENS, SKILL_OF_STAT, STAT_ORDER, unpackTable, type Table } from '../../iselan/play'
+import { PREGENS, unpackTable, type Table } from '../../iselan/play'
 import { ApiError, api, type RoomView, type Seat } from '../../net/api'
 import { profileApi } from '../../net/profile'
 import { isOnline, type RoomConn } from '../../net/useRoom'
 import ChatDock from '../Chat'
 import { JourneyTable, type Send, type TableSeat } from './Journey'
 import type { RunRecordView } from './EndingSummary'
-import { HOOKS } from './view'
 
-const sign = (n: number) => (n > 0 ? `+${n}` : String(n))
-
-/** Before the story: share the code, each player picks a character, the host picks the hook and starts. */
+/** Before the story: share the code, each player picks a character, and the host starts. */
 export function RoomLobby({ room, seat, conn, busy, error, op, onLeave }: {
   room: RoomView
   seat: Seat
@@ -50,7 +47,7 @@ export function RoomLobby({ room, seat, conn, busy, error, op, onLeave }: {
               <button className="btn" onClick={() => copy('link')}>{copied === 'link' ? '已复制邀请链接' : '复制邀请链接'}</button>
             </div>
           </div>
-          <p className="lead">把房间码发给朋友。每人选<b>一名</b>角色，一桌最多四人；没选角色的人旁观。大家按座次轮流行动，掉线的人由在座的其他人代为行动。</p>
+          <p className="lead">每人选一名角色，一桌最多四人。未选角色的玩家可以旁观。</p>
 
           <div className="lobby-players">
             {room.players.map((p) => (
@@ -76,36 +73,17 @@ export function RoomLobby({ room, seat, conn, busy, error, op, onLeave }: {
                   onClick={() => { sound.click(); op(() => api.pick(seat, mine ? null : g.id)) }}
                 >
                   <b>{g.name}</b><small>{g.title}</small>
-                  <span className="dim small">{g.motive}</span>
-                  <span className="small">{STAT_ORDER.map((k) => `${SKILL_OF_STAT[k]} ${sign(g.stats[k])}`).join(' ')}</span>
-                  <span className="small dim">{owner ? (mine ? '你扮演这名角色 · 点击放弃' : `${owner.name} 已选`) : '点击选择'}</span>
+                  {owner && <span className="small dim">{mine ? '已选 · 点击取消' : `${owner.name} 已选`}</span>}
                 </button>
               )
             })}
-          </div>
-
-          <h3>是什么把你们带到这里</h3>
-          <div className="jy-cards" role="radiogroup" aria-label="开场">
-            {HOOKS.map((h) => (
-              <button
-                key={h.id}
-                role="radio"
-                aria-checked={room.hook === h.id}
-                className={'jy-card' + (room.hook === h.id ? ' on' : '')}
-                disabled={busy || !isHost}
-                onClick={() => { sound.click(); op(() => api.hook(seat, h.id)) }}
-              >
-                <b>{h.label}</b>
-                <span className="dim small">{h.text}</span>
-              </button>
-            ))}
           </div>
 
           {error && <div className="error">{error}</div>}
           <div className="row end">
             <button className="btn ghost" onClick={onLeave}>离开房间</button>
             {isHost
-              ? <button className="btn primary big" disabled={busy || !picked} onClick={() => { sound.bell(220, 0.3); op(() => api.start(seat)) }}>推开酒馆的门</button>
+              ? <button className="btn primary big" disabled={busy || !picked} onClick={() => { sound.bell(220, 0.3); op(() => api.start(seat)) }}>进入七灯酒馆</button>
               : <span className="dim">{me?.pick ? `等待房主 ${host?.name} 开始……` : '选一名角色，或者留下来旁观'}</span>}
           </div>
         </div>

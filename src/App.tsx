@@ -68,10 +68,10 @@ export default function App() {
   )
   const journeyLabel = custom ? 'AI 主持人 · 自定义' : hosted ? 'AI 主持人 · 内置' : '离线主持'
 
-  const startJourney = (pc: Parameters<typeof soloMember>[0], hook: Parameters<typeof openTable>[0]['openingHook']) => {
+  const startJourney = (pc: Parameters<typeof soloMember>[0]) => {
     localStorage.removeItem(OLD_SAVE_KEY)
     const runId = crypto.randomUUID()
-    setJourney(openTable({ runId, seed: runId.slice(0, 8), party: [soloMember(pc)], openingHook: hook }))
+    setJourney(openTable({ runId, seed: runId.slice(0, 8), party: [soloMember(pc)], openingHook: 'memento' }))
     setErr(null)
     setScreen('journey')
   }
@@ -159,7 +159,6 @@ export default function App() {
           onSettings={() => setShowSettings(true)}
           muted={muted}
           onMute={() => setMuted(!muted)}
-          aiLabel={`AI 主持人：${journeyLabel === '离线主持' ? '未启用（可选）' : journeyLabel.replace('AI 主持人 · ', '')}`}
           onOnline={() => { setErr(null); setScreen('online') }}
           roomCode={storedSeat?.code}
           onRejoin={() => storedSeat && enterRoom(storedSeat)}

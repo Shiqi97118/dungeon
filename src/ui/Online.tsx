@@ -44,7 +44,7 @@ export function OnlineEntry({ info, initialCode, busy, error, onCreate, onJoin, 
           <div className="online-split">
             <div className="online-card">
               <h3>开一个房间</h3>
-              <p className="dim">你当房主，选开场、决定什么时候出发。</p>
+              <p className="dim">你当房主，决定什么时候出发。</p>
               <button className="btn primary big" disabled={!ready || busy || !name.trim()} onClick={() => { remember(); sound.bell(293.66, 0.2); onCreate(name.trim()) }}>创建房间</button>
             </div>
             <div className="online-card">

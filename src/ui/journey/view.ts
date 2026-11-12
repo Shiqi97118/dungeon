@@ -29,13 +29,6 @@ export const GRAYPORT: readonly { readonly id: PlaceId; readonly name: string }[
   .filter((p) => p.region === 'gray_harbor')
   .map((p) => ({ id: p.id as PlaceId, name: p.name }))
 
-export const HOOKS = [
-  { id: 'memento', label: '纪念物', text: '随身的旧物在雨夜里慢慢发热，像在指路。' },
-  { id: 'bellkeeper_messenger', label: '守钟人信使', text: '一个浑身湿透的灰袍人闯进酒馆，把什么塞进你手里。' },
-  { id: 'guild_contract', label: '商会委托', text: '吧台上方钉着铜脉商会的新告示，赏金不低。' },
-  { id: 'royal_bounty', label: '王室悬赏', text: '摄政公主悬赏能治“遗忘病”的人。' },
-] as const
-
 export function statusLine(s: Snapshot): string {
   const where = s.location?.placeId ? VOCAB.places.find((p) => p.id === s.location?.placeId)?.name : '灰港'
   const amb = s.ambience ? `${s.ambience.time} · ${s.ambience.weather}` : ''
