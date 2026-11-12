@@ -1,3 +1,4 @@
+import { CONFIG } from '../config'
 import type { ActorId, BeatId, NpcId, PlaceId, Tag } from '../data'
 import { VOCAB } from '../data'
 import { draft, type AnyDraft, type Snapshot } from '../events'
@@ -56,14 +57,12 @@ export function nextBeat(s: Snapshot): BeatId | null {
   return BEATS[Math.min(furthest + 1, BEATS.length - 1)]
 }
 
-/** Rounds per stretch of the day; four stretches make one day. */
-export const ROUNDS_PER_STRETCH = 3
 const TIMES = ['黄昏', '夜', '黎明', '白天'] as const
 const WEATHER = ['雨', '雨', '雾', '晴', '风暴'] as const
 
 /** The ambience for `round`: the run opens on a rainy dusk (GEN-BEAT-01) and moves on every few rounds. */
 export function ambienceFor(seed: string, round: number) {
-  const stretch = Math.floor((round - 1) / ROUNDS_PER_STRETCH)
+  const stretch = Math.floor((round - 1) / CONFIG.roundsPerTimeOfDay)
   const time = TIMES[stretch % TIMES.length]
   const day = Math.floor(stretch / TIMES.length)
   const weather = stretch === 0 ? '雨' : WEATHER[Math.floor(rngFor(seed, `weather:${day}`)() * WEATHER.length)]

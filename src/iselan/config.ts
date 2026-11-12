@@ -71,6 +71,15 @@ export const CONFIG = {
   sliceInteractions: ['evidence', 'dialogue-gesture'],
   sliceAchievements: ['ST01', 'ST02', 'ST03', 'ST05', 'ST11', 'RE01', 'RE03', 'SB01', 'SB02', 'LG07'],
 
+  // ---- pacing the table chose; not in 12, tune after playtest ----
+  /**
+   * Rounds between core-adventure beats. A3 must be able to finish the well before the clock
+   * reaches 4 (first possible at round 4 × clockCheckEvery = 24): six beats at this gap end by round 21.
+   */
+  beatGapRounds: 4,
+  /** Rounds per stretch of the day (dusk, night, dawn, day); equal to clockCheckEvery so a day is four checks. */
+  roundsPerTimeOfDay: 6,
+
   /** 12 §8 */
   ai: {
     fixedPrefixTokens: 1500,

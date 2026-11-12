@@ -97,7 +97,7 @@ describe('table', () => {
     const model = fakeModel({ seed: 'l' })
     let t = await act(open(), '打听怪病', model, o)
     t = move(t, 'gray_harbor.silver_tongue_auction', o)
-    for (let i = 0; i < 4 && t.pending?.kind !== 'interaction'; i++) t = await act(t, `四处看看 ${i}`, model, o)
+    for (let i = 0; i < 8 && t.pending?.kind !== 'interaction'; i++) t = await act(t, `四处看看 ${i}`, model, o)
     expect(t.pending).toMatchObject({ kind: 'interaction', textId: 'GH-BEAT-04' })
     const p = t.pending as Extract<Table['pending'], { kind: 'interaction' }>
     const { table, result } = interact(t, { requestId: 'ix-1', instanceId: p.instanceId, action: 'skip', params: { inspected: [] } }, o)
@@ -159,12 +159,27 @@ describe('table', () => {
       else if (t.pending?.kind === 'check') t = await roll(t, model, o)
       else t = await act(t, `追查潮井 ${i}`, model, o)
     }
-    expect(snapshotOf(t).arcs.gray_well?.beats).toContain('choice')
+    const s0 = snapshotOf(t)
+    expect(s0.arcs.gray_well?.beats).toContain('choice')
+    const beatRounds = Object.entries(s0.texts).filter(([id]) => id.startsWith('GH-BEAT-')).map(([, x]) => x.lastRound).sort((a, b) => a - b)
+    for (let i = 1; i < beatRounds.length; i++) expect(beatRounds[i] - beatRounds[i - 1]).toBeGreaterThanOrEqual(CONFIG.beatGapRounds)
+    // A3: the decision comes before the clock can first reach 4.
+    expect(s0.round).toBeLessThan(4 * CONFIG.clockCheckEvery)
     expect(textIds(t)).not.toContain('GH-BEAT-07')
     t = resolveArc(t, ['exposed'], o)
     const s = snapshotOf(t)
     expect(s.arcs.gray_well?.outcomes).toEqual(['exposed'])
     expect(s.objects.tide_well).toBe('exposed')
     expect(textIds(t)).toContain('GH-BEAT-07')
+  })
+})
+
+describe('pacing', () => {
+  it('the day moves one stretch per clock interval, starting on a rainy dusk', async () => {
+    const { ambienceFor } = await import('./world')
+    const n = CONFIG.roundsPerTimeOfDay
+    expect(ambienceFor('x', 1)).toEqual({ time: '黄昏', weather: '雨' })
+    expect(ambienceFor('x', n).time).toBe('黄昏')
+    expect([n + 1, 2 * n + 1, 3 * n + 1].map((r) => ambienceFor('x', r).time)).toEqual(['夜', '黎明', '白天'])
   })
 })

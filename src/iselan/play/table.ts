@@ -153,22 +153,19 @@ function beatOf(u: TextUnit): { arc: ArcId; beat: BeatId } | null {
   return arc && beat ? { arc, beat } : null
 }
 
-/** Rounds since the last Grayport beat was shown; the next one waits at least this long. */
-export const BEAT_GAP = 2
-
 const GH_BEATS = TEXTS.filter((x) => x.kind === 'BEAT' && x.id.startsWith('GH-BEAT-')).map((x) => x.id)
 
 const STAGES: readonly BeatId[] = ['cause', 'discovery', 'turn', 'choice']
 
 /**
  * The beat to show now, if one is due: another unseen beat of the stage already reached when it
- * fits (Ludo at the docks, Felix's ledger), otherwise the next stage. Beats wait `BEAT_GAP`
+ * fits (Ludo at the docks, Felix's ledger), otherwise the next stage. Beats wait `beatGapRounds`
  * rounds after the last one so the party has room to act in between.
  */
 export function dueBeat(s: Snapshot, ctx: SceneContext): TextPick | null {
   if (s.location?.regionId !== 'gray_harbor' || s.act === 4 || s.arcs.gray_well?.outcomes) return null
   const last = Math.max(-1, ...GH_BEATS.map((id) => s.texts[id]?.lastRound ?? -1))
-  if (last >= 0 && s.round - last < BEAT_GAP) return null
+  if (last >= 0 && s.round - last < CONFIG.beatGapRounds) return null
   const reached = (s.arcs.gray_well?.beats ?? []).map((b) => STAGES.indexOf(b)).filter((i) => i >= 0)
   const furthest = reached.length ? Math.max(...reached) : -1
   const stages = [...new Set([furthest, Math.min(furthest + 1, STAGES.length - 1)].filter((i) => i >= 0))].map((i) => STAGES[i])
