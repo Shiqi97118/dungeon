@@ -92,6 +92,7 @@ export function Projects({ s }: { s: Snapshot }) {
             </ol>
           )}
           {p.next && <p className="dim small">{p.next}</p>}
+          {p.sustainedProfit && <p className="small">已达成持续盈利</p>}
           {p.risks.length > 0 && (
             <div className="chips">
               {p.risks.map((r, i) => <span key={i} className="chip item">{r}</span>)}

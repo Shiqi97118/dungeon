@@ -55,6 +55,7 @@ export interface ProjectSnapshot {
   /** Distinct rounds with a counted choice tagged `project:<id>`. */
   readonly investedRounds: readonly number[]
   readonly risks: readonly (P<'player_project_risk'> & { readonly round: number })[]
+  readonly services: readonly (P<'tavern_service_settled'> & { readonly round: number })[]
   readonly marks: readonly string[]
   /** Set at founding (12 §6.3): what the party calls it and the local contact who vouched for it. */
   readonly name: string | null
@@ -406,7 +407,7 @@ function apply(s: Draft<Snapshot>, e: AnyEvent): void {
       return
     case 'player_project_created':
       s.projects[e.payload.projectId] ??= {
-        kind: e.payload.kind, regionId: e.payload.regionId, stage: 'idea', foundedRound: null, operationalRound: null, investedRounds: [], risks: [], marks: [], name: null, contactId: null,
+        kind: e.payload.kind, regionId: e.payload.regionId, stage: 'idea', foundedRound: null, operationalRound: null, investedRounds: [], risks: [], services: [], marks: [], name: null, contactId: null,
       }
       return
     case 'player_project_stage_changed': {
@@ -425,6 +426,13 @@ function apply(s: Draft<Snapshot>, e: AnyEvent): void {
     case 'player_project_risk':
       s.projects[e.payload.projectId]?.risks.push({ ...e.payload, round: s.round })
       return
+    case 'tavern_service_settled': {
+      const p = s.projects[e.payload.projectId]
+      if (p?.kind === 'tavern' && (p.stage === 'operational' || p.stage === 'stable') && p.services.at(-1)?.round !== s.round) {
+        p.services.push({ ...e.payload, round: s.round })
+      }
+      return
+    }
     case 'business_operational':
     case 'business_profitable':
     case 'trade_route_established':

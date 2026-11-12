@@ -75,6 +75,7 @@
     { "type": "player_project_stage_changed", "group": "sandbox", "payload": { "projectId": "string", "stage": "idea|founded|operational|stable|closed" } },
     { "type": "player_project_details", "group": "sandbox", "payload": { "projectId": "string", "name": "string", "contactId": "npc" } },
     { "type": "player_project_risk", "group": "sandbox", "payload": { "projectId": "string", "risk": "tax|seal|brawl|patients|other", "weathered": "bool" } },
+    { "type": "tavern_service_settled", "group": "sandbox", "payload": { "projectId": "string", "revenue": "int", "cost": "int" } },
     { "type": "business_operational", "group": "sandbox", "payload": { "projectId": "string", "kind": "string", "regionId": "region" } },
     { "type": "business_profitable", "group": "sandbox", "payload": { "projectId": "string", "sustained": "bool" } },
     { "type": "trade_route_established", "group": "sandbox", "payload": { "projectId": "string", "stable": "bool" } },

@@ -58,10 +58,10 @@ export function closeProject(s: Snapshot, projectId: string): AnyDraft[] | null 
 
 /**
  * 12 §6.3 automatic steps, checked after every change: operational after enough rounds of
- * investment, stable after weathering a risk while running. `profitable` (a tavern's books)
- * comes from the settlement and only matters for the stable step.
+ * investment, stable after weathering a risk while running. A stable tavern can qualify for
+ * sustained profit immediately or after further service shifts.
  */
-export function projectDrafts(s: Snapshot, profitable: ReadonlySet<string> = new Set()): AnyDraft[] {
+export function projectDrafts(s: Snapshot): AnyDraft[] {
   const out: AnyDraft[] = []
   for (const [projectId, p] of Object.entries(s.projects)) {
     if (p.stage === 'founded' && investedSinceFounding(p) >= CONFIG.projectOperationalActions) {
@@ -74,8 +74,16 @@ export function projectDrafts(s: Snapshot, profitable: ReadonlySet<string> = new
     } else if (p.stage === 'operational' && p.risks.some((r) => r.weathered && p.operationalRound !== null && r.round >= p.operationalRound)) {
       out.push(...stageDrafts(s, projectId, 'stable'))
       if (!hasFact(s, 'project_risk_weathered')) out.push(draft('fact_established', { factId: 'project_risk_weathered', source: projectId }))
-      if (p.kind === 'tavern' && profitable.has(projectId)) out.push(draft('business_profitable', { projectId, sustained: true }))
+    }
+    if (p.kind === 'tavern' && p.stage === 'stable' && !p.marks.includes('business_profitable')
+        && p.services.length >= 2 && p.services.slice(-2).every(({ revenue, cost }) => revenue > cost)) {
+      out.push(draft('business_profitable', { projectId, sustained: true }))
     }
   }
   return out
+}
+
+/** One checked service shift, in silver crowns. A partial success covers operating costs. */
+export function tavernServiceDraft(projectId: string, tier: 'hit' | 'partial' | 'miss') {
+  return draft('tavern_service_settled', { projectId, revenue: { hit: 6, partial: 3, miss: 1 }[tier], cost: 3 })
 }

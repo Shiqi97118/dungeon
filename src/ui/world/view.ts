@@ -99,6 +99,7 @@ export interface ProjectRow {
   /** What the next step still needs (12 §6.3), in words. */
   readonly next: string | null
   readonly risks: readonly string[]
+  readonly sustainedProfit: boolean
 }
 
 function nextStep(p: ProjectSnapshot): string | null {
@@ -120,6 +121,7 @@ export function projectRows(s: Snapshot): ProjectRow[] {
     stage: p.stage,
     stageLabel: STEP_LABEL[p.stage],
     next: nextStep(p),
+    sustainedProfit: p.marks.includes('business_profitable'),
     risks: p.risks.map((r) => `${RISK_LABEL[r.risk]}·${r.weathered ? '挺过' : '受挫'}`),
   }))
 }

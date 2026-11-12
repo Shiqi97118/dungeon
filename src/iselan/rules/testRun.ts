@@ -1,7 +1,7 @@
 import type { OpeningHookId } from '../data'
 import { commitIntent, draft, reduceEvents, type AnyDraft, type AnyEvent, type Snapshot } from '../events'
 import { openingDrafts, type OpeningSeat } from './initial'
-import { startRound, withConsequences, type SettleOptions } from './settle'
+import { startRound, withConsequences } from './settle'
 
 /** Test helper: a run whose intents go through the real ledger and reducer. */
 export class TestRun {
@@ -29,8 +29,8 @@ export class TestRun {
   }
 
   /** Commit `drafts` with every consequence the rules attach. */
-  settle(drafts: readonly AnyDraft[], options?: SettleOptions, intentId?: string) {
-    const r = withConsequences(this.s, drafts, [], options)
+  settle(drafts: readonly AnyDraft[], intentId?: string) {
+    const r = withConsequences(this.s, drafts)
     this.commit(r.drafts, intentId)
     return r
   }

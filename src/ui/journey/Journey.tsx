@@ -4,7 +4,7 @@ import { CONFIG } from '../../iselan/config'
 import type { OutcomeId, PlaceId } from '../../iselan/data'
 import { recordedResult, type InteractionRequest, type InteractionResult } from '../../iselan/interaction'
 import {
-  applyOp, ARC_OUTCOMES, byOwnSeat, canWrapUp, directionName, INTERACTIONS, outcomeLabel, outcomeOpen, rewindNeedsVote, rewindVoters, voting,
+  applyOp, ARC_OUTCOMES, byOwnSeat, canWrapUp, directionName, INTERACTIONS, outcomeLabel, outcomeOpen, rewindNeedsVote, rewindVoters, tableActions, voting,
   saveTable, seatsFor, SKILL_OF_STAT, snapshotOf, tableSaveFile, type EndingCall, type Models, type Table, type TableOp,
 } from '../../iselan/play'
 import type { ModelCall } from '../../iselan/ai'
@@ -154,12 +154,13 @@ export function JourneyTable({ table, send, seat, aiLabel, hasAi, record, notice
     return <p className="small dim" role="status">等待{m?.name ?? ''}{who ? `（${who}）` : ''}{what}……</p>
   }
 
+  const suggestions = [...new Set([...tableActions(s), ...table.suggestions])]
   const freeAction = !p && !ended && (myTurn ? (
     <div className="jy-act">
       {table.party.length > 1 && <p className="small jy-turn">轮到{me.name}了。</p>}
-      {table.suggestions.length > 0 && (
+      {suggestions.length > 0 && (
         <div className="jy-suggest" aria-label="建议">
-          {table.suggestions.map((x) => (
+          {suggestions.map((x) => (
             <button key={x} className="btn ghost small" disabled={busy} onClick={() => setText(x)}>{x}</button>
           ))}
         </div>
