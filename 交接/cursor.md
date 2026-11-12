@@ -9,6 +9,12 @@ coverage: "PARTIAL"
 
 ## 继续位置 / Resume
 
+### 试玩发布（2026-11-12）
+
+- 用户要求先跑通、给出试玩链接，再打磨。整合 PR #50 和 #51 后，把通过验收的灰港首版合入 Cloudflare 已连接的 `main`。发布地址为 [灰港试玩](https://echo-well.tintenfisch.workers.dev/)。
+- 本地 Worker 验证了单人开局、码头救援、第二条账本线索、续玩、公开潮井与结局页，以及双人开房、选角、开局、行动同步和重连。353 项测试通过。以发布 PR 和 Cloudflare 构建记录核对线上版本。
+- 公开试玩优先。新增美术用 Chat 生图，现有灰港首版可以沿用已入库插图。
+
 ### 当前目标 / Current goal
 
 2026-11-12 14:54 起 Cursor 停止，剩余工作（代码与内容）连同待决定事项一并交给 GPT。按 docs/story/13-代码代理任务书.md 的任务卡，在 feat/iselan-v1 上实现伊瑟兰第一章的“灰港首版”，规格以 docs/story/12-开工规格.md 为准。
