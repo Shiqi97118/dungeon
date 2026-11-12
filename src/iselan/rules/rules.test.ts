@@ -202,6 +202,20 @@ describe('clock and faction plans (R2, R2a, 12 §11)', () => {
     expect(extraAdvance(run.s, 'ritual')).not.toBeNull()
   })
 
+  it('a slot first reached by an extra advance still gets its world event, and the next check does not skip it', () => {
+    const run = new TestRun()
+    run.round(1)
+    const r = extraAdvance(run.s, 'panic')!
+    expect(r.texts).toHaveLength(1)
+    expect(r.texts[0]).toMatch(/^GEN-CLK-01[AB]$/)
+    run.commit(r.drafts)
+    expect(run.s.clock.value).toBe(1)
+    run.rounds(6)
+    const shown = run.events.filter((e) => e.type === 'text_shown').map((e) => e.payload.textId).filter((id) => id.startsWith('GEN-CLK-0'))
+    expect(shown[0]).toMatch(/^GEN-CLK-01/)
+    expect(shown.filter((id) => id.startsWith('GEN-CLK-01'))).toHaveLength(1)
+  })
+
   it('hunger 8 moves the clock once', () => {
     const run = new TestRun()
     run.round(1)

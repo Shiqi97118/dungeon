@@ -96,8 +96,19 @@ export function extraAdvance(s: Snapshot, planId: string): RuleResult | null {
   const from = s.clock.value
   if (from >= CLOCK_MAX) return null
   if (s.clock.extras.some((x) => x.round > s.round - CONFIG.clockCheckEvery)) return null
-  const out: RuleResult = { drafts: [draft('clock_advanced', { from, to: from + 1, cause: 'world_event', planId })], texts: [] }
-  if (from + 1 === CLOCK_MAX && s.clock.highest < CLOCK_MAX) crisisStart(s, out)
+  const slot = from + 1
+  const out: RuleResult = { drafts: [draft('clock_advanced', { from, to: slot, cause: 'world_event', planId })], texts: [] }
+  if (slot <= s.clock.highest) return out
+  if (slot === CLOCK_MAX) {
+    crisisStart(s, out)
+    return out
+  }
+  // R2a: the slot's world event happens on first arrival however the clock got there; an extra advance cannot stall, so B stands in when A does not hold.
+  const plan = mainPlan(slot)!
+  const ctx: SceneContext = { vars: { clock: slot, clock_first_reached: slot } }
+  const a = !ownerProblems(s, plan, CONFIG.planBlockedRounds).length && allHold(TEXT_BY_ID.get(clkTextId(slot, 'A'))?.requires, s, ctx) && (plan.extra?.(s) ?? true)
+  if (a && plan.owner) out.drafts.push(draft('faction_plan_advanced', { factionId: plan.owner, planId: plan.id, stage: slot }))
+  show(s, out, clkTextId(slot, a ? 'A' : 'B'))
   return out
 }
 
