@@ -15,7 +15,7 @@ import { Lobby, OnlineEntry } from './ui/Online'
 import Journey, { JOURNEY_KEY } from './ui/journey/Journey'
 import JourneySetup from './ui/journey/JourneySetup'
 import { loadTable, openTable, soloMember, type Table } from './iselan/play'
-import { proxyModel } from './net/iselanGm'
+import { proxyModels } from './net/iselanGm'
 import { OUTDATED_SAVE_ACTION } from './iselan/save'
 
 const SAVE_KEY = 'echo-well-save'
@@ -97,7 +97,7 @@ export default function App() {
   }, [ai, info, builtin])
 
   const journeyModel = useMemo(
-    () => (journey && info?.gm && builtin ? proxyModel(journey.runId, journey.responses) : null),
+    () => (journey && info?.gm && builtin ? proxyModels(journey.runId, journey.responses) : null),
     // A new model per run (and per load) so response numbers continue from the save.
     [journey?.runId, info?.gm, builtin],
   )
@@ -247,7 +247,7 @@ export default function App() {
         />
       )}
       {screen === 'setup' && <JourneySetup onStart={startJourney} onBack={() => setScreen('title')} />}
-      {screen === 'journey' && journey && <Journey key={journey.runId} initial={journey} model={journeyModel} aiLabel={journeyLabel} onQuit={toTitle} />}
+      {screen === 'journey' && journey && <Journey key={journey.runId} initial={journey} models={journeyModel} aiLabel={journeyLabel} onQuit={toTitle} />}
       {screen === 'notice' && (
         <div className="setup-screen">
           <div className="setup-wrap narrow">

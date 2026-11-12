@@ -88,7 +88,7 @@ export async function runAiTurn(s: Snapshot, input: TurnInput, model: ModelCall 
   }
 
   const reply = parsed?.reply ?? offlineReply(s, input)
-  const clipped = parsed ? clipProposals(s, reply.proposals, context.allow, options) : { drafts: [], checks: [], consents: [], gaps: [] }
+  const clipped = clipProposals(s, reply.proposals, context.allow, options)
   return {
     source: parsed ? 'ai' : 'offline',
     intentId: parsed ? aiIntentId(parsed.seq) : null,

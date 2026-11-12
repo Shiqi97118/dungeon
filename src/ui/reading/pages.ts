@@ -14,6 +14,8 @@ export interface Block {
   readonly part?: ScenePart
   /** Display name of the speaker of a DLG line. */
   readonly speaker?: string
+  /** 06 §6 ending part, shown above its first paragraph. */
+  readonly heading?: string
 }
 
 export interface Paragraph {
@@ -21,6 +23,7 @@ export interface Paragraph {
   readonly source: string
   readonly part?: ScenePart
   readonly speaker?: string
+  readonly heading?: string
 }
 
 /** Everything shown before the player clicks 继续 or makes the next choice (09 §3.3a). */
@@ -67,7 +70,7 @@ export function paginate(blocks: readonly Block[]): Screen[] {
   const units: { paragraphs: Paragraph[]; images: string[] }[] = []
   let joinNext = false
   for (const b of blocks) {
-    const paragraphs = b.paragraphs.filter((t) => t.trim()).map((text) => ({ text, source: b.source, part: b.part, speaker: b.speaker }))
+    const paragraphs = b.paragraphs.filter((t) => t.trim()).map((text) => ({ text, source: b.source, part: b.part, speaker: b.speaker, heading: b.heading }))
     if (!paragraphs.length) continue
     const images = [...(b.images ?? [])]
     if (joinNext && units.length) {

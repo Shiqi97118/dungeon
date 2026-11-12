@@ -1,7 +1,10 @@
+import { CONFIG } from '../config'
 import type { IntentTag } from '../data'
+import { VOCAB } from '../data'
 import type { Snapshot } from '../events'
+import { npcStateOf } from '../rules/conditions'
 import { situationOf, type TurnInput } from './context'
-import type { Reply } from './reply'
+import type { RawProposal, Reply } from './reply'
 
 /** Keywords for guessing the intent of a free action when no AI is available. */
 const KEYWORDS: readonly (readonly [IntentTag, RegExp])[] = [
@@ -40,14 +43,55 @@ const RESULT: Readonly<Record<IntentTag, string>> = {
 
 const SUGGESTIONS: readonly string[] = ['回头去找刚才提到的人，把话问清楚', '去一个还没去过的地方看看', '做一件谁也想不到的事']
 
-/** 12 §8.3 step 1: the offline host's reply. No proposals: the rules alone settle the action. */
+/** Actions towards a person that the offline host settles with a check; `risky` ones sour the person on a miss. */
+const SOCIAL: Partial<Record<IntentTag, { readonly skill: string; readonly risky: boolean }>> = {
+  交谈: { skill: '交涉', risky: false },
+  帮助: { skill: '交涉', risky: false },
+  交易: { skill: '交涉', risky: false },
+  欺骗: { skill: '交涉', risky: true },
+  战斗: { skill: '强韧', risky: true },
+}
+
+const TIER_RESULT: Readonly<Record<'hit' | 'partial' | 'miss', string>> = {
+  hit: '这一次，对方是真的听进去了。',
+  partial: '对方点了头，却也留了个心眼。',
+  miss: '话说岔了，对方的脸色冷了下来。',
+}
+
+type NpcEntry = { readonly id: string; readonly name: string; readonly aliases?: readonly string[] }
+
+/** The person the action is aimed at: someone present named in the words, otherwise the first present. */
+function targetOf(s: Snapshot, input: TurnInput): NpcEntry | null {
+  const present = (input.ctx.present ?? [])
+    .map((id) => (VOCAB.npcs as readonly NpcEntry[]).find((n) => n.id === id))
+    .filter((n): n is NpcEntry => !!n && !['dead', 'erased', 'captive', 'missing'].includes(npcStateOf(s, n.id as keyof Snapshot['npcs'])))
+  const named = present.find((n) => [n.name, n.name.split(/[·“]/)[0], ...(n.aliases ?? [])].some((x) => x && input.text.includes(x)))
+  return named ?? present[0] ?? null
+}
+
+/**
+ * 12 §8.3 step 1: the offline host's reply. Only one rule of its own: an action towards someone
+ * present is checked, and the roll moves that person's attitude by one; everything else the rules settle.
+ */
 export function offlineReply(s: Snapshot, input: TurnInput): Reply {
   const intents = guessIntents(input.text)
+  const social = SOCIAL[intents[0]]
+  const target = social ? targetOf(s, input) : null
+  const proposals: RawProposal[] = []
+  let result = RESULT[intents[0]]
+  if (social && target && !input.check) {
+    proposals.push({ kind: 'check', skill: social.skill, difficulty: CONFIG.ai.offlineCheckDifficulty, reason: `${target.name}的反应` })
+    result = `${input.actorName}看着${target.name}，掂量着该怎么开口。`
+  } else if (social && target && input.check) {
+    const delta = input.check.tier === 'miss' ? (social.risky ? -1 : 0) : intents[0] === '战斗' ? 0 : 1
+    if (delta) proposals.push({ kind: 'attitude', npcId: target.id, delta, reason: `离线主持：${input.check.tier}` })
+    result = `${RESULT[intents[0]]}${TIER_RESULT[input.check.tier]}`
+  }
   return {
-    narration: `${input.actorName}：${RESULT[intents[0]]}（${situationOf(s)}。）`,
+    narration: proposals.some((p) => p.kind === 'check') ? `${result}（${situationOf(s)}。）` : `${input.actorName}：${result}（${situationOf(s)}。）`,
     intents,
     emotion: null,
     suggestions: SUGGESTIONS,
-    proposals: [],
+    proposals,
   }
 }

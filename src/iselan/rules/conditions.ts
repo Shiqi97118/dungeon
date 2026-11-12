@@ -93,6 +93,10 @@ function variable(s: Snapshot, id: VariableId): number | string | undefined {
       return s.openingHook ?? undefined
     case 'door_outcome':
       return s.door?.outcome
+    case 'main_direction':
+      return s.ending?.directionId
+    case 'ending_variant':
+      return s.ending && s.ending.variant !== 'none' ? s.ending.variant : undefined
     case 'act4_entry':
       return s.act !== 4 ? undefined : s.actVia === 'door' ? 'at_door' : s.actVia === 'wrap_up' ? 'wrap_up' : undefined
     case 'friendly_faction_cluster':

@@ -7,8 +7,9 @@ import { SqlProfileStore } from '../server/profileStore.js'
 import { SqlBudgetStore } from '../server/budget.js'
 import { json } from '../server/http.js'
 import { judgeAchievements } from '../src/iselan/achievements/index.js'
+import { summarizeRun } from '../src/iselan/play/ending.js'
 
-configureProfileRules({ judge: judgeAchievements })
+configureProfileRules({ judge: judgeAchievements, summarize: summarizeRun })
 
 let store: D1Store | null = null
 let profiles: SqlProfileStore | null = null

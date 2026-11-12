@@ -7,12 +7,33 @@ import { r1Met } from '../rules/choices'
 import { d01Variant } from '../rules/directions'
 import { hitAt, rollCheck } from './check'
 import { loadTable, saveTable } from './persist'
-import { act, canWrapUp, proposeRewind, voteRewind, chooseEnding, interact, move, openTable, resolveArc, rewind, roll, snapshotOf, wrapUp, type Member, type Table } from './table'
+import { chronicleOf, summarizeRun } from './ending'
+import { act, adjudicate, canWrapUp, proposeRewind, voteRewind, interact, move, openTable, resolveArc, rewind, roll, snapshotOf, wrapUp, type EndingCall, type Member, type Table } from './table'
 
 const HELAN: Member = { seatId: 's1', actorId: 'helan', name: '哈兰', stats: { str: 2, dex: 0, ins: 1, soc: -1 }, controller: 'human' }
 const o = { now: () => '2026-11-12T00:00:00.000Z', rng: () => 0.5 }
 const open = (seed = 'seed-1') => openTable({ runId: 'run-play', seed, party: [HELAN], openingHook: 'memento' }, o)
 const textIds = (t: Table) => t.screens.map((x) => x.textId).filter(Boolean)
+
+/** Errands and walks around Grayport until the seat has its 31 choices, never touching the well. */
+async function wandered(seed: string, strict = false): Promise<Table> {
+  let t = open(seed)
+  const model = fakeModel({ seed, strayRate: 0 })
+  const places = ['gray_harbor.seven_lamps', 'gray_harbor.low_tide_street', 'gray_harbor.council_hall', 'gray_harbor.docks'] as const
+  for (let i = 0; !r1Met(snapshotOf(t)) && i < 200; i++) {
+    if (strict) {
+      expect(canWrapUp(t)).toBe(false)
+      expect(() => wrapUp(t, o)).toThrow()
+    }
+    if (t.pending?.kind === 'interaction') t = interact(t, { requestId: `ix-${i}`, instanceId: t.pending.instanceId, action: 'skip', params: { inspected: [] } }, o).table
+    else if (t.pending?.kind === 'check') t = await roll(t, model, o)
+    else if (i % 5 === 4) t = move(t, places[(i / 5) % places.length | 0] === snapshotOf(t).location?.placeId ? places[((i / 5 | 0) + 1) % places.length] : places[(i / 5 | 0) % places.length], o)
+    else t = await act(t, `${ERRANDS[i % ERRANDS.length]}（第 ${i} 件小事）`, model, o)
+  }
+  expect(snapshotOf(t).seats.s1.choices).toBe(CONFIG.minChoicesPerSeat)
+  expect(snapshotOf(t).arcs.gray_well?.outcomes ?? null).toBeNull()
+  return t
+}
 
 /** Replies with the same proposal every time, so the same action repeats exactly. */
 const sameModel = (proposal: object): ModelCall => {
@@ -130,29 +151,69 @@ describe('table', () => {
     expect(table.pending).toBeNull()
   })
 
+  it('offline, talking to someone present is checked and the roll moves their attitude by one', async () => {
+    let t = await act(open(), '问罗莎最近酒馆里有什么怪事', null, o)
+    expect(t.pending).toMatchObject({ kind: 'check', request: { skill: '交涉', difficulty: CONFIG.ai.offlineCheckDifficulty, reason: '罗莎的反应' } })
+    t = await roll(t, null, o, [6, 6])
+    expect(snapshotOf(t).npcs.rosa?.attitude).toBe(1)
+    expect(snapshotOf(t).seats.s1.choices).toBe(1)
+    t = await act(t, '冒充商会的人去骗罗莎', null, o)
+    t = await roll(t, null, o, [1, 1])
+    expect(snapshotOf(t).npcs.rosa?.attitude).toBe(0)
+    t = await act(t, '四处看看墙上的寻人启事', null, o)
+    expect(t.pending).toBeNull()
+  })
+
   it('A1: only D01 after 31 choices of wandering, and no wrap-up before', async () => {
-    let t = open('a1')
-    const model = fakeModel({ seed: 'a1', strayRate: 0 })
-    const places = ['gray_harbor.seven_lamps', 'gray_harbor.low_tide_street', 'gray_harbor.council_hall', 'gray_harbor.docks'] as const
-    for (let i = 0; !r1Met(snapshotOf(t)) && i < 200; i++) {
-      expect(canWrapUp(t)).toBe(false)
-      expect(() => wrapUp(t, o)).toThrow()
-      if (t.pending?.kind === 'interaction') t = interact(t, { requestId: `ix-${i}`, instanceId: t.pending.instanceId, action: 'skip', params: { inspected: [] } }, o).table
-      else if (t.pending?.kind === 'check') t = await roll(t, model, o)
-      else if (i % 5 === 4) t = move(t, places[(i / 5) % places.length | 0] === snapshotOf(t).location?.placeId ? places[((i / 5 | 0) + 1) % places.length] : places[(i / 5 | 0) % places.length], o)
-      else t = await act(t, `${ERRANDS[i % ERRANDS.length]}（第 ${i} 件小事）`, model, o)
-    }
-    expect(snapshotOf(t).seats.s1.choices).toBe(CONFIG.minChoicesPerSeat)
-    expect(snapshotOf(t).arcs.gray_well?.outcomes ?? null).toBeNull()
+    let t = await wandered('a1', true)
     t = wrapUp(t, o)
     expect(t.pending).toEqual({ kind: 'ending', candidates: ['D01'] })
-    t = chooseEnding(t, 'D01', null, o)
+    t = await adjudicate(t, null, o)
     expect(snapshotOf(t).ending).toMatchObject({ directionId: 'D01', variant: d01Variant(snapshotOf(t)).variant, worldResolution: 'unresolved' })
+    expect(textIds(t)).toContain(d01Variant(snapshotOf(t)).variant === 'settle' ? 'ED-01B' : 'ED-01')
+    expect(t.screens.map((x) => x.heading).filter(Boolean)).toEqual(expect.arrayContaining(['第七声', '理由', '角色的尾声', '未竟之事']))
     const back = rewind(t, t.checkpoints.find((c) => c.label === '收束故事')!.id)
     expect(snapshotOf(back).ending).toBeNull()
     expect(snapshotOf(back).act).not.toBe(4)
     expect(canWrapUp(back)).toBe(true)
     expect(verifyLog('run-play', t.events)).toEqual([])
+  })
+
+  it('the ending AI picks among the candidates, cites the chronicle, and its reply is kept for the receipts', async () => {
+    const t = wrapUp(await wandered('ai-end'), o)
+    let seen = ''
+    const ending: EndingCall = async ({ prefix, content }) => {
+      seen = prefix + content
+      return { seq: 99, text: JSON.stringify({ primary: 'D01', secondary: null, evidence: ['E1', 'E2', 'E3'], why: '你们在灰港走了很多路。\n雨一直没停。', weave: '', characters: [{ seat: 's1', text: '哈兰把工牌留在了七灯酒馆的吧台上。' }], projects: [], npcs: [], factions: [], unfinished: ['潮井之下还没有结果。'] }) }
+    }
+    const done = await adjudicate(t, ending, o)
+    expect(seen).toContain('【编年史】')
+    expect(done.responses.at(-1)).toMatchObject({ seq: 99 })
+    expect(done.events.some((e) => e.sourceIntentId === 'ai:99' && e.type === 'ending_committed')).toBe(true)
+    const paragraphs = done.screens.flatMap((x) => x.paragraphs)
+    expect(paragraphs).toContain('哈兰把工牌留在了七灯酒馆的吧台上。')
+    expect(paragraphs).toContain('雨一直没停。')
+    expect(done.gaps.filter((g) => g.includes('理由只引用'))).toEqual([])
+  })
+
+  it('an ending outside the candidates is refused and the offline host decides', async () => {
+    const t = wrapUp(await wandered('ai-bad'), o)
+    let seq = 0
+    const ending: EndingCall = async () => ({ seq: ++seq, text: JSON.stringify({ primary: 'D07', why: '起义' }) })
+    const done = await adjudicate(t, ending, o)
+    expect(snapshotOf(done).ending?.directionId).toBe('D01')
+    expect(done.responses.length - t.responses.length).toBe(CONFIG.ai.parseRetries + 1)
+    expect(done.gaps.some((g) => g.includes('D07'))).toBe(true)
+  })
+
+  it('the run summary has the three axes and a chronicle', async () => {
+    const done = await adjudicate(wrapUp(await wandered('sum'), o), null, o)
+    const s = snapshotOf(done)
+    const sum = summarizeRun(s, done.events)
+    expect(sum.axes).toMatchObject({ world: '未决' })
+    expect(sum.chronicle.length).toBeGreaterThan(3)
+    expect(sum.chronicle.at(-1)).toContain('未竟之歌')
+    expect(chronicleOf(done.events).map((c) => c.id)).toEqual(chronicleOf(done.events).map((_, i) => `E${i + 1}`))
   })
 
   it('resolving the well shows the result beat only after the outcome is written', async () => {

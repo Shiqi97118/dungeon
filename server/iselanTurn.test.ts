@@ -27,7 +27,7 @@ const reply = (n: number) => JSON.stringify({
   proposals: [{ kind: 'attitude', npcId: 'felix', delta: 3, reason: '你请了他一杯' }],
 })
 
-/** The browser side: the same body `proxyModel` sends, straight into the handler. */
+/** The browser side: the same body `proxyModels` sends, straight into the handler. */
 function viaServer(): ModelCall {
   let seq = 0
   return async ({ content }) => {
@@ -111,6 +111,16 @@ describe('伊瑟兰 AI 回合与回执（12 §8.4）', () => {
     const r = await post(handleProfile, 'api/profile', { op: 'upload_run', save: serializeSave({ ...save, aiResponses: save.aiResponses!.filter((x) => x.seq !== 3) }) })
     expect(r.data).toMatchObject({ verified: false, unlocked: [] })
     expect(String(r.data.reason)).toContain('第 3 条 AI 回应')
+  })
+
+  it('the ending goes out behind the ending prefix with the ending output cap, and shares the run\'s numbering', async () => {
+    const turn = { op: 'iselan_turn', runId: RUN, seq: 1, content: '【玩家意图原文】\n看看' }
+    expect((await post(handleGm, 'api/gm', turn)).status).toBe(200)
+    expect((await post(handleGm, 'api/gm', { op: 'iselan_ending', runId: RUN, seq: 1, content: '【候选方向】' })).status).toBe(409)
+    const r = await post(handleGm, 'api/gm', { op: 'iselan_ending', runId: RUN, seq: 2, content: '【候选方向】\n- D01 未竟之歌' })
+    expect(r.status).toBe(200)
+    expect(calls.at(-1)?.system).toContain('结局裁决者')
+    expect(calls.at(-1)?.maxTokens).toBe(6000)
   })
 
   it('reports 503 when no model is configured, so the client switches to the offline host', async () => {

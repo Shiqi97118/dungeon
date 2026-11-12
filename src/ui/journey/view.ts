@@ -1,4 +1,4 @@
-import { VOCAB, type DirectionId, type PlaceId } from '../../iselan/data'
+import { VOCAB, type PlaceId } from '../../iselan/data'
 import type { Snapshot } from '../../iselan/events'
 import { ALL_UNITS } from '../../iselan/texts'
 import type { Screen as TableScreen } from '../../iselan/play'
@@ -19,6 +19,7 @@ export function pagesOf(screens: readonly TableScreen[]): Screen[] {
       ...(s.images?.length ? { images: s.images } : {}),
       ...(s.part ? { part: s.part } : {}),
       ...(speaker ? { speaker } : {}),
+      ...(s.heading ? { heading: s.heading } : {}),
     }
   })
   return paginate(blocks)
@@ -27,8 +28,6 @@ export function pagesOf(screens: readonly TableScreen[]): Screen[] {
 export const GRAYPORT: readonly { readonly id: PlaceId; readonly name: string }[] = VOCAB.places
   .filter((p) => p.region === 'gray_harbor')
   .map((p) => ({ id: p.id as PlaceId, name: p.name }))
-
-export const directionName = (id: DirectionId) => VOCAB.directions.find((d) => d.id === id)?.name ?? id
 
 export const HOOKS = [
   { id: 'memento', label: '纪念物', text: '随身的旧物在雨夜里慢慢发热，像在指路。' },

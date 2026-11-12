@@ -894,5 +894,24 @@ details summary { cursor: pointer; color: var(--echo); margin: 8px 0; }
   .jy-screen .topbar [aria-live] { order: 3; flex-basis: 100%; }
   .jy-ai { display: none; }
   .jy-input { flex-direction: column; }
+  .jy-axes { grid-template-columns: 1fr; }
+  .jy-ending-main { padding: 16px 14px 32px; }
+  .jy-ending-actions { flex-direction: column-reverse; }
 }
+.jy-ending-main { flex: 1; min-height: 0; overflow-y: auto; padding: 24px 20px 40px; }
+.jy-ending { max-width: 880px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+.jy-ending h2 { font-family: var(--serif); font-size: 28px; letter-spacing: .2em; color: var(--copper2); margin: 0; text-align: center; }
+.jy-axes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.jy-axes article { border: 1px solid var(--line2); border-radius: 14px; padding: 12px 16px; background: rgba(0,0,0,.22); }
+.jy-axes h3 { font-family: var(--serif); font-size: 15px; letter-spacing: .3em; color: var(--echo); margin: 0 0 8px; }
+.jy-axes p, .jy-axes ul { margin: 4px 0; }
+.jy-axes ul { padding-left: 18px; }
+.jy-chronicle { border: 1px solid var(--line); border-radius: 14px; padding: 10px 16px; background: rgba(0,0,0,.18); }
+.jy-chronicle summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; font-family: var(--serif); letter-spacing: .1em; }
+.jy-chronicle ol { margin: 6px 0 4px; padding-left: 22px; display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
+.jy-chronicle li.world { color: var(--dim); }
+.jy-warn { color: var(--partial); }
+.jy-ending-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; }
+.jy-ending-actions .btn { min-height: 44px; }
+.jy-gallery { position: fixed; inset: 0; z-index: 40; background: rgba(5,7,10,.85); }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

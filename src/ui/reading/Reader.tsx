@@ -81,9 +81,11 @@ export default function Reader({ screens, fallbackImage, end }: { screens: reado
       <div className="rd-screen" ref={screenRef} aria-live="polite" aria-atomic="true" tabIndex={-1}>
         {sc?.paragraphs.map((p, i) => {
           const starts = p.part && sc.paragraphs[i - 1]?.part !== p.part
+          const heads = p.heading && sc.paragraphs[i - 1]?.heading !== p.heading
           return (
             <div key={`${view.page}-${i}`}>
               {starts && <div className="rd-part">{PART_LABEL[p.part!]}</div>}
+              {heads && <div className="rd-part">{p.heading}</div>}
               {p.speaker ? (
                 <p className="rd-para line"><span className="rd-speaker">{p.speaker}</span>{p.text}</p>
               ) : (

@@ -1,6 +1,7 @@
 import type { CheckOutcome, TurnInput } from '../ai/context'
 import type { CheckRequest } from '../ai/proposals'
-import { runAiTurn, type AiResponse, type ModelCall, type TurnResult } from '../ai/turn'
+import { ENDING_PREFIX, endingContent, parseEnding, type EndingInput, type EndingReply } from '../ai/ending'
+import { aiIntentId, ModelUnavailable, runAiTurn, type AiResponse, type ModelCall, type TurnResult } from '../ai/turn'
 import { CONFIG } from '../config'
 import type { ArcId, BeatId, DirectionId, IntentTag, OpeningHookId, OutcomeId, PlaceId, Tag } from '../data'
 import { TEXTS, VOCAB } from '../data'
@@ -15,7 +16,11 @@ import { preview, startRound, withConsequences } from '../rules/settle'
 import { stagedDrafts } from '../rules/staged'
 import { ALL_UNITS, fillPlaceholders, placeholderValues, sceneChange, selectFor, selectText, shownDrafts, type Pick as TextPick, type TextUnit } from '../texts'
 import { rollCheck, statFor, type Stat } from './check'
-import { ambienceDrafts, banquetDrafts, placeName, sceneContext } from './world'
+import { chronicleOf, citedDeeds, directionName, endingCast, projectLine, unfinishedOf } from './ending'
+import { PREGENS } from './pregens'
+import { ambienceDrafts, banquetDrafts, outcomeLabel, placeName, sceneContext } from './world'
+
+export { outcomeLabel }
 
 /**
  * The table: one solo or shared run driven through the ledger. Every operation commits whole
@@ -41,6 +46,8 @@ export interface Screen {
   readonly actorId?: string
   /** 09 §3.3a: which part of a scene change this screen is. */
   readonly part?: 'closing' | 'transition' | 'arrival'
+  /** 06 §6: the ending part this screen belongs to. */
+  readonly heading?: string
 }
 
 export type Pending =
@@ -141,12 +148,14 @@ class Builder {
   }
 
   /** Puts a pick on screen and writes what showing it settles. */
-  show(pick: TextPick, ctx: SceneContext, part?: Screen['part']) {
-    const values = placeholderValues(this.cur, { 角色: this.actorName, 纪念物: this.memento })
+  show(pick: TextPick, ctx: SceneContext, part?: Screen['part'], heading?: string) {
+    const settle = d01Variant(this.cur)
+    const values = placeholderValues(this.cur, { 角色: this.actorName, 纪念物: this.memento, 收束之地: settle.variant === 'settle' ? settle.regionId : undefined })
     const paragraphs = pick.paragraphs.map((p) => {
       const f = fillPlaceholders(p, values)
       if (f.missing.length) this.gaps.push(`${pick.unit.id}：占位符没有值 ${f.missing.join('、')}`)
-      return f.text
+      // 09: ** marks the core image the AI must keep; players see plain text.
+      return f.text.replace(/\*\*/g, '')
     })
     const r = shownDrafts(this.cur, pick, ctx)
     this.gaps.push(...r.gaps)
@@ -154,7 +163,7 @@ class Builder {
     const extra = beat && !this.cur.arcs[beat.arc]?.beats.includes(beat.beat) && !r.drafts.some((d) => d.type === 'arc_beat_reached')
       ? [draft('arc_beat_reached', { arcId: beat.arc, beat: beat.beat })] : []
     this.add([...r.drafts, ...extra])
-    this.screen('text', paragraphs, { textId: pick.unit.id, title: pick.unit.entry.title, images: pick.images, ...(part ? { part } : {}) })
+    this.screen('text', paragraphs, { textId: pick.unit.id, title: pick.unit.entry.title, images: pick.images, ...(part ? { part } : {}), ...(heading ? { heading } : {}) })
   }
 
   pick(sel: { pick: TextPick | null; gap: { reason: string; kinds: readonly string[] } | null }, ctx: SceneContext): TextPick | null {
@@ -445,11 +454,7 @@ export function interact(t: Table, req: InteractionRequest, o: TableOptions = {}
   return { table: advance({ ...t, events: r.events, pending: null }, o), result: r.result }
 }
 
-const OUTCOME_LABEL: Readonly<Record<OutcomeId, string>> = {
-  exposed: '公开', handed_over: '交给商会', traded: '与他交易', destroyed: '毁掉潮井', seized: '自己掌控', stabilized: '稳住局势', failed: '撤退',
-}
 export const ARC_OUTCOMES: readonly OutcomeId[] = ['exposed', 'handed_over', 'traded', 'seized', 'destroyed']
-export const outcomeLabel = (id: OutcomeId) => OUTCOME_LABEL[id]
 
 /** The party's decision at the well (GH-BEAT-06): resolves the core adventure and shows its result beat. */
 export function resolveArc(t0: Table, outcomes: readonly OutcomeId[], o: TableOptions = {}): Table {
@@ -487,15 +492,116 @@ export function wrapUp(t0: Table, o: TableOptions = {}): Table {
   return { ...out, pending: { kind: 'ending', candidates: endingCandidates(snapshotOf(out)) } }
 }
 
-/** 06 §3 step 6, by the players for now: commits the ending with its D01 variant. */
-export function chooseEnding(t: Table, directionId: DirectionId, secondary: DirectionId | null = null, o: TableOptions = {}): Table {
-  const p = t.pending
-  if (p?.kind !== 'ending' || !p.candidates.includes(directionId)) throw new Error('这个方向不在候选里')
-  const s = snapshotOf(t)
-  const variant = directionId === 'D01' ? d01Variant(s).variant : 'none'
-  const drafts = [draft('ending_committed', { directionId, secondaryDirectionId: secondary ?? directionId, variant, worldResolution: directionId === 'D01' ? 'unresolved' : 'resolved' })]
-  const { id, t: tt } = nextId({ ...checkpoint(t, `结局：${directionId}`), pending: null }, 'ending')
-  return commit(tt, id, drafts, o)
+/** Calls the ending model once; the server proxy uses the ending prefix and model (12 §9.3). */
+export type EndingCall = (req: { readonly prefix: string; readonly content: string }) => Promise<AiResponse>
+
+function endingInput(t: Table, s: Snapshot, candidates: readonly DirectionId[]): EndingInput {
+  const settle = d01Variant(s)
+  const opening = (id: DirectionId) => {
+    const variant = id === 'D01' ? settle.variant : 'none'
+    const probe = preview(s, [draft('ending_committed', { directionId: id, secondaryDirectionId: id, variant, worldResolution: id === 'D01' ? 'unresolved' : 'resolved' })])
+    return selectFor(probe, 'ending').pick?.paragraphs ?? []
+  }
+  const cast = endingCast(s)
+  return {
+    setting: `队伍在${s.location?.placeId ? placeName(s.location.placeId) : '灰港'}${s.actVia === 'door' ? '的门前' : '收束了这段故事'}`,
+    candidates: candidates.map((id) => ({ id, opening: opening(id) })),
+    chronicle: chronicleOf(t.events),
+    party: t.party.map((m) => {
+      const pre = PREGENS.find((p) => p.id === m.actorId)
+      return { seatId: m.seatId, name: m.name, about: pre ? `${pre.title}；动机：${pre.motive}；钩子：${pre.hook}` : '自创角色', memento: m.memento }
+    }),
+    projects: Object.entries(s.projects).map(([id, p]) => ({ id, text: projectLine(p) })),
+    npcs: cast.npcs,
+    factions: cast.factions,
+    unfinished: unfinishedOf(s),
+  }
+}
+
+const FRIEND_LINES = ['说起你们时，用的是“我们的朋友”。', '后来还常常提起你们，像提起一场好天气。', '在门口给你们留了一盏灯。']
+const FOE_LINES = ['至今不愿听到你们的名字。', '提起你们时，总要停顿一下。', '把你们的事记得很清楚，一件也没忘。']
+const ALLY_LINES = ['记着你们帮过的忙。', '的门对你们一直开着。', '在议事时替你们说过话。']
+const RIVAL_LINES = ['的账本上，你们那一页还没合上。', '派人打听过你们的去向。', '提起你们时，没有人笑。']
+
+/** 06 §3 without the AI: the most favoured candidate, ties in candidate order. */
+function offlineEnding(s: Snapshot, input: EndingInput): EndingReply {
+  const ids = input.candidates.map((c) => c.id)
+  const primary = ids.reduce((best, id) => ((s.directions[id] ?? 0) > (s.directions[best] ?? 0) ? id : best), ids[0])
+  const deeds = citedDeeds(input.chronicle).map((c) => c.text)
+  const why = deeds.length
+    ? `回头看，是这些事把你们带到了这里：${deeds.join('；')}。${primary === 'D01' ? '可你们这一段，在世界的故事写完之前就落了笔。' : `世界因此朝着“${directionName(primary)}”倾斜。`}`
+    : '你们来过，看过，也走了一段路。世界的故事还很长，你们这一段在这里落了笔。'
+  const characters: Record<string, string> = {}
+  for (const m of offlineCharacters(input)) characters[m.seatId] = m.text
+  const npcs: Record<string, string> = {}
+  input.npcs.forEach((n, i) => { npcs[n.id] = `${n.name}${(n.attitude > 0 ? FRIEND_LINES : FOE_LINES)[i % FRIEND_LINES.length]}` })
+  const factions: Record<string, string> = {}
+  input.factions.forEach((f, i) => { factions[f.id] = `${f.name}${(f.relation > 0 ? ALLY_LINES : RIVAL_LINES)[i % ALLY_LINES.length]}` })
+  const projects: Record<string, string> = {}
+  for (const p of input.projects) projects[p.id] = `${p.text}。`
+  return { primary, secondary: null, evidence: [], why, weave: '', characters, projects, npcs, factions, unfinished: input.unfinished.length ? input.unfinished.map((u) => `${u}。`) : ['远处的钟还在等第七声。'] }
+}
+
+function offlineCharacters(input: EndingInput) {
+  return input.party.map((m) => {
+    const why = m.about.match(/动机：([^；]+)/)?.[1]
+    return { seatId: m.seatId, text: `${m.name}${why ? `一直没有忘记自己为什么来：${why}。` : '把这一路记在了心里。'}${m.memento ? `那${m.memento.replace(/^一(枚|封|把|块|只|本|张|件|个)/, '$1')}一直带在身边。` : ''}` }
+  })
+}
+
+/**
+ * 06 §3 steps 5–7 and §6: the AI (or the offline host) picks among the candidates, then the
+ * ending is committed and its parts go on screen: the opening text, the reasons, and the epilogues.
+ */
+export async function adjudicate(t0: Table, model: EndingCall | null, o: TableOptions = {}): Promise<Table> {
+  const p = t0.pending
+  if (p?.kind !== 'ending') throw new Error('还没有到结局')
+  const s = snapshotOf(t0)
+  const input = endingInput(t0, s, p.candidates)
+  const responses: AiResponse[] = []
+  const gaps: string[] = []
+  let ai: { reply: EndingReply; seq: number } | null = null
+  if (model) {
+    const content = endingContent(input)
+    for (let attempt = 0; attempt <= CONFIG.ai.parseRetries && !ai; attempt++) {
+      let res: AiResponse
+      try {
+        res = await model({ prefix: ENDING_PREFIX, content })
+      } catch (e) {
+        gaps.push(e instanceof ModelUnavailable ? `结局 AI 不可用（${e.status}）：${e.message}` : '结局 AI 调用失败')
+        break
+      }
+      responses.push(res)
+      const r = parseEnding(res.text, input)
+      if (r.ok) {
+        ai = { reply: r.reply, seq: res.seq }
+        gaps.push(...r.notes)
+      } else gaps.push(r.problem)
+    }
+  }
+  const offline = offlineEnding(s, input)
+  const reply = ai?.reply ?? offline
+  const t1 = checkpoint({ ...t0, responses: [...t0.responses, ...responses] }, `结局：${p.candidates.map(directionName).join(' / ')}`)
+  const { id, t } = ai ? { id: aiIntentId(ai.seq), t: t1 } : nextId(t1, 'ending')
+  const variant = reply.primary === 'D01' ? d01Variant(s).variant : 'none'
+  const m = currentMember(t)
+  const b = new Builder(s, id, m.name, m.memento)
+  b.add([draft('ending_committed', {
+    directionId: reply.primary, secondaryDirectionId: reply.secondary ?? reply.primary, variant,
+    worldResolution: reply.primary === 'D01' ? 'unresolved' : 'resolved',
+  })])
+  const sel = selectFor(b.cur, 'ending')
+  if (sel.gap && sel.gap.reason !== 'none') b.gaps.push(`文本缺口：END ${sel.gap.reason}`)
+  if (sel.pick) b.show(sel.pick, {}, undefined, '第七声')
+  b.screen('narration', [reply.weave].filter(Boolean), { heading: '第七声' })
+  b.screen('narration', reply.why.split(/\n+/).filter(Boolean), { heading: '理由' })
+  const pick = <K extends 'characters' | 'projects' | 'npcs' | 'factions'>(k: K, key: string) => reply[k][key] ?? offline[k][key]
+  b.screen('narration', t.party.map((x) => pick('characters', x.seatId)).filter(Boolean), { heading: '角色的尾声' })
+  b.screen('narration', input.projects.map((x) => pick('projects', x.id)).filter(Boolean), { heading: '事业的尾声' })
+  b.screen('narration', input.npcs.map((x) => pick('npcs', x.id)).filter(Boolean), { heading: '人物的尾声' })
+  b.screen('narration', input.factions.map((x) => pick('factions', x.id)).filter(Boolean), { heading: '势力的尾声' })
+  b.screen('narration', reply.unfinished.length ? reply.unfinished : offline.unfinished, { heading: '未竟之事' })
+  return finishIntent({ ...t, pending: null }, b, id, o, { gaps })
 }
 
 /** Seats whose players must agree to a rewind: humans still at the table (02 R1c leavers drop out). */

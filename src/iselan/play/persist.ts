@@ -1,12 +1,15 @@
-import { createSave, loadSave, serializeSave, type LoadResult } from '../save'
+import { createSave, loadSave, serializeSave, type LoadResult, type SaveFile } from '../save'
 import { snapshotOf, type Table } from './table'
 
-/** Save v5 with the table's presentation alongside the log; written after every decision. */
-export function saveTable(t: Table): string {
+/** Save v5 with the table's presentation alongside the log. */
+export function tableSaveFile(t: Table): SaveFile {
   const s = snapshotOf(t)
   const { runId, events, responses, ...view } = t
-  return serializeSave(createSave({ runId, seed: s.seed, createdAt: events[0]?.committedAt ?? '', events, aiResponses: responses, table: view }))
+  return createSave({ runId, seed: s.seed, createdAt: events[0]?.committedAt ?? '', events, aiResponses: responses, table: view })
 }
+
+/** Written after every decision. */
+export const saveTable = (t: Table): string => serializeSave(tableSaveFile(t))
 
 export type TableLoad = { readonly status: 'ok'; readonly table: Table } | Exclude<LoadResult, { status: 'ok' }>
 

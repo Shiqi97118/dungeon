@@ -1,5 +1,5 @@
 import { CONFIG } from '../config'
-import type { ActorId, BeatId, NpcId, PlaceId, Tag } from '../data'
+import type { ActorId, BeatId, NpcId, OutcomeId, PlaceId, Tag } from '../data'
 import { VOCAB } from '../data'
 import { draft, type AnyDraft, type Snapshot } from '../events'
 import { npcStateOf, type SceneContext } from '../rules/conditions'
@@ -38,6 +38,11 @@ export function presentAt(s: Snapshot, place: PlaceId | null): NpcId[] {
   if (!place) return []
   return (Object.entries(HOME) as [NpcId, PlaceId][]).filter(([id, home]) => home === place && !AWAY.has(npcStateOf(s, id))).map(([id]) => id)
 }
+
+const OUTCOME_LABEL: Readonly<Record<OutcomeId, string>> = {
+  exposed: '公开', handed_over: '交给商会', traded: '与他交易', destroyed: '毁掉潮井', seized: '自己掌控', stabilized: '稳住局势', failed: '撤退',
+}
+export const outcomeLabel = (id: OutcomeId) => OUTCOME_LABEL[id]
 
 export const placeName = (id: PlaceId) => VOCAB.places.find((p) => p.id === id)?.name ?? id
 export const npcName = (id: string) => VOCAB.npcs.find((n) => n.id === id)?.name ?? id

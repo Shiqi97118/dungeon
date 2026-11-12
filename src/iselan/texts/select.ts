@@ -239,6 +239,7 @@ export const MOMENTS = {
   firstMeet: { kinds: ['DLG'], mustUse: false },
   action: { kinds: ['ENV', 'SCN', 'DLG', 'RST'], mustUse: false },
   leave: { kinds: ['BRG', 'TRV'], mustUse: false },
+  ending: { kinds: ['END'], mustUse: true },
 } as const satisfies Record<string, { kinds: readonly TextKind[]; mustUse: boolean }>
 
 export type Moment = keyof typeof MOMENTS

@@ -1,5 +1,6 @@
 import { CONFIG } from '../src/iselan/config.js'
 import { FIXED_PREFIX } from '../src/iselan/ai/prefix.js'
+import { ENDING_PREFIX } from '../src/iselan/ai/ending.js'
 import { responseHash } from '../src/iselan/profile/digest.js'
 import { gmEndpoint } from './gm.js'
 import { HttpError } from './http.js'
@@ -97,8 +98,9 @@ export function iselanModel(kind: CallKind = 'turn'): IselanModel | null {
 }
 
 const RUN_ID = /^[A-Za-z0-9_-]{8,64}$/
-/** The round content is built to fit roundTokenBudget; this only stops abuse. */
-const MAX_CONTENT_CHARS = CONFIG.ai.roundTokenBudget * 4
+/** The content is built to fit its token budget; this only stops abuse. */
+const MAX_CONTENT_CHARS: Readonly<Record<CallKind, number>> = { turn: CONFIG.ai.roundTokenBudget * 4, ending: CONFIG.cost.worstCase.ending.inputTokens * 4 }
+const PREFIX: Readonly<Record<CallKind, string>> = { turn: FIXED_PREFIX, ending: ENDING_PREFIX }
 
 export interface TurnRequest {
   readonly runId: string
@@ -106,21 +108,21 @@ export interface TurnRequest {
   readonly content: string
 }
 
-export function cleanTurnRequest(body: Record<string, unknown>): TurnRequest {
+export function cleanTurnRequest(body: Record<string, unknown>, kind: CallKind = 'turn'): TurnRequest {
   const { runId, seq, content } = body
   if (typeof runId !== 'string' || !RUN_ID.test(runId)) throw new HttpError(400, 'runId 格式错误')
   if (!Number.isInteger(seq) || (seq as number) < 1 || (seq as number) > 100_000) throw new HttpError(400, 'seq 格式错误')
-  if (typeof content !== 'string' || !content.trim() || content.length > MAX_CONTENT_CHARS) throw new HttpError(400, '本轮内容缺失或过长')
+  if (typeof content !== 'string' || !content.trim() || content.length > MAX_CONTENT_CHARS[kind]) throw new HttpError(400, '本轮内容缺失或过长')
   return { runId, seq: seq as number, content }
 }
 
 /**
- * 12 §8.1 and §8.4: send one round to the model behind the fixed prefix and write a receipt of the
- * response, so an uploaded run can prove its AI text came from here. Each (run, seq) is answered once.
+ * 12 §8.1 and §8.4: send one round (or the ending) to the model behind its fixed prefix and write a
+ * receipt of the response, so an uploaded run can prove its AI text came from here. Each (run, seq) is answered once.
  */
-export async function iselanTurn(model: IselanModel, receipts: ProfileStore, req: TurnRequest, now: number) {
+export async function iselanTurn(model: IselanModel, receipts: ProfileStore, req: TurnRequest, now: number, kind: CallKind = 'turn') {
   if (await receipts.receipt(req.runId, req.seq)) throw new HttpError(409, `第 ${req.seq} 条 AI 回应已经发出，请使用下一个序号`)
-  const reply = await model({ system: FIXED_PREFIX, content: req.content, maxTokens: CONFIG.cost.maxOutputTokens.turn })
+  const reply = await model({ system: PREFIX[kind], content: req.content, maxTokens: CONFIG.cost.maxOutputTokens[kind] })
   if (!(await receipts.putReceipt(req.runId, req.seq, await responseHash(reply.text), now))) {
     throw new HttpError(409, `第 ${req.seq} 条 AI 回应已经发出，请使用下一个序号`)
   }

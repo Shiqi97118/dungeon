@@ -6,8 +6,9 @@ import { MemoryProfileStore, type ProfileStore } from './profileStore.js'
 import { MemoryBudgetStore, type BudgetStore } from './budget.js'
 import { configureProfileRules } from './profile.js'
 import { judgeAchievements } from '../src/iselan/achievements/index.js'
+import { summarizeRun } from '../src/iselan/play/ending.js'
 
-configureProfileRules({ judge: judgeAchievements })
+configureProfileRules({ judge: judgeAchievements, summarize: summarizeRun })
 
 const g = globalThis as unknown as { __echoStore?: Store | null; __echoProfiles?: ProfileStore | null; __echoBudget?: BudgetStore | null }
 

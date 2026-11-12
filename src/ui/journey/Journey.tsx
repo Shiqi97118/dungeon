@@ -1,20 +1,21 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { sound } from '../../audio/sound'
 import { CONFIG } from '../../iselan/config'
-import type { DirectionId, OutcomeId, PlaceId } from '../../iselan/data'
+import type { OutcomeId, PlaceId } from '../../iselan/data'
 import { recordedResult, type InteractionRequest } from '../../iselan/interaction'
 import {
-  act, ARC_OUTCOMES, canWrapUp, chooseEnding, INTERACTIONS, interact, move, outcomeLabel, outcomeOpen, resolveArc, rewind, roll,
-  saveTable, SKILL_OF_STAT, snapshotOf, wrapUp, type Table,
+  act, adjudicate, ARC_OUTCOMES, canWrapUp, directionName, INTERACTIONS, interact, move, outcomeLabel, outcomeOpen, resolveArc, rewind, roll,
+  saveTable, SKILL_OF_STAT, snapshotOf, wrapUp, type EndingCall, type Table,
 } from '../../iselan/play'
 import type { ModelCall } from '../../iselan/ai'
+import EndingSummary from './EndingSummary'
 import EvidencePanel from '../interaction/EvidencePanel'
 import GesturePanel from '../interaction/GesturePanel'
 import Modal from '../interaction/Modal'
 import { useInteraction } from '../interaction/useInteraction'
 import Reader from '../reading/Reader'
 import WorldPanels from '../world/WorldPanels'
-import { directionName, GRAYPORT, pagesOf, statusLine } from './view'
+import { GRAYPORT, pagesOf, statusLine } from './view'
 
 export const JOURNEY_KEY = 'iselan-save'
 
@@ -49,7 +50,13 @@ function InteractionHost({ table, textId, instanceId, onSettled, onClose }: {
 }
 
 /** The solo Grayport run on the new engine: reader, the next choices, and the world beside it. */
-export default function Journey({ initial, model, aiLabel, onQuit }: { initial: Table; model: ModelCall | null; aiLabel: string; onQuit: () => void }) {
+export default function Journey({ initial, models, aiLabel, onQuit }: {
+  initial: Table
+  models: { readonly turn: ModelCall; readonly ending: EndingCall } | null
+  aiLabel: string
+  onQuit: () => void
+}) {
+  const model = models?.turn ?? null
   const [table, setTable] = useState(initial)
   const [mark, setMark] = useState(() => initial.checkpoints.at(-1)?.screens ?? 0)
   const [busy, setBusy] = useState(false)
@@ -57,6 +64,7 @@ export default function Journey({ initial, model, aiLabel, onQuit }: { initial: 
   const [text, setText] = useState('')
   const [ix, setIx] = useState<{ textId: string; instanceId: string; from: number } | null>(null)
   const [showRewind, setShowRewind] = useState(false)
+  const [summary, setSummary] = useState(() => !!snapshotOf(initial).ending)
   const s = snapshotOf(table)
 
   useEffect(() => {
@@ -149,17 +157,14 @@ export default function Journey({ initial, model, aiLabel, onQuit }: { initial: 
       )}
       {p?.kind === 'ending' && (
         <div className="jy-check">
-          <p>故事走到了这里。最后，它会被记成——</p>
-          {p.candidates.map((d: DirectionId) => (
-            <button key={d} className="btn primary" disabled={busy} onClick={() => void run((t) => chooseEnding(t, d))}>{directionName(d)}</button>
-          ))}
+          <p>故事走到了这里。世界可能朝这些方向倾斜：{p.candidates.map(directionName).join('、')}。</p>
+          <p className="small dim">{models ? '主持人会读完你们这一路做过的事，写下结局。' : '离线主持会按你们这一路的倾向写下结局。'}</p>
+          <button className="btn primary" disabled={busy} onClick={() => void run((t) => adjudicate(t, models?.ending ?? null))}>{busy ? '主持人正在落笔……' : '写下结局'}</button>
         </div>
       )}
-      {ended && s.ending && (
+      {ended && (
         <div className="jy-check">
-          <p>结局：{directionName(s.ending.directionId)}{s.ending.variant === 'settle' ? '（落地）' : s.ending.variant === 'wander' ? '（远行）' : ''}</p>
-          <p className="small dim">完整的结局页还在做；可以回退到之前的任一决定重新选择。</p>
-          <button className="btn" onClick={onQuit}>回到标题</button>
+          <button className="btn primary" onClick={() => setSummary(true)}>查看结局</button>
         </div>
       )}
     </>
@@ -177,10 +182,16 @@ export default function Journey({ initial, model, aiLabel, onQuit }: { initial: 
         </div>
       </header>
       {err && <div className="jy-error" role="alert">{err}<button className="link" onClick={() => setErr(null)}>知道了</button></div>}
-      <main className="rd-layout">
-        <Reader screens={batch} fallbackImage="GH-01" end={end} />
-        <WorldPanels s={s} />
-      </main>
+      {ended && summary ? (
+        <main className="jy-ending-main">
+          <EndingSummary table={table} onReread={() => setSummary(false)} onRewind={() => setShowRewind(true)} onQuit={onQuit} />
+        </main>
+      ) : (
+        <main className="rd-layout">
+          <Reader screens={batch} fallbackImage="GH-01" end={end} />
+          <WorldPanels s={s} />
+        </main>
+      )}
       {ix && <InteractionHost table={table} textId={ix.textId} instanceId={ix.instanceId} onSettled={onSettled} onClose={() => { if (table.screens.length > ix.from) setMark(ix.from); setIx(null) }} />}
       {showRewind && (
         <Modal title="回到之前的决定" onClose={() => setShowRewind(false)}>
@@ -188,7 +199,7 @@ export default function Journey({ initial, model, aiLabel, onQuit }: { initial: 
           <ol className="jy-rewind">
             {[...table.checkpoints].reverse().map((c) => (
               <li key={c.id}>
-                <button className="btn ghost small" onClick={() => { setShowRewind(false); setMark(c.screens); setTable(rewind(table, c.id)) }}>
+                <button className="btn ghost small" onClick={() => { setShowRewind(false); setSummary(false); setMark(c.screens); setTable(rewind(table, c.id)) }}>
                   第 {c.round} 轮 · {c.label}
                 </button>
               </li>

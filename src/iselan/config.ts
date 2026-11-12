@@ -88,6 +88,8 @@ export const CONFIG = {
     maxEmotions: 1,
     suggestionCount: 3,
     parseRetries: 1,
+    /** Offline host: a social action towards someone present is checked at this difficulty, ±1 attitude on the result. */
+    offlineCheckDifficulty: 12,
   },
 
   /** 12 §9: daily AI spend. Prices in 元 per million tokens; check DeepSeek's price page before changing. */

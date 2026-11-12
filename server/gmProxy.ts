@@ -47,13 +47,14 @@ export async function handleGm(request: Request): Promise<Response> {
       if (!(await spendGlobalAi(store, ident))) throw out()
     }
 
-    if (body.op === 'iselan_turn') {
-      const model = iselanModel()
-      const modelId = iselanModelId()
+    if (body.op === 'iselan_turn' || body.op === 'iselan_ending') {
+      const kind = body.op === 'iselan_ending' ? 'ending' : 'turn'
+      const model = iselanModel(kind)
+      const modelId = iselanModelId(kind)
       const receipts = p.profiles?.()
       if (!model || !modelId) throw new HttpError(503, '内置 AI 主持人未配置')
       if (!receipts || !budget) throw new HttpError(503, '内置 AI 主持人暂不可用')
-      const req = cleanTurnRequest(body)
+      const req = cleanTurnRequest(body, kind)
       const limits = CONFIG.cost.dailyLimits
       const counts = [
         { key: `user:${ident.sub}`, limit: limits.user },
@@ -61,11 +62,11 @@ export async function handleGm(request: Request): Promise<Response> {
         { key: `room:${req.runId}`, limit: limits.room },
       ]
       const metered: IselanModel = (r) =>
-        guarded(budget, { stage: ident.stage, kind: 'turn', model: modelId, now: Date.now(), counts, inputTokens: estimateTokens(r.system) + estimateTokens(r.content) }, async () => {
+        guarded(budget, { stage: ident.stage, kind, model: modelId, now: Date.now(), counts, inputTokens: estimateTokens(r.system) + estimateTokens(r.content) }, async () => {
           const reply = await model(r)
           return { value: reply, usage: reply.usage }
         })
-      const { seq, text } = await iselanTurn(metered, receipts, req, Date.now())
+      const { seq, text } = await iselanTurn(metered, receipts, req, Date.now(), kind)
       return json({ seq, text })
     }
 
