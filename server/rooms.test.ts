@@ -1,167 +1,193 @@
-import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { PREGENS, makeCharacter } from '../src/game/data/characters.js'
-import { availableActions } from '../src/game/engine.js'
-import type { GameState } from '../src/game/types.js'
-import './node.js'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { applyOp, canWrapUp, packTable, snapshotOf, unpackTable, wrapUp, type Table } from '../src/iselan/play/index.js'
+import { fakeModel } from '../src/iselan/ai/fake.js'
+import { anonymousViewer, setPlatform } from './platform.js'
+import { configureProfileRules } from './profile.js'
+import { judgeAchievements } from '../src/iselan/achievements/index.js'
+import { MemoryProfileStore } from './profileStore.js'
+import { MemoryBudgetStore } from './budget.js'
+import { setIselanModel } from './iselanTurn.js'
 import { handleRoom } from './rooms.js'
+import { MemoryStore } from './store.js'
 
 type Json = Record<string, unknown>
-const g = globalThis as unknown as { __echoStore?: unknown }
+interface Seat { code: string; pid: string; token: string; uid: string }
 
-async function call(method: 'GET' | 'POST', body?: Json, token?: string, query = ''): Promise<{ status: number; data: Json }> {
-  const headers: Record<string, string> = { 'x-echo-client': '1', 'content-type': 'application/json' }
+async function call(uid: string, method: 'GET' | 'POST', body?: Json, token?: string, query = ''): Promise<{ status: number; data: Json }> {
+  const headers: Record<string, string> = { 'x-echo-client': '1', 'x-echo-uid': uid, 'content-type': 'application/json' }
   if (token) headers['x-echo-token'] = token
   const res = await handleRoom(new Request(`http://localhost/api/room${query}`, { method, headers, body: body ? JSON.stringify(body) : undefined }))
   return { status: res.status, data: (await res.json()) as Json }
 }
 
-const party = ['helan', 'qilan'].map((id) => makeCharacter(PREGENS.find((p) => p.id === id)!))
-const solo = party.slice(0, 1)
+const post = (s: Seat, body: Json) => call(s.uid, 'POST', { code: s.code, ...body }, s.token)
 
-async function poll(code: string, token: string) {
-  const r = await call('GET', undefined, token, `?code=${code}&v=0`)
-  return r.data.room as { state: GameState; players: { id: string; seats: string[] }[]; hostId: string; status: string }
+interface RoomJson { status: string; hostId: string; hook: string; players: { id: string; pick: string | null; seat: string | null }[]; table: string | null; chat: { text: string }[] }
+async function poll(s: Seat) {
+  const r = await call(s.uid, 'GET', undefined, s.token, `?code=${s.code}&v=0`)
+  return r.data.room as RoomJson
+}
+async function tableOf(s: Seat): Promise<Table> {
+  const raw = (await poll(s)).table
+  const r = await unpackTable(raw!)
+  if (r.status !== 'ok') throw new Error('table did not load')
+  return r.table
 }
 
-function suite(name: string, url: string | undefined) {
-  describe.skipIf(name === 'postgres' && !url)(`room api (${name})`, () => {
-    beforeEach(() => {
-      g.__echoStore = undefined
-      if (url) process.env.DATABASE_URL = url
-      else delete process.env.DATABASE_URL
-    })
-    afterEach(() => { vi.useRealTimers() })
-    afterAll(() => { delete process.env.DATABASE_URL; g.__echoStore = undefined })
+async function open(names: readonly string[]): Promise<Seat[]> {
+  const uid = (i: number) => `device-room-${i}-0123456789`
+  const created = await call(uid(0), 'POST', { op: 'create', name: names[0], hook: 'memento' })
+  expect(created.status).toBe(200)
+  const host = { ...(created.data as Omit<Seat, 'uid'>), uid: uid(0) }
+  const out = [host]
+  for (let i = 1; i < names.length; i++) {
+    const j = await call(uid(i), 'POST', { op: 'join', code: host.code, name: names[i] })
+    out.push({ ...(j.data as Omit<Seat, 'uid'>), uid: uid(i) })
+  }
+  for (const s of out) await poll(s)
+  return out
+}
 
-    it('creates, joins, claims seats and enforces turn order', async () => {
-      const info = await call('GET')
-      expect(info.data.online).toBe(true)
+const reply = JSON.stringify({ narration: '罗莎擦着杯子，抬眼看了你一会儿。「雨这么大，你不是来喝酒的。」', intents: ['交谈'], emotion: '谨慎', suggestions: ['问她潮井的事'], proposals: [] })
 
-      const bad = await handleRoom(new Request('http://localhost/api/room', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"op":"create"}' }))
-      expect(bad.status).toBe(403)
-
-      const created = await call('POST', { op: 'create', name: '阿岚', party, safety: {} })
-      expect(created.status).toBe(200)
-      const host = created.data as { code: string; pid: string; token: string }
-      const joined = (await call('POST', { op: 'join', code: host.code, name: '小周' })).data as { pid: string; token: string }
-      expect(joined.pid).not.toBe(host.pid)
-
-      expect((await call('GET', undefined, 'nope', `?code=${host.code}`)).status).toBe(403)
-
-      let room = await poll(host.code, host.token)
-      expect(room.status).toBe('lobby')
-      expect(room.state.turns?.activeId).toBeTruthy()
-      expect(JSON.stringify(room)).not.toContain('tokenHash')
-
-      expect((await call('POST', { op: 'claim', code: host.code, charId: 'helan' }, host.token)).status).toBe(200)
-      expect((await call('POST', { op: 'claim', code: host.code, charId: 'helan' }, joined.token)).status).toBe(409)
-      expect((await call('POST', { op: 'claim', code: host.code, charId: 'qilan' }, joined.token)).status).toBe(200)
-      expect((await call('POST', { op: 'start', code: host.code }, joined.token)).status).toBe(403)
-      expect((await call('POST', { op: 'start', code: host.code }, host.token)).status).toBe(200)
-      await poll(host.code, joined.token)
-
-      room = await poll(host.code, host.token)
-      const active = room.state.turns!.activeId!
-      const [mine, theirs] = active === 'helan' ? [host, joined] : [joined, host]
-      const wrong = await call('POST', { op: 'act', code: host.code, intent: { t: 'perform', id: 'gate_enter' } }, theirs.token)
-      expect(wrong.status).toBe(403)
-      const right = await call('POST', { op: 'act', code: host.code, intent: { t: 'perform', id: 'gate_enter' } }, mine.token)
-      expect(right.status).toBe(200)
-
-      room = await poll(host.code, host.token)
-      expect(room.state.location).toBe('A')
-      const next = room.state.turns!.activeId!
-      const nextSeat = next === 'helan' ? host : joined
-      const rollAct = availableActions(room.state).find((a) => a.roll)!
-      const start = await call('POST', { op: 'act', code: host.code, intent: { t: 'rollStart', kind: 'action', id: rollAct.id, actorId: next, boost: { kind: 'none' } } }, nextSeat.token)
-      expect(start.status).toBe(200)
-      room = await poll(host.code, host.token)
-      expect(room.state.rolling?.dice.length).toBe(2)
-      expect((await call('POST', { op: 'act', code: host.code, intent: { t: 'rollCommit' } }, nextSeat.token)).status).toBe(200)
-
-      expect((await call('POST', { op: 'chat', code: host.code, text: '先去宿舍？' }, joined.token)).status).toBe(200)
-      const after = (await call('GET', undefined, host.token, `?code=${host.code}&v=0`)).data.room as { chat: { text: string }[] }
-      expect(after.chat.some((m) => m.text === '先去宿舍？')).toBe(true)
-
-      expect((await call('POST', { op: 'leave', code: host.code }, host.token)).status).toBe(200)
-      const final = await poll(host.code, joined.token)
-      expect(final.hostId).toBe(joined.pid)
-    })
-
-    it('runs free actions through the server-side AI host', async () => {
-      const realFetch = globalThis.fetch
-      process.env.OPENAI_API_KEY = 'test-key'
-      process.env.GM_BASE_URL = 'https://api.deepseek.com'
-      let calls = 0
-      globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
-        const u = String(input)
-        if (!u.startsWith('https://api.deepseek.com/')) return realFetch(input, init)
-        calls++
-        expect(JSON.parse(String(init?.body)).messages[1].content).toContain('当前行动者')
-        const content = JSON.stringify({ narration: '井壁回应了你的敲击。「再敲一次。」', roll: null, effects: { pressure: 0, conds: [{ charId: 'helan', id: 'focus' }] } })
-        return new Response(JSON.stringify({ choices: [{ message: { content } }] }), { status: 200, headers: { 'content-type': 'application/json' } })
-      }) as typeof fetch
-      try {
-        const host = (await call('POST', { op: 'create', name: 'x', party: solo, safety: {} })).data as { code: string; token: string }
-        await call('POST', { op: 'claim', code: host.code, charId: 'helan' }, host.token)
-        await call('POST', { op: 'start', code: host.code }, host.token)
-        const before = await call('GET', undefined, host.token, `?code=${host.code}&v=0`)
-        const r = await call('POST', { op: 'act', code: host.code, intent: { t: 'free', text: '敲击井壁' } }, host.token)
-        expect(r.status).toBe(200)
-        expect(r.data.version).toBe((before.data.version as number) + 2)
-        const room = await poll(host.code, host.token)
-        expect(calls).toBe(1)
-        expect(room.state.log.some((e) => e.kind === 'ai' && e.text.includes('井壁'))).toBe(true)
-        expect(room.state.thinking).toBeNull()
-      } finally {
-        globalThis.fetch = realFetch
-        delete process.env.OPENAI_API_KEY
-        delete process.env.GM_BASE_URL
-      }
-    })
-
-    it('gives each player one seat and lets companions play the rest at a watchable pace', async () => {
-      vi.useFakeTimers({ toFake: ['Date'] })
-      const host = (await call('POST', { op: 'create', name: '阿岚', party, safety: {} })).data as { code: string; pid: string; token: string }
-      await call('POST', { op: 'claim', code: host.code, charId: 'qilan' }, host.token)
-      await call('POST', { op: 'claim', code: host.code, charId: 'helan' }, host.token)
-      let room = await poll(host.code, host.token)
-      expect(room.players[0].seats).toEqual(['helan'])
-      await call('POST', { op: 'start', code: host.code }, host.token)
-
-      let mine = 0
-      let theirs = 0
-      for (let i = 0; i < 120 && theirs < 4; i++) {
-        vi.setSystemTime(Date.now() + 3000)
-        room = await poll(host.code, host.token)
-        const st = room.state
-        if (st.turns?.activeId === 'qilan' && !st.queue.length && !st.rolling) {
-          expect((await call('POST', { op: 'act', code: host.code, intent: { t: 'pass' } }, host.token)).status).toBe(403)
-        }
-        if (st.turns?.activeId === 'helan' && !st.queue.length && !st.rolling && !st.rollReq) {
-          const r = await call('POST', { op: 'act', code: host.code, intent: { t: 'pass' } }, host.token)
-          expect(r.status).toBe(200)
-          mine++
-        }
-        theirs = st.log.filter((e) => e.kind === 'player' && e.speaker === '祁岚').length
-      }
-      expect(mine).toBeGreaterThan(0)
-      expect(theirs).toBeGreaterThan(0)
-
-      const before = await call('GET', undefined, host.token, `?code=${host.code}&v=0`)
-      const again = await call('GET', undefined, host.token, `?code=${host.code}&v=0`)
-      expect(again.data.version).toBe(before.data.version)
-    })
-
-    it('rejects malformed parties and intents', async () => {
-      expect((await call('POST', { op: 'create', name: 'x', party: [], safety: {} })).status).toBe(400)
-      const host = (await call('POST', { op: 'create', name: 'x', party, safety: {} })).data as { code: string; token: string }
-      await call('POST', { op: 'start', code: host.code }, host.token)
-      expect((await call('POST', { op: 'act', code: host.code, intent: { t: 'ai', narration: 'hack' } }, host.token)).status).toBe(400)
-      expect((await call('POST', { op: 'act', code: host.code, intent: { t: 'roll', id: 'x', dice: [6, 6] } }, host.token)).status).toBe(400)
-    })
+describe('room api on the new engine', () => {
+  let calls: string[]
+  let store: MemoryStore
+  beforeEach(() => {
+    calls = []
+    store = new MemoryStore()
+    const profiles = new MemoryProfileStore()
+    const budget = new MemoryBudgetStore()
+    setPlatform({ viewer: async (r) => anonymousViewer(r), store: () => store, profiles: () => profiles, budget: () => budget })
+    setIselanModel(null)
+    configureProfileRules({ judge: judgeAchievements })
   })
-}
+  afterEach(() => setIselanModel(undefined))
 
-suite('memory', undefined)
-suite('postgres', process.env.TEST_DATABASE_URL)
+  it('picks characters in the lobby, starts one shared table and keeps turn order', async () => {
+    const [host, guest] = await open(['阿岚', '小周'])
+    const room = await poll(host)
+    expect(room.status).toBe('lobby')
+    expect(JSON.stringify(room)).not.toContain('tokenHash')
+
+    expect((await post(host, { op: 'pick', pick: 'helan' })).status).toBe(200)
+    expect((await post(guest, { op: 'pick', pick: 'helan' })).status).toBe(409)
+    expect((await post(guest, { op: 'pick', pick: 'nobody' })).status).toBe(400)
+    expect((await post(guest, { op: 'pick', pick: 'qilan' })).status).toBe(200)
+    expect((await post(guest, { op: 'hook', hook: 'guild_contract' })).status).toBe(403)
+    expect((await post(host, { op: 'hook', hook: 'guild_contract' })).status).toBe(200)
+    expect((await post(guest, { op: 'start' })).status).toBe(403)
+    expect((await post(host, { op: 'start' })).status).toBe(200)
+    expect((await post(guest, { op: 'pick', pick: 'fuhe' })).status).toBe(409)
+
+    const started = await poll(host)
+    expect(started.players.map((p) => p.seat)).toEqual(['s1', 's2'])
+    let t = await tableOf(host)
+    expect(t.party.map((m) => m.actorId)).toEqual(['helan', 'qilan'])
+    expect(snapshotOf(t).mode).toBe('online')
+    expect(t.responses).toEqual([])
+
+    const act = { op: 'play', seatId: 's1', action: { t: 'act', text: '四处看看墙上的寻人启事' } }
+    expect((await post(guest, act)).status).toBe(403)
+    expect((await post(guest, { ...act, seatId: 's2' })).status).toBe(403)
+    expect((await post(host, act)).status).toBe(200)
+    t = await tableOf(guest)
+    expect(t.turn).toBe(1)
+    expect((await post(host, act)).status).toBe(403)
+    expect((await post(guest, { op: 'play', seatId: 's2', action: { t: 'move', placeId: 'gray_harbor.docks' } })).status).toBe(200)
+    t = await tableOf(host)
+    expect(snapshotOf(t).location?.placeId).toBe('gray_harbor.docks')
+
+    expect((await post(guest, { op: 'chat', text: '去码头看看' })).status).toBe(200)
+    expect((await poll(host)).chat.some((m) => m.text === '去码头看看')).toBe(true)
+  })
+
+  it('rewinds only when everyone at the table agrees', async () => {
+    const [host, guest] = await open(['阿岚', '小周'])
+    await post(host, { op: 'pick', pick: 'helan' })
+    await post(guest, { op: 'pick', pick: 'qilan' })
+    await post(host, { op: 'start' })
+    await post(host, { op: 'play', seatId: 's1', action: { t: 'act', text: '四处看看' } })
+    let t = await tableOf(host)
+    const cp = t.checkpoints[0].id
+    expect((await post(host, { op: 'play', seatId: 's1', action: { t: 'rewind', checkpointId: cp } })).status).toBe(409)
+    expect((await post(host, { op: 'play', seatId: 's1', action: { t: 'propose', checkpointId: cp } })).status).toBe(200)
+    expect((await post(guest, { op: 'play', seatId: 's2', action: { t: 'act', text: '趁机溜走' } })).status).toBe(409)
+    expect((await post(guest, { op: 'play', seatId: 's1', action: { t: 'vote', agree: true } })).status).toBe(403)
+    expect((await post(guest, { op: 'play', seatId: 's2', action: { t: 'vote', agree: true } })).status).toBe(200)
+    t = await tableOf(host)
+    expect(t.pending).toBeNull()
+    expect(t.turn).toBe(0)
+    expect(t.checkpoints).toEqual([])
+  })
+
+  it('empties the seat of a player who leaves and skips its turns', async () => {
+    const [host, guest] = await open(['阿岚', '小周'])
+    await post(host, { op: 'pick', pick: 'helan' })
+    await post(guest, { op: 'pick', pick: 'qilan' })
+    await post(host, { op: 'start' })
+    await post(host, { op: 'play', seatId: 's1', action: { t: 'act', text: '四处看看' } })
+    expect((await post(guest, { op: 'leave' })).status).toBe(200)
+    const t = await tableOf(host)
+    expect(snapshotOf(t).seats.s2.controller).toBe('empty')
+    expect(t.turn).toBe(0)
+    expect((await post(host, { op: 'play', seatId: 's1', action: { t: 'act', text: '再看看' } })).status).toBe(200)
+    expect((await tableOf(host)).turn).toBe(0)
+  })
+
+  it('lets watchers follow but not act', async () => {
+    const [host, watcher] = await open(['阿岚', '旁观者'])
+    await post(host, { op: 'pick', pick: 'helan' })
+    await post(host, { op: 'start' })
+    expect((await poll(watcher)).table).toBeTruthy()
+    expect((await post(watcher, { op: 'play', seatId: 's1', action: { t: 'act', text: '看看' } })).status).toBe(403)
+  })
+
+  it('runs free actions through the server-side AI host with receipts', async () => {
+    setIselanModel(async (req) => {
+      calls.push(req.content)
+      return { text: reply, model: 'fake', usage: null }
+    })
+    const [host] = await open(['阿岚'])
+    await post(host, { op: 'pick', pick: 'helan' })
+    await post(host, { op: 'start' })
+    expect((await post(host, { op: 'play', seatId: 's1', action: { t: 'act', text: '问罗莎最近的怪事' } })).status).toBe(200)
+    expect(calls).toHaveLength(1)
+    const t = await tableOf(host)
+    expect(t.screens.some((s) => s.paragraphs.some((p) => p.includes('你不是来喝酒的')))).toBe(true)
+    expect(t.events.some((e) => e.sourceIntentId === 'ai:1')).toBe(true)
+  })
+
+  it('judges the run for each player when the ending is written', async () => {
+    const [host] = await open(['阿岚'])
+    await post(host, { op: 'pick', pick: 'helan' })
+    await post(host, { op: 'start' })
+    // Play the run to its wrap-up outside the room, then seat it in the room's row.
+    const row = (await store.get('production', host.code))!
+    let t = await unpackTable(row.data.table!, true).then((r) => (r.status === 'ok' ? r.table : null))
+    const model = fakeModel({ seed: 'room', strayRate: 0 })
+    const places = ['gray_harbor.seven_lamps', 'gray_harbor.low_tide_street', 'gray_harbor.council_hall', 'gray_harbor.docks'] as const
+    for (let i = 0; t && !canWrapUp(t) && i < 300; i++) {
+      if (t.pending?.kind === 'interaction') t = (await applyOp(t, { t: 'interact', req: { requestId: `ix-${i}`, instanceId: t.pending.instanceId, action: 'skip', params: { inspected: [] } } }, 's1', { turn: model, ending: null })).table
+      else if (t.pending?.kind === 'check') t = (await applyOp(t, { t: 'roll' }, 's1', { turn: model, ending: null })).table
+      else if (i % 5 === 4) t = (await applyOp(t, { t: 'move', placeId: places[(i / 5 | 0) % 4] === snapshotOf(t).location?.placeId ? places[((i / 5 | 0) + 1) % 4] : places[(i / 5 | 0) % 4] }, 's1', { turn: model, ending: null })).table
+      else t = (await applyOp(t, { t: 'act', text: `${['四处打听消息', '帮人搬货', '和老板讨价还价', '把见闻记下来', '偷偷跟着一个陌生人'][i % 5]}（第 ${i} 件小事）` }, 's1', { turn: model, ending: null })).table
+    }
+    expect(t && canWrapUp(t)).toBe(true)
+    await store.update('production', host.code, row.version, { ...row.data, table: await packTable(wrapUp(t!)) })
+    expect((await post(host, { op: 'play', seatId: 's1', action: { t: 'adjudicate' } })).status).toBe(200)
+    const room = (await call(host.uid, 'GET', undefined, host.token, `?code=${host.code}&v=0`)).data.room as { judged: Record<string, string[]> }
+    expect(room.judged[host.pid]).toContain('ST01')
+    expect(snapshotOf(await tableOf(host)).ending).toBeTruthy()
+  })
+
+  it('rejects malformed ops', async () => {
+    const [host] = await open(['阿岚'])
+    expect((await post(host, { op: 'start' })).status).toBe(400)
+    await post(host, { op: 'pick', pick: 'helan' })
+    await post(host, { op: 'start' })
+    for (const action of [{ t: 'ai', narration: 'hack' }, { t: 'move', placeId: 'nowhere' }, { t: 'act', text: '' }, { t: 'resolve', outcomes: ['everything'] }]) {
+      expect((await post(host, { op: 'play', seatId: 's1', action })).status).toBe(400)
+    }
+  })
+})

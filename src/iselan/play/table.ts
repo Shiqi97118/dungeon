@@ -8,7 +8,7 @@ import { TEXTS, VOCAB } from '../data'
 import { commitIntent, draft, reduceEvents, type AnyDraft, type AnyEvent, type Snapshot } from '../events'
 import { BANQUET, interactionInstanceId, LEDGER, settleInteraction, type InteractionDef, type InteractionRequest, type InteractionResult } from '../interaction'
 import { allHold, evalCond, type SceneContext } from '../rules/conditions'
-import { choiceDraft, r1Met, type ActionInput } from '../rules/choices'
+import { choiceDraft, r1Met, setControllerDraft, type ActionInput } from '../rules/choices'
 import { d01Variant, endingCandidates } from '../rules/directions'
 import { openingDrafts } from '../rules/initial'
 import { wrapUpDrafts } from '../rules/progress'
@@ -280,8 +280,12 @@ function finishIntent(t: Table, b: Builder, intentId: string, o: TableOptions, e
 }
 
 /** Moves to the next seat; once everyone has acted, the next round starts with its clock check. */
+/** 02 R1c: a seat whose player left keeps its character in the story but takes no more turns. */
+const seated = (t: Table, i: number) => snapshotOf(t).seats[t.party[i].seatId]?.controller !== 'empty'
+
 function advance(t: Table, o: TableOptions): Table {
-  const turn = t.turn + 1
+  let turn = t.turn + 1
+  while (turn < t.party.length && !seated(t, turn)) turn += 1
   if (turn < t.party.length) return { ...t, turn }
   const s = snapshotOf(t)
   const r = startRound(s, s.round + 1)
@@ -290,7 +294,31 @@ function advance(t: Table, o: TableOptions): Table {
   b.add([...ambienceDrafts(round), ...banquetDrafts(round)])
   ruleTexts(b, r.texts)
   const out = commit({ ...t, turn: 0 }, `round:${round.round}`, [...r.drafts, ...b.drafts], o)
-  return { ...out, screens: [...out.screens, ...b.screens], gaps: [...out.gaps, ...b.gaps] }
+  const first = out.party.findIndex((_, i) => seated(out, i))
+  return { ...out, turn: Math.max(0, first), screens: [...out.screens, ...b.screens], gaps: [...out.gaps, ...b.gaps] }
+}
+
+/**
+ * A player left an online table (02 R1c): the seat empties, stops counting for R1 and for rewind
+ * votes, and its turns are skipped. A roll or step it still owed passes to whoever acts next.
+ */
+export function leaveSeat(t0: Table, seatId: string, o: TableOptions = {}): Table {
+  const s = snapshotOf(t0)
+  const m = t0.party.find((x) => x.seatId === seatId)
+  const d = setControllerDraft(s, seatId, 'empty')
+  if (!m || !d || s.seats[seatId]?.controller === 'empty') return t0
+  const { id, t } = nextId(t0, 'leave')
+  const left = commit(t, id, [d], o)
+  const note: Screen = { id: `${id}#1`, kind: 'note', paragraphs: [`${m.name}离开了这张桌子。`, '故事里的这个角色暂时退到幕后，其余的人接着走下去。'] }
+  const out = { ...left, screens: [...left.screens, note] }
+  if (out.pending?.kind === 'rewind') {
+    const p = out.pending
+    const agreed = p.agreed.filter((x) => x !== seatId)
+    if (p.by === seatId || !agreed.length) return { ...out, pending: p.resume }
+    if (rewindVoters(out).every((x) => agreed.includes(x))) return applyRewind({ ...out, pending: p.resume }, p.checkpointId)
+    return { ...out, pending: { ...p, agreed } }
+  }
+  return !out.pending && out.party[out.turn]?.seatId === seatId ? advance(out, o) : out
 }
 
 export interface OpenInput {
@@ -479,7 +507,7 @@ export const canWrapUp = (t: Table) => r1Met(snapshotOf(t)) && snapshotOf(t).act
 
 export function wrapUp(t0: Table, o: TableOptions = {}): Table {
   assertFree(t0)
-  const drafts = wrapUpDrafts(snapshotOf(t0), t0.party.filter((m) => m.controller === 'human').map((m) => m.seatId))
+  const drafts = wrapUpDrafts(snapshotOf(t0), rewindVoters(t0))
   if (!drafts) throw new Error('还不能收束：每位玩家都要先做满足够的选择')
   const t = checkpoint(t0, '收束故事')
   const s = snapshotOf(t)

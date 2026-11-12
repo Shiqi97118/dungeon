@@ -7,7 +7,7 @@ import { choiceDraft } from '../src/iselan/rules/index.js'
 import { TestRun } from '../src/iselan/rules/testRun.js'
 import { createSave, serializeSave } from '../src/iselan/save.js'
 import { anonymousViewer, setPlatform } from './platform.js'
-import { configureProfileRules, handleProfile, judgeRoomRun } from './profile.js'
+import { configureProfileRules, handleProfile, judgeRoomRun, recordRoomRun } from './profile.js'
 import { MemoryProfileStore, SqlProfileStore, type ProfileStore } from './profileStore.js'
 import { sqliteD1 } from './sqliteD1.js'
 
@@ -122,6 +122,16 @@ function suite(name: string, make: () => ProfileStore) {
       expect(await judgeRoomRun(store, profileA, 'room-1', events, ['helan'])).toEqual({ earned: ['ST01', 'RE01'], unlocked: [] })
       expect((await me(UID_A)).unlocks.map((u) => u.achievementId).sort()).toEqual(['RE01', 'ST01'])
       expect((await gallery(UID_B)).v1Unlocked).toBe(2)
+    })
+
+    it('联机局结束时房间为每位玩家记下这一局：档案里有记录，没有浏览器编号的不记', async () => {
+      const events = withRunId('room-3', grayportRun().events)
+      const r = await recordRoomRun(store, { stage: 'production', sub: `anon:${UID_A}`, name: '阿岚', seatId: 's1' }, 'room-3', events, ['helan'])
+      expect(r?.earned.length).toBeGreaterThan(0)
+      const view = await me(UID_A)
+      expect(view.runs.map((x) => [x.runId, x.verified])).toEqual([['room-3:s1', true]])
+      expect(view.unlocks.length).toBe(r?.unlocked.length)
+      expect(await recordRoomRun(store, { stage: 'production', sub: 'ip:1.2.3.4', name: '路人', seatId: 's2' }, 'room-3', events, ['qilan'])).toBeNull()
     })
 
     it('联机局的个人成就只给行动的那位角色；队伍成就人人都有', async () => {

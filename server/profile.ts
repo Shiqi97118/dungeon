@@ -124,6 +124,27 @@ export async function judgeRoomRun(store: ProfileStore, profileId: string, runId
   return unlockEarned(store, profileId, runId, reduceEvents(runId, events), events, now, actorIds)
 }
 
+/**
+ * At the end of an online run: judge it for one player and keep the run in their history. Run
+ * records are one per profile, so each seat gets its own record id. Null when the player has no
+ * browser id to own a profile.
+ */
+export async function recordRoomRun(store: ProfileStore, player: { readonly stage: string; readonly sub: string; readonly name: string; readonly seatId: string }, runId: string, events: readonly AnyEvent[], actorIds: readonly string[], now = Date.now()) {
+  if (player.sub.startsWith('ip:')) return null
+  const dev = await sha256Hex(`${player.stage}\n${player.sub}`)
+  let profile = await store.profileByDevice(dev)
+  if (!profile) {
+    profile = { id: randomId(16), displayName: cleanName(player.name) || '旅人', createdAt: now }
+    await store.createProfile(profile, dev)
+  }
+  const s = reduceEvents(runId, events)
+  const result = await unlockEarned(store, profile.id, runId, s, events, now, actorIds)
+  if (s.ending) {
+    await store.putRun(profile.id, { runId: `${runId}:${player.seatId}`, directionId: s.ending.directionId, ...rules.summarize(s, events), endedAt: now, verified: true })
+  }
+  return result
+}
+
 async function uploadRun(store: ProfileStore, profile: Profile, body: Record<string, unknown>, now: number): Promise<UploadOutcome & { earned: readonly string[] }> {
   const { save, snapshot: s } = soloSave(body.save)
   const owner = await store.runOwner(save.runId)

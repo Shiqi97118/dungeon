@@ -32,3 +32,24 @@ export function loadTable(raw: string): TableLoad {
   const table = { ...(v as unknown as Omit<Table, 'runId' | 'events' | 'responses'>), runId: r.save.runId, events: r.save.events, responses: r.save.aiResponses ?? [] }
   return { status: 'ok', table }
 }
+
+const toBase64 = (bytes: Uint8Array) => {
+  let s = ''
+  for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000))
+  return btoa(s)
+}
+
+/** A shared table as gzip in base64: a long run is mostly repeated text and packs about twentyfold. */
+export async function packTable(t: Table): Promise<string> {
+  const stream = new Blob([saveTable(t)]).stream().pipeThrough(new CompressionStream('gzip'))
+  return toBase64(new Uint8Array(await new Response(stream).arrayBuffer()))
+}
+
+/** `trusted` skips replaying the log for checks: only for a table the server packed itself. */
+export async function unpackTable(packed: string, trusted = false): Promise<TableLoad> {
+  const bytes = Uint8Array.from(atob(packed), (c) => c.charCodeAt(0))
+  const raw = await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).text()
+  if (!trusted) return loadTable(raw)
+  const save = JSON.parse(raw) as SaveFile
+  return { status: 'ok', table: { ...(save.table as unknown as Omit<Table, 'runId' | 'events' | 'responses'>), runId: save.runId, events: save.events, responses: save.aiResponses ?? [] } }
+}

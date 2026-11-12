@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ApiError, api, type RoomView, type Seat } from './api'
-import { AI, controllerOf, type Seating } from '../game/companion'
 
 export interface RoomConn {
   room: RoomView | null
@@ -69,22 +68,4 @@ export const ONLINE_MS = 45_000
 
 export function isOnline(presence: Record<string, number>, pid: string, skew: number) {
   return (presence[pid] ?? 0) > Date.now() + skew - ONLINE_MS
-}
-
-export function roomSeating(room: RoomView, presence: Record<string, number>, skew: number): Seating {
-  return {
-    owner: (charId) => room.players.find((p) => p.seats.includes(charId))?.id,
-    online: (pid) => isOnline(presence, pid, skew),
-  }
-}
-
-/** Mirrors the server's seat-control rule so the UI only offers moves the server will accept. */
-export function canControl(seat: Seating, pid: string, charId: string | null) {
-  return !charId || controllerOf(seat, charId) === pid
-}
-
-export function controllerName(room: RoomView, seat: Seating, charId: string | null) {
-  if (!charId) return undefined
-  const c = controllerOf(seat, charId)
-  return c === AI ? 'AI 同伴' : room.players.find((p) => p.id === c)?.name
 }

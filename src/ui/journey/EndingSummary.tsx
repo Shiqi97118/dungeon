@@ -1,17 +1,27 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { CatalogView } from '../../iselan/achievements/types'
-import { axesOf, chronicleOf, directionName, snapshotOf, tableSaveFile, type Table } from '../../iselan/play'
-import { profileApi } from '../../net/profile'
+import { axesOf, chronicleOf, directionName, snapshotOf, type Table } from '../../iselan/play'
 import { AchievementGallery } from '../achievement/AchievementGallery'
 import { EndingProgress } from '../achievement/EndingProgress'
 
-type Upload =
-  | { readonly state: 'sending' }
-  | { readonly state: 'done'; readonly view: CatalogView; readonly earned: readonly string[]; readonly unverified: string | null }
-  | { readonly state: 'failed'; readonly message: string }
+/** What the profile now holds for this run; `unverified` says why a solo upload unlocked nothing. */
+export interface RunRecordView {
+  readonly view: CatalogView
+  readonly earned: readonly string[]
+  readonly unverified: string | null
+}
+
+type Upload = { readonly state: 'sending' } | ({ readonly state: 'done' } & RunRecordView) | { readonly state: 'failed'; readonly message: string }
 
 /** 06 §6 and 02 §8: the three axes, the chronicle, and what this run earned. */
-export default function EndingSummary({ table, onReread, onRewind, onQuit }: { table: Table; onReread: () => void; onRewind: () => void; onQuit: () => void }) {
+export default function EndingSummary({ table, record, onReread, onRewind, onQuit }: {
+  table: Table
+  /** Solo uploads the run for judging; online the room has already judged it. */
+  record: () => Promise<RunRecordView>
+  onReread: () => void
+  onRewind: () => void
+  onQuit: () => void
+}) {
   const s = snapshotOf(table)
   const axes = useMemo(() => axesOf(s, table.party), [s, table.party])
   const chronicle = useMemo(() => chronicleOf(table.events), [table.events])
@@ -21,13 +31,13 @@ export default function EndingSummary({ table, onReread, onRewind, onQuit }: { t
 
   const send = () => {
     setUpload({ state: 'sending' })
-    profileApi.uploadRun(tableSaveFile(table)).then(
-      (r) => setUpload({ state: 'done', view: r.achievements, earned: r.earned, unverified: r.verified ? null : r.reason }),
+    record().then(
+      (r) => setUpload({ state: 'done', ...r }),
       (e: Error) => setUpload({ state: 'failed', message: e.message }),
     )
   }
   // Again after a rewind and a new ending: the server replaces this run's record, unlocks stay once per profile.
-  useEffect(send, [table.events])
+  useEffect(send, [table.events, record])
 
   return (
     <section className="jy-ending" aria-labelledby="jy-ending-title">
